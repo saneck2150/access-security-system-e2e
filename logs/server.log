@@ -1,0 +1,7 @@
+2025-10-29 22:53:58,402 - INFO - Server started on 127.0.0.1:8888
+2025-10-29 22:54:15,965 - INFO - New connection from ('127.0.0.1', 38254)
+2025-10-29 22:54:15,966 - INFO - Received ID: 123
+2025-10-29 22:54:15,970 - INFO - ID 123 not found in database: Access Denied
+2025-10-29 22:54:15,970 - INFO - Response: Access Denied
+2025-10-29 22:54:15,970 - INFO - Connection closed
+2025-10-30 08:03:51,732 - INFO - Server started on 127.0.0.1:8888
