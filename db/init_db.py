@@ -1,23 +1,23 @@
 import sqlite3
+from pathlib import Path
 
-# Create or connect to the database
-conn = sqlite3.connect("logs/access_control.db")
-cursor = conn.cursor()
+ROOT = Path(__file__).resolve().parents[1]
 
-# Create a table for storing identification codes
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS employees (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    employee_id TEXT UNIQUE NOT NULL
-)
-''')
+DB_DIR = ROOT / "logs"
+DB_DIR.mkdir(parents=True, exist_ok=True)  
 
-# Insert some test employee IDs
-test_ids = [("12345",), ("67890",), ("ABCDE",)]
+DB_PATH = DB_DIR / "access_control.db"
 
-cursor.executemany("INSERT OR IGNORE INTO employees (employee_id) VALUES (?)", test_ids)
+with sqlite3.connect(DB_PATH.as_posix()) as conn:
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS employees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id TEXT UNIQUE NOT NULL
+        )
+    """)
+    test_ids = [("12345",), ("67890",), ("ABCDE",)]
+    cur.executemany("INSERT OR IGNORE INTO employees (employee_id) VALUES (?)", test_ids)
+    conn.commit()
 
-conn.commit()
-conn.close()
-
-print("Database initialized successfully.")
+print(f"Database initialized successfully at {DB_PATH}")
