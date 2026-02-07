@@ -1,0 +1,3 @@
+add_executable(engine_sqlite_test engine_sqlite_test.cpp)
+target_link_libraries(engine_sqlite_test PRIVATE access_decision access_storage GTest::gtest_main sodium)
+add_test(NAME engine_sqlite_test COMMAND engine_sqlite_test)
