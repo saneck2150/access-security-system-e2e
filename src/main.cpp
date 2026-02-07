@@ -1,5 +1,6 @@
 #include <crypto_lib/secure_aead.hpp>
 #include <protocol_lib/packet.hpp>
+#include <config_loader/config.hpp>
 
 #include <sodium.h>
 

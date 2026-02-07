@@ -3,8 +3,11 @@
 namespace access_core {
 
 HandleResult handle_frame(
-    std::span<const uint8_t> frame_bytes, crypto_lib::aead::SecureAead& server_aead,
-    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replay_by_reader) {
+    std::span<const uint8_t> frame_bytes,
+    crypto_lib::aead::SecureAead& server_aead,
+    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replay_by_reader,
+    const HandleFrameConfig& cfg) {
+
     HandleResult out;
 
     protocol::frame::Frame f;
@@ -18,14 +21,22 @@ HandleResult handle_frame(
 
     out.header = f.header;
 
-    auto& window =
-        replay_by_reader.try_emplace(f.header.reader_id, protocol::replay::ReplayWindow(256))
-            .first->second;
+    protocol::replay::ReplayWindow* window_ptr = nullptr;
 
-    if (window.contains(f.header.seq)) {
-        out.allow = false;
-        out.reason = "replay";
-        return out;
+    if (cfg.anti_replay_enabled) {
+        const size_t win = (cfg.replay_window_size == 0) ? 1 : cfg.replay_window_size;
+
+        auto& window =
+            replay_by_reader.try_emplace(f.header.reader_id, protocol::replay::ReplayWindow(win))
+                .first->second;
+
+        window_ptr = &window;
+
+        if (window.contains(f.header.seq)) {
+            out.allow = false;
+            out.reason = "replay";
+            return out;
+        }
     }
 
     const auto aad_vec = f.header.to_bytes();
@@ -39,7 +50,9 @@ HandleResult handle_frame(
         out.allow = true;
         out.reason = "ok";
 
-        window.remember(f.header.seq);
+        if (cfg.anti_replay_enabled && window_ptr) {
+            window_ptr->remember(f.header.seq);
+        }
         return out;
     } catch (...) {
         out.allow = false;
@@ -47,5 +60,6 @@ HandleResult handle_frame(
         return out;
     }
 }
+
 
 }  // namespace access_core

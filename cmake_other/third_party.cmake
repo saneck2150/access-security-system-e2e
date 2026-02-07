@@ -23,3 +23,11 @@ FetchContent_Declare(nlohmann
   SOURCE_DIR     "${CMAKE_SOURCE_DIR}/third_party/nlohmann"
 )
 FetchContent_MakeAvailable(nlohmann)
+
+set(YAML_CPP_INSTALL_DIR "${CMAKE_SOURCE_DIR}/third_party/yaml-cpp")
+FetchContent_Declare(yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG        yaml-cpp-0.9.0
+  SOURCE_DIR     "${CMAKE_SOURCE_DIR}/third_party/yaml-cpp"
+)
+FetchContent_MakeAvailable(yaml-cpp)

@@ -13,6 +13,11 @@
 
 namespace access_core {
 
+struct HandleFrameConfig {
+    bool anti_replay_enabled = true;
+    size_t replay_window_size = 256; 
+};
+
 struct HandleResult {
     bool allow = false;
     std::string reason;
@@ -21,7 +26,17 @@ struct HandleResult {
 };
 
 HandleResult handle_frame(
-    std::span<const uint8_t> frame_bytes, crypto_lib::aead::SecureAead& server_aead,
-    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replay_by_reader);
+    std::span<const uint8_t> frame_bytes,
+    crypto_lib::aead::SecureAead& server_aead,
+    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replay_by_reader,
+    const HandleFrameConfig& cfg);
+
+///@todo remove legacy handle_frame variant after tests/compatibility are done
+inline HandleResult handle_frame(
+    std::span<const uint8_t> frame_bytes,
+    crypto_lib::aead::SecureAead& server_aead,
+    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replay_by_reader) {
+    return handle_frame(frame_bytes, server_aead, replay_by_reader, HandleFrameConfig{});
+}
 
 }  // namespace access_core
