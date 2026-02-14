@@ -37,4 +37,4 @@ class InMemoryAuditLog final : public IAuditLog {
     std::vector<AuditEvent> _events;
 };
 
-}  // namespace access_decision
+} // namespace access_decision

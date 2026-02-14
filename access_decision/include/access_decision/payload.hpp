@@ -1,14 +1,15 @@
 #pragma once
+
 #include <string>
 #include <string_view>
 
 namespace access_decision {
 
 struct AccessRequest {
-    std::string card_id;
+    std::string cardId;
     std::string action;
 };
 
-AccessRequest parse_access_request_json(std::string_view json_text);
+AccessRequest parseAccessRequestJson(std::string_view jsonText);
 
-}  // namespace access_decision
+} // namespace access_decision

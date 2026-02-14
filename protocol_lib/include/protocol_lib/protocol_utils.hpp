@@ -11,4 +11,4 @@ void put_le64(uint64_t v, std::vector<uint8_t>& out);
 uint32_t get_le32(const uint8_t* p);
 uint64_t get_le64(const uint8_t* p);
 
-}  // namespace protocol::utils
+} // namespace protocol::utils

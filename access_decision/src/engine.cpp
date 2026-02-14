@@ -1,90 +1,93 @@
 #include "access_decision/engine.hpp"
-#include "access_decision/payload.hpp"
 
 #include <string_view>
 
 namespace access_decision {
 
-DecisionResult DecisionEngine::handle_frame_bytes(
-    std::span<const uint8_t> frame_bytes, crypto_lib::aead::SecureAead& server_aead,
-    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replay_by_reader) {
-    const auto hf = access_core::handle_frame(frame_bytes, server_aead, replay_by_reader);
+DecisionEngine::DecisionEngine(const IAccessStore* store, CardIdHasher hasher, IAuditLog* audit,
+                               access_core::FrameHandlerConfig frameHandlerCfg)
+    : _store(store), _hasher(std::move(hasher)), _audit(audit), _frameHandlerCfg(frameHandlerCfg) {}
 
-    DecisionResult out;
-    if (!hf.allow) {
-        out.allow = false;
-        out.reason = hf.reason;
-
-        if (_audit) {
-            AuditEvent ev;
-            ev.ts_unix_ms = hf.header.ts_unix_ms;
-            ev.reader_id = hf.header.reader_id;
-            ev.door_id = hf.header.door_id;
-            ev.seq = hf.header.seq;
-            ev.allow = false;
-            ev.reason = out.reason;
-            _audit->append(std::move(ev));
-        }
-        return out;
+void DecisionEngine::logAuditEvent(const protocol::packet::Header& header, bool allow,
+                                   const std::string& reason, const std::string& cardId,
+                                   const std::string& action) {
+    if (!_audit) {
+        return;
     }
-
-    std::string_view sv(reinterpret_cast<const char*>(hf.plaintext.data()), hf.plaintext.size());
-
-    AccessRequest req;
-    try {
-        req = parse_access_request_json(sv);
-    } catch (...) {
-        out.allow = false;
-        out.reason = "bad_payload";
-
-        if (_audit) {
-            AuditEvent ev;
-            ev.ts_unix_ms = hf.header.ts_unix_ms;
-            ev.reader_id = hf.header.reader_id;
-            ev.door_id = hf.header.door_id;
-            ev.seq = hf.header.seq;
-            ev.allow = false;
-            ev.reason = out.reason;
-            _audit->append(std::move(ev));
-        }
-        return out;
-    }
-
-    if (req.action != "open") {
-        out.allow = false;
-        out.reason = "bad_action";
-    } else if (!_store) {
-        out.allow = false;
-        out.reason = "no_store";
-    } else {
-        const auto card_hmac = _hasher.hmac_hex(req.card_id);
-        const auto role_opt = _store->role_for_card_hmac(card_hmac);
-
-        if (!role_opt.has_value()) {
-            out.allow = false;
-            out.reason = "unknown_card";
-        } else if (!_store->is_allowed(hf.header.door_id, *role_opt)) {
-            out.allow = false;
-            out.reason = "forbidden";
-        } else {
-            out.allow = true;
-            out.reason = "ok";
-        }
-
-        if (_audit) {
-            AuditEvent ev;
-            ev.ts_unix_ms = hf.header.ts_unix_ms;
-            ev.reader_id = hf.header.reader_id;
-            ev.door_id = hf.header.door_id;
-            ev.seq = hf.header.seq;
-            ev.allow = out.allow;
-            ev.reason = out.reason;
-            ev.card_id = card_hmac;
-            ev.action = req.action;
-            _audit->append(std::move(ev));
-        }
-    }
-    return out;
+    AuditEvent event;
+    event.ts_unix_ms = header.ts_unix_ms;
+    event.reader_id = header.reader_id;
+    event.door_id = header.door_id;
+    event.seq = header.seq;
+    event.allow = allow;
+    event.reason = reason;
+    event.card_id = cardId;
+    event.action = action;
+    _audit->append(std::move(event));
 }
 
-}  // namespace access_decision
+DecisionResult DecisionEngine::createDeniedResult(const std::string& reason) {
+    DecisionResult result;
+    result.allow = false;
+    result.reason = reason;
+    return result;
+}
+
+DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult& frameResult,
+                                                 const AccessRequest& request) {
+    DecisionResult result;
+
+    if (request.action != "open") {
+        result = createDeniedResult("bad_action");
+        logAuditEvent(frameResult.header, false, result.reason);
+        return result;
+    }
+
+    if (!_store) {
+        result = createDeniedResult("no_store");
+        logAuditEvent(frameResult.header, false, result.reason);
+        return result;
+    }
+
+    const auto cardHmac = _hasher.hmacHex(request.cardId);
+    const auto roleOpt = _store->roleForCardHmac(cardHmac);
+
+    if (!roleOpt.has_value()) {
+        result = createDeniedResult("unknown_card");
+    } else if (!_store->isAllowed(frameResult.header.door_id, *roleOpt)) {
+        result = createDeniedResult("forbidden");
+    } else {
+        result.allow = true;
+        result.reason = "ok";
+    }
+
+    logAuditEvent(frameResult.header, result.allow, result.reason, cardHmac, request.action);
+    return result;
+}
+
+DecisionResult DecisionEngine::handleFrameBytes(
+    std::span<const uint8_t> frameBytes, crypto_lib::aead::SecureAead& serverAead,
+    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replayByReader) {
+    access_core::FrameHandler handler(serverAead, replayByReader, _frameHandlerCfg);
+    const auto frameResult = handler.handle(frameBytes);
+
+    if (!frameResult.allow) {
+        logAuditEvent(frameResult.header, false, frameResult.reason);
+        return createDeniedResult(frameResult.reason);
+    }
+
+    std::string_view plaintext(reinterpret_cast<const char*>(frameResult.plaintext.data()),
+                               frameResult.plaintext.size());
+
+    AccessRequest request;
+    try {
+        request = parseAccessRequestJson(plaintext);
+    } catch (...) {
+        logAuditEvent(frameResult.header, false, "bad_payload");
+        return createDeniedResult("bad_payload");
+    }
+
+    return checkAccessPolicy(frameResult, request);
+}
+
+} // namespace access_decision

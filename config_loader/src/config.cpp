@@ -1,23 +1,31 @@
 #include <config_loader/config.hpp>
 
-#include <yaml-cpp/yaml.h>
 #include <stdexcept>
 
 namespace config_loader {
 
-static size_t read_size_t(const YAML::Node& n, const char* key, size_t def) {
-    if (!n || !n[key]) return def;
-    return n[key].as<size_t>();
+template <typename T>
+T readValue(const YAML::Node& node, const char* key, T defaultValue) {
+    if (!node || !node[key]) {
+        return defaultValue;
+    }
+    return node[key].as<T>();
 }
 
-static bool read_bool(const YAML::Node& n, const char* key, bool def) {
-    if (!n || !n[key]) return def;
-    return n[key].as<bool>();
+access_core::FrameHandlerConfig readValuesFromNode(const YAML::Node& node) {
+    access_core::FrameHandlerConfig cfg;
+    cfg.antiReplayEnabled = readValue<bool>(node, "anti_replay_enabled", cfg.antiReplayEnabled);
+    cfg.replayWindowSize = readValue<size_t>(node, "replay_window_size", cfg.replayWindowSize);
+    cfg.maxCtLen = readValue<uint32_t>(node, "max_ct_len", cfg.maxCtLen);
+    cfg.maxSkewMs = readValue<uint64_t>(node, "max_skew_ms", cfg.maxSkewMs);
+
+    if (cfg.antiReplayEnabled && cfg.replayWindowSize == 0) {
+        throw std::runtime_error("config: replay_window_size must be > 0 when anti_replay_enabled");
+    }
+    return cfg;
 }
 
-Config load_from_yaml(const std::string& path) {
-    Config cfg;
-
+Config loadFromYaml(const std::string& path) {
     YAML::Node root;
     try {
         root = YAML::LoadFile(path);
@@ -25,16 +33,8 @@ Config load_from_yaml(const std::string& path) {
         throw std::runtime_error(std::string("config: failed to load yaml: ") + e.what());
     }
 
-    const auto hf = root["handle_frame"];
-    cfg.handle_frame.anti_replay_enabled =
-        read_bool(hf, "anti_replay_enabled", cfg.handle_frame.anti_replay_enabled);
-
-    cfg.handle_frame.replay_window_size =
-        read_size_t(hf, "replay_window_size", cfg.handle_frame.replay_window_size);
-
-    if (cfg.handle_frame.anti_replay_enabled && cfg.handle_frame.replay_window_size == 0) {
-    }
-
+    Config cfg;
+    cfg.frameHandler = readValuesFromNode(root["frame_handler"]);
     return cfg;
 }
 

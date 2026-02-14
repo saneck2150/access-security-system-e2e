@@ -17,4 +17,4 @@ struct Header {
     std::vector<uint8_t> to_bytes() const;
 };
 
-}  // namespace protocol::packet
+} // namespace protocol::packet

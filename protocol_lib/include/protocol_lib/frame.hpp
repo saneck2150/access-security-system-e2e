@@ -17,11 +17,12 @@ struct Frame {
     std::vector<uint8_t> ct{};
     Tag16 tag{};
 };
-
 std::vector<uint8_t> serialize(const Frame& f);
-Frame parse(std::span<const uint8_t> bytes);
 
-constexpr uint8_t kMagic[4] = {'A', 'S', '0', '1'};
-constexpr uint8_t kVersion = 1;
+Frame parseFrame(std::span<const uint8_t> bytes, uint32_t maxCtLen = 4096);
 
-}  // namespace protocol::frame
+const uint8_t kMagicSize = 4;
+const uint8_t kMagic[kMagicSize] = {'A', 'S', '0', '1'};
+const uint8_t kVersion = 1;
+
+} // namespace protocol::frame

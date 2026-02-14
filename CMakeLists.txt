@@ -21,6 +21,7 @@ add_subdirectory(access_core)
 add_subdirectory(access_decision)
 add_subdirectory(access_storage)
 add_subdirectory(config_loader)
+add_subdirectory(src/startup)
 
 add_executable(access_security src/main.cpp)
 
@@ -32,6 +33,7 @@ target_link_libraries(access_security PRIVATE
     access_storage
     access_decision
     config_loader
+    startup
     nlohmann_json::nlohmann_json
     yaml-cpp
 )

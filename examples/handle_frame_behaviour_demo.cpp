@@ -1,5 +1,5 @@
-#include <config_loader/config.hpp>
 #include <access_core/handle_frame.hpp>
+#include <config_loader/config.hpp>
 #include <crypto_lib/secure_aead.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
@@ -12,23 +12,21 @@
 #include <string>
 #include <unordered_map>
 
-static uint64_t now_unix_ms() {
+static uint64_t nowUnixMs() {
     using namespace std::chrono;
     return static_cast<uint64_t>(
         duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
 }
 
 int main(int argc, char** argv) {
-    const std::string cfg_path = "../config/access_security.yaml";
-
     if (sodium_init() < 0) {
-        std::cerr << "Failed to initialize libsodium\n";
-        return 1;
+        throw std::runtime_error("libsodium init failed");
     }
+    const std::string cfgPath = (argc > 1) ? argv[1] : "config/access_security.yaml";
 
     config_loader::Config cfg;
     try {
-        cfg = config_loader::load_from_yaml(cfg_path);
+        cfg = config_loader::loadFromYaml(cfgPath);
     } catch (const std::exception& e) {
         std::cerr << "Config load failed: " << e.what() << "\n";
         return 2;
@@ -43,21 +41,20 @@ int main(int argc, char** argv) {
     protocol::packet::Header header;
     header.reader_id = 123;
     header.door_id = 7;
-    header.ts_unix_ms = now_unix_ms();
+    header.ts_unix_ms = nowUnixMs();
     header.seq = 42;
 
-    header.nonce = reader.derive_nonce(header.seq);
+    header.nonce = reader.deriveNonce(header.seq);
 
-    const auto aad_vec = header.to_bytes();
-    const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
+    const auto aadVec = header.to_bytes();
+    const std::span<const uint8_t> aad(aadVec.data(), aadVec.size());
 
     const std::string plaintext = "card_id=CARD1;action=open";
 
-    auto cipher = reader.seal_with_seq(
+    auto cipher = reader.sealWithSeq(
         std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(plaintext.data()),
                                  plaintext.size()),
-        aad,
-        header.seq);
+        aad, header.seq);
 
     header.nonce = cipher.nonce;
 
@@ -69,13 +66,14 @@ int main(int argc, char** argv) {
 
     auto bytes = protocol::frame::serialize(fr);
 
-    std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
+    access_core::FrameHandler::ReplayWindowMap windows;
+    access_core::FrameHandler handler(server, windows, cfg.frameHandler);
 
-    auto r1 = access_core::handle_frame(bytes, server, windows, cfg.handle_frame);
-    std::cout << "handle_frame #1: " << r1.reason << "\n";
+    auto r1 = handler.handle(bytes);
+    std::cout << "FrameHandler #1: " << r1.reason << "\n";
 
-    auto r2 = access_core::handle_frame(bytes, server, windows, cfg.handle_frame);
-    std::cout << "handle_frame #2: " << r2.reason << "\n";
+    auto r2 = handler.handle(bytes);
+    std::cout << "FrameHandler #2: " << r2.reason << "\n";
 
     return 0;
 }

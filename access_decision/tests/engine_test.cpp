@@ -24,31 +24,33 @@ static uint64_t now_unix_ms() {
 
 class InMemoryStore final : public access_decision::IAccessStore {
   public:
-    void upsert_card(std::string card_hmac_hex, std::string role) {
-        _card_to_role[std::move(card_hmac_hex)] = std::move(role);
+    void upsertCard(std::string cardHmacHex, std::string role) {
+        _cardToRole[std::move(cardHmacHex)] = std::move(role);
     }
 
-    void allow_role(uint32_t door_id, std::string role) {
-        _door_allowed_roles[door_id].insert(std::move(role));
+    void allowRole(uint32_t doorId, std::string role) {
+        _doorAllowedRoles[doorId].insert(std::move(role));
     }
 
-    std::optional<std::string> role_for_card_hmac(std::string_view card_hmac_hex) const override {
-        auto it = _card_to_role.find(std::string(card_hmac_hex));
-        if (it == _card_to_role.end())
+    std::optional<std::string> roleForCardHmac(std::string_view cardHmacHex) const override {
+        auto it = _cardToRole.find(std::string(cardHmacHex));
+        if (it == _cardToRole.end()) {
             return std::nullopt;
+        }
         return it->second;
     }
 
-    bool is_allowed(uint32_t door_id, std::string_view role) const override {
-        auto it = _door_allowed_roles.find(door_id);
-        if (it == _door_allowed_roles.end())
+    bool isAllowed(uint32_t doorId, std::string_view role) const override {
+        auto it = _doorAllowedRoles.find(doorId);
+        if (it == _doorAllowedRoles.end()) {
             return false;
+        }
         return it->second.count(std::string(role)) != 0;
     }
 
   private:
-    std::unordered_map<std::string, std::string> _card_to_role;
-    std::unordered_map<uint32_t, std::unordered_set<std::string>> _door_allowed_roles;
+    std::unordered_map<std::string, std::string> _cardToRole;
+    std::unordered_map<uint32_t, std::unordered_set<std::string>> _doorAllowedRoles;
 };
 
 static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sender,
@@ -60,11 +62,11 @@ static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sende
     h.ts_unix_ms = now_unix_ms();
     h.seq = seq;
 
-    h.nonce = sender.derive_nonce(h.seq);
+    h.nonce = sender.deriveNonce(h.seq);
     const auto aad_vec = h.to_bytes();
     const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
 
-    const auto cipher = sender.seal_with_seq(
+    const auto cipher = sender.sealWithSeq(
         std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(json_payload.data()),
                                  json_payload.size()),
         aad, h.seq);
@@ -91,8 +93,8 @@ TEST(DecisionEngine, AllowOk) {
     access_decision::CardIdHasher hasher(pepper);
 
     InMemoryStore store;
-    store.upsert_card(hasher.hmac_hex("CARD1"), "employee");
-    store.allow_role(7, "employee");
+    store.upsertCard(hasher.hmacHex("CARD1"), "employee");
+    store.allowRole(7, "employee");
 
     access_decision::InMemoryAuditLog audit;
     access_decision::DecisionEngine engine(&store, hasher, &audit);
@@ -100,7 +102,7 @@ TEST(DecisionEngine, AllowOk) {
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
     const auto bytes = make_frame_bytes(sender, 1, 7, 42, R"({"card_id":"CARD1","action":"open"})");
-    const auto res = engine.handle_frame_bytes(bytes, server_aead, windows);
+    const auto res = engine.handleFrameBytes(bytes, server_aead, windows);
 
     EXPECT_TRUE(res.allow);
     EXPECT_EQ(res.reason, "ok");
@@ -121,18 +123,18 @@ TEST(DecisionEngine, ReplayDenied) {
     access_decision::CardIdHasher hasher(pepper);
 
     InMemoryStore store;
-    store.upsert_card(hasher.hmac_hex("CARD1"), "employee");
-    store.allow_role(7, "employee");
+    store.upsertCard(hasher.hmacHex("CARD1"), "employee");
+    store.allowRole(7, "employee");
 
     access_decision::DecisionEngine engine(&store, hasher, nullptr);
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
     const auto bytes = make_frame_bytes(sender, 1, 7, 42, R"({"card_id":"CARD1","action":"open"})");
 
-    const auto r1 = engine.handle_frame_bytes(bytes, server_aead, windows);
+    const auto r1 = engine.handleFrameBytes(bytes, server_aead, windows);
     EXPECT_TRUE(r1.allow);
 
-    const auto r2 = engine.handle_frame_bytes(bytes, server_aead, windows);
+    const auto r2 = engine.handleFrameBytes(bytes, server_aead, windows);
     EXPECT_FALSE(r2.allow);
     EXPECT_EQ(r2.reason, "replay");
 }
@@ -150,13 +152,13 @@ TEST(DecisionEngine, UnknownCardDenied) {
     access_decision::CardIdHasher hasher(pepper);
 
     InMemoryStore store;
-    store.allow_role(7, "employee");
+    store.allowRole(7, "employee");
 
     access_decision::DecisionEngine engine(&store, hasher, nullptr);
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
     const auto bytes = make_frame_bytes(sender, 1, 7, 42, R"({"card_id":"NOPE","action":"open"})");
-    const auto r = engine.handle_frame_bytes(bytes, server_aead, windows);
+    const auto r = engine.handleFrameBytes(bytes, server_aead, windows);
 
     EXPECT_FALSE(r.allow);
     EXPECT_EQ(r.reason, "unknown_card");

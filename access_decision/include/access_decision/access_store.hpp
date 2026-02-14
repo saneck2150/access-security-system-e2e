@@ -1,4 +1,5 @@
 #pragma once
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -10,9 +11,9 @@ class IAccessStore {
   public:
     virtual ~IAccessStore() = default;
 
-    virtual std::optional<std::string> role_for_card_hmac(std::string_view card_hmac_hex) const = 0;
+    virtual std::optional<std::string> roleForCardHmac(std::string_view cardHmacHex) const = 0;
 
-    virtual bool is_allowed(uint32_t door_id, std::string_view role) const = 0;
+    virtual bool isAllowed(uint32_t doorId, std::string_view role) const = 0;
 };
 
-}  // namespace access_decision
+} // namespace access_decision

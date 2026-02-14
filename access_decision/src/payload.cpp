@@ -6,35 +6,38 @@
 
 namespace access_decision {
 
-AccessRequest parse_access_request_json(std::string_view json_text) {
-    nlohmann::json j;
+AccessRequest parseAccessRequestJson(std::string_view jsonText) {
+    nlohmann::json json;
     try {
-        j = nlohmann::json::parse(json_text.begin(), json_text.end());
+        json = nlohmann::json::parse(jsonText.begin(), jsonText.end());
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("payload: invalid json: ") + e.what());
     }
 
-    if (!j.is_object())
+    if (!json.is_object()) {
         throw std::runtime_error("payload: json must be object");
+    }
 
-    AccessRequest r;
+    AccessRequest request;
 
-    if (!j.contains("card_id") || !j["card_id"].is_string()) {
+    if (!json.contains("card_id") || !json["card_id"].is_string()) {
         throw std::runtime_error("payload: missing/invalid card_id");
     }
-    if (!j.contains("action") || !j["action"].is_string()) {
+    if (!json.contains("action") || !json["action"].is_string()) {
         throw std::runtime_error("payload: missing/invalid action");
     }
 
-    r.card_id = j["card_id"].get<std::string>();
-    r.action = j["action"].get<std::string>();
+    request.cardId = json["card_id"].get<std::string>();
+    request.action = json["action"].get<std::string>();
 
-    if (r.card_id.empty())
+    if (request.cardId.empty()) {
         throw std::runtime_error("payload: card_id empty");
-    if (r.action.empty())
+    }
+    if (request.action.empty()) {
         throw std::runtime_error("payload: action empty");
+    }
 
-    return r;
+    return request;
 }
 
-}  // namespace access_decision
+} // namespace access_decision

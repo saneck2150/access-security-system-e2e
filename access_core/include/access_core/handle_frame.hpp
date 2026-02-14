@@ -1,5 +1,7 @@
 #pragma once
 
+#include "access_core/frame_decryptor.hpp"
+
 #include <crypto_lib/secure_aead.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
@@ -13,9 +15,11 @@
 
 namespace access_core {
 
-struct HandleFrameConfig {
-    bool anti_replay_enabled = true;
-    size_t replay_window_size = 256; 
+struct FrameHandlerConfig {
+    bool antiReplayEnabled = true;
+    size_t replayWindowSize = 256;
+    uint32_t maxCtLen = 4096;
+    uint64_t maxSkewMs = 0;
 };
 
 struct HandleResult {
@@ -25,18 +29,26 @@ struct HandleResult {
     protocol::packet::Header header;
 };
 
-HandleResult handle_frame(
-    std::span<const uint8_t> frame_bytes,
-    crypto_lib::aead::SecureAead& server_aead,
-    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replay_by_reader,
-    const HandleFrameConfig& cfg);
+class FrameHandler {
+  public:
+    using ReplayWindowMap = std::unordered_map<uint32_t, protocol::replay::ReplayWindow>;
 
-///@todo remove legacy handle_frame variant after tests/compatibility are done
-inline HandleResult handle_frame(
-    std::span<const uint8_t> frame_bytes,
-    crypto_lib::aead::SecureAead& server_aead,
-    std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replay_by_reader) {
-    return handle_frame(frame_bytes, server_aead, replay_by_reader, HandleFrameConfig{});
-}
+    FrameHandler(crypto_lib::aead::SecureAead& aead, ReplayWindowMap& replayWindows,
+                 FrameHandlerConfig config = {});
 
-}  // namespace access_core
+    HandleResult handle(std::span<const uint8_t> frameBytes);
+
+  private:
+    FrameDecryptor _decryptor;
+    ReplayWindowMap& _replayWindows;
+    FrameHandlerConfig _config;
+
+    HandleResult makeError(const std::string& reason,
+                           const protocol::packet::Header& header = {}) const;
+    protocol::replay::ReplayWindow* getOrCreateWindow(uint32_t readerId);
+    bool isReplay(protocol::replay::ReplayWindow* window, uint64_t seq) const;
+    HandleResult processDecryption(const protocol::frame::Frame& frame,
+                                   protocol::replay::ReplayWindow* window);
+};
+
+} // namespace access_core

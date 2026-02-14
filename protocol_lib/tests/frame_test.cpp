@@ -14,7 +14,7 @@ TEST(Frame, Roundtrip) {
     f.tag.v.fill(0xCD);
 
     const auto bytes = protocol::frame::serialize(f);
-    const auto g = protocol::frame::parse(bytes);
+    const auto g = protocol::frame::parseFrame(bytes, 4096);
 
     EXPECT_EQ(g.header.reader_id, f.header.reader_id);
     EXPECT_EQ(g.header.door_id, f.header.door_id);
@@ -32,5 +32,5 @@ TEST(Frame, TruncatedFails) {
 
     ASSERT_GT(bytes.size(), 10u);
     const auto cut = std::span<const uint8_t>(bytes.data(), bytes.size() - 10);
-    EXPECT_THROW((void)protocol::frame::parse(cut), std::runtime_error);
+    EXPECT_THROW((void)protocol::frame::parseFrame(cut, 4096), std::runtime_error);
 }

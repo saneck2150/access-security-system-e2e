@@ -29,19 +29,19 @@ TEST(AeadRoundtrip, RoundtripOk) {
     h.ts_unix_ms = now_unix_ms();
     h.seq = 42;
 
-    h.nonce = sender.derive_nonce(h.seq);
+    h.nonce = sender.deriveNonce(h.seq);
 
     const auto aad_vec = h.to_bytes();
     const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
 
     const std::string msg = "hello";
-    const auto cipher = sender.seal_with_seq(
+    const auto cipher = sender.sealWithSeq(
         std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad,
         h.seq);
 
     h.nonce = cipher.nonce;
 
-    const auto pt = receiver.open_with_nonce(cipher.ct, cipher.tag, aad, h.nonce);
+    const auto pt = receiver.openWithNonce(cipher.ct, cipher.tag, aad, h.nonce);
     EXPECT_EQ(std::string(reinterpret_cast<const char*>(pt.data()), pt.size()), msg);
 }
 
@@ -59,13 +59,13 @@ TEST(AeadRoundtrip, TamperDoorIdFails) {
     h.door_id = 2;
     h.ts_unix_ms = now_unix_ms();
     h.seq = 42;
-    h.nonce = sender.derive_nonce(h.seq);
+    h.nonce = sender.deriveNonce(h.seq);
 
     const auto aad_vec = h.to_bytes();
     const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
 
     const std::string msg = "hello";
-    const auto cipher = sender.seal_with_seq(
+    const auto cipher = sender.sealWithSeq(
         std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad,
         h.seq);
 
@@ -76,7 +76,7 @@ TEST(AeadRoundtrip, TamperDoorIdFails) {
     const auto aad2_vec = h2.to_bytes();
     const std::span<const uint8_t> aad2(aad2_vec.data(), aad2_vec.size());
 
-    EXPECT_THROW((void)receiver.open_with_nonce(cipher.ct, cipher.tag, aad2, h2.nonce),
+    EXPECT_THROW((void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce),
                  std::runtime_error);
 }
 
@@ -94,13 +94,13 @@ TEST(AeadRoundtrip, SameNonceDifferentAadFails) {
     h1.door_id = 20;
     h1.ts_unix_ms = now_unix_ms();
     h1.seq = 42;
-    h1.nonce = sender.derive_nonce(h1.seq);
+    h1.nonce = sender.deriveNonce(h1.seq);
 
     const auto aad1_vec = h1.to_bytes();
     const std::span<const uint8_t> aad1(aad1_vec.data(), aad1_vec.size());
 
     const std::string msg = "payload";
-    const auto cipher = sender.seal_with_seq(
+    const auto cipher = sender.sealWithSeq(
         std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad1,
         h1.seq);
 
@@ -111,6 +111,6 @@ TEST(AeadRoundtrip, SameNonceDifferentAadFails) {
     const auto aad2_vec = h2.to_bytes();
     const std::span<const uint8_t> aad2(aad2_vec.data(), aad2_vec.size());
 
-    EXPECT_THROW((void)receiver.open_with_nonce(cipher.ct, cipher.tag, aad2, h2.nonce),
+    EXPECT_THROW((void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce),
                  std::runtime_error);
 }

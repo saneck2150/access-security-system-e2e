@@ -3,8 +3,8 @@
 #include <access_decision/audit.hpp>
 #include <access_decision/card_id_hasher.hpp>
 #include <access_decision/engine.hpp>
-#include <protocol_lib/frame.hpp>
 #include <crypto_lib/secure_aead.hpp>
+#include <protocol_lib/frame.hpp>
 
 #include <gtest/gtest.h>
 #include <sodium.h>
@@ -27,11 +27,11 @@ static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sende
     h.ts_unix_ms = now_unix_ms();
     h.seq = seq;
 
-    h.nonce = sender.derive_nonce(h.seq);
+    h.nonce = sender.deriveNonce(h.seq);
     const auto aad_vec = h.to_bytes();
     const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
 
-    const auto cipher = sender.seal_with_seq(
+    const auto cipher = sender.sealWithSeq(
         std::span<const uint8_t>((const uint8_t*)json_payload.data(), json_payload.size()), aad,
         h.seq);
 
@@ -56,13 +56,13 @@ TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
     pepper.fill(0x11);
     access_decision::CardIdHasher hasher(pepper);
 
-    access_storage::SqliteAccessStore store("test.db");
-    store.init_schema();
+    access_storage::SqliteAccessStore store(":memory:");
+    store.initSchema();
 
-    const std::string card_id = "CARD1";
-    const std::string card_hmac = hasher.hmac_hex(card_id);
-    store.upsert_card_hmac(card_hmac, "employee");
-    store.allow_role(7, "employee");
+    const std::string cardId = "CARD1";
+    const std::string cardHmac = hasher.hmacHex(cardId);
+    store.upsertCardHmac(cardHmac, "employee");
+    store.allowRole(7, "employee");
 
     access_decision::InMemoryAuditLog audit;
     access_decision::DecisionEngine engine(&store, hasher, &audit);
@@ -70,7 +70,7 @@ TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
     const auto bytes = make_frame_bytes(sender, 1, 7, 42, R"({"card_id":"CARD1","action":"open"})");
-    const auto res = engine.handle_frame_bytes(bytes, server_aead, windows);
+    const auto res = engine.handleFrameBytes(bytes, server_aead, windows);
 
     EXPECT_TRUE(res.allow);
     EXPECT_EQ(res.reason, "ok");

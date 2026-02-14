@@ -20,4 +20,4 @@ void le64(uint64_t x, unsigned char out[8]) {
     }
 }
 
-}  // namespace crypto_lib::utils
+} // namespace crypto_lib::utils

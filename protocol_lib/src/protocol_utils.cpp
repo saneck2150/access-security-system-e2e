@@ -25,4 +25,4 @@ uint64_t get_le64(const uint8_t* p) {
     return v;
 }
 
-}  // namespace protocol::utils
+} // namespace protocol::utils

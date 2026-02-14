@@ -1,4 +1,5 @@
 #pragma once
+
 #include <array>
 #include <cstdint>
 #include <span>
@@ -7,15 +8,18 @@
 
 namespace access_decision {
 
-// HMAC-SHA-256(card_id) -> hex string (64 chars)
+constexpr uint8_t outputSize = 32;
+constexpr const char* kHexChars = "0123456789abcdef";
 class CardIdHasher {
   public:
-    explicit CardIdHasher(std::array<uint8_t, 32> pepper_key);
+    explicit CardIdHasher(std::array<uint8_t, outputSize> pepperKey);
 
-    std::string hmac_hex(std::string_view card_id) const;
+    std::string hmacHex(std::string_view cardId) const;
 
   private:
-    std::array<uint8_t, 32> _pepper{};
+    std::array<uint8_t, outputSize> _pepper{};
+
+    std::string toHex(const uint8_t* data, size_t length) const;
 };
 
-}  // namespace access_decision
+} // namespace access_decision

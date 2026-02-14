@@ -16,4 +16,4 @@ std::vector<uint8_t> Header::to_bytes() const {
     return out;
 }
 
-}  // namespace protocol::packet
+} // namespace protocol::packet

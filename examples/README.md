@@ -1,1 +1,1 @@
-Some of thise examples mayt use configs. But they are here only for demo purposes 
+Some of these examples may use configs. But they are here only for demo purposes. In production version we will not have this things 
