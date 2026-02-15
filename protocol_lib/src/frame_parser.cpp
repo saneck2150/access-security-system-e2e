@@ -67,7 +67,7 @@ void FrameParser::parseHeader() {
 
     _frame.header.key_version = protocol::utils::get_le32(_ptr);
     _ptr += _computedValues.kU32;
-    // @todo vrap into function/template
+    /// @todo wrap into function/template
 
     std::memcpy(_frame.header.nonce.data(), _ptr, _computedValues.kNonceSize);
     _ptr += _computedValues.kNonceSize;

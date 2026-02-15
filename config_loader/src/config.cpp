@@ -18,6 +18,8 @@ access_core::FrameHandlerConfig readValuesFromNode(const YAML::Node& node) {
     cfg.replayWindowSize = readValue<size_t>(node, "replay_window_size", cfg.replayWindowSize);
     cfg.maxCtLen = readValue<uint32_t>(node, "max_ct_len", cfg.maxCtLen);
     cfg.maxSkewMs = readValue<uint64_t>(node, "max_skew_ms", cfg.maxSkewMs);
+    cfg.allowPreviousKeyVersion = readValue<bool>(node, "allow_previous_key_version", cfg.allowPreviousKeyVersion);
+    cfg.enforceReaderDoorBinding = readValue<bool>(node, "enforce_reader_door_binding", cfg.enforceReaderDoorBinding);
 
     if (cfg.antiReplayEnabled && cfg.replayWindowSize == 0) {
         throw std::runtime_error("config: replay_window_size must be > 0 when anti_replay_enabled");

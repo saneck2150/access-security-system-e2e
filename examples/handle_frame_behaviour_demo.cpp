@@ -4,6 +4,7 @@
 #include <key_manager/key_manager.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
+#include <access_storage/sqlite_access_store.hpp>
 
 #include <sodium.h>
 
@@ -61,8 +62,13 @@ int main(int argc, char** argv) {
 
     auto bytes = protocol::frame::serialize(fr);
 
+    access_storage::SqliteAccessStore store(":memory:");
+    store.initSchema();
+    store.upsertReader(header.reader_id, header.key_version);
+    store.allowDoorForReader(header.reader_id, header.door_id);
+
     access_core::FrameHandler::ReplayWindowMap windows;
-    access_core::FrameHandler handler(km, windows, cfg.frameHandler);
+    access_core::FrameHandler handler(km, windows, &store, cfg.frameHandler);
 
     auto r1 = handler.handle(bytes);
     std::cout << "FrameHandler #1: " << r1.reason << "\n";

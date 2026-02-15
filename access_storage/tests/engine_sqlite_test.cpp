@@ -70,6 +70,8 @@ TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
     const std::string cardHmac = hasher.hmacHex(cardId);
     store.upsertCardHmac(cardHmac, "employee");
     store.allowRole(7, "employee");
+    store.upsertReader(readerId, keyVersion);  // Register reader with key version
+    store.allowDoorForReader(readerId, 7);
 
     access_decision::InMemoryAuditLog audit;
     access_decision::DecisionEngine engine(&store, hasher, &audit, keyManager);

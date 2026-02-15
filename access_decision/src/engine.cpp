@@ -74,7 +74,7 @@ DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult
 DecisionResult DecisionEngine::handleFrameBytes(
     std::span<const uint8_t> frameBytes,
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replayByReader) {
-    access_core::FrameHandler handler(_keyManager, replayByReader, _frameHandlerCfg);
+    access_core::FrameHandler handler(_keyManager, replayByReader, _store, _frameHandlerCfg);
     const auto frameResult = handler.handle(frameBytes);
 
     if (!frameResult.allow) {

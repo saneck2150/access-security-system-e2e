@@ -42,7 +42,10 @@ target_link_libraries(access_security PRIVATE
 if (ENABLE_DEMOS)
 add_executable(handle_frame_behaviour_demo examples/handle_frame_behaviour_demo.cpp)
 target_link_libraries(handle_frame_behaviour_demo PRIVATE 
+    access_core
+    access_storage
     config_loader
+    key_manager
     sodium 
     crypto_lib 
     protocol_lib

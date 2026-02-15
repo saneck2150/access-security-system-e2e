@@ -1,4 +1,5 @@
 #include <access_core/handle_frame.hpp>
+#include <access_decision/access_store.hpp>
 #include <crypto_lib/secure_aead.hpp>
 #include <key_manager/key_manager.hpp>
 #include <protocol_lib/frame.hpp>
@@ -24,10 +25,24 @@ static key_manager::KeyManager makeKm() {
     return key_manager::KeyManager(mk, {.currentKeyVersion = 1, .allowPreviousKeyVersion = true});
 }
 
+// Simple mock store for tests
+class MockStore final : public access_decision::IAccessStore {
+public:
+    std::optional<std::string> roleForCardHmac(std::string_view) const override {
+        return std::nullopt;
+    }
+    bool isAllowed(uint32_t, std::string_view) const override { return false; }
+    uint32_t currentKeyVersionForReader(uint32_t) const override { return 1; }
+    void upsertReader(uint32_t, uint32_t) override {}
+    bool isReaderAllowedDoor(uint32_t, uint32_t) const override { return true; }
+    void allowDoorForReader(uint32_t, uint32_t) override {}
+};
+
 TEST(FrameHandler, ReplayRejectedBeforeDecrypt) {
     ASSERT_GE(sodium_init(), 0);
 
     auto km = makeKm();
+    MockStore store;
 
     protocol::packet::Header h;
     h.reader_id = 1;
@@ -56,7 +71,7 @@ TEST(FrameHandler, ReplayRejectedBeforeDecrypt) {
     const auto bytesOk = protocol::frame::serialize(f);
 
     access_core::FrameHandler::ReplayWindowMap windows;
-    access_core::FrameHandler handler(km, windows);
+    access_core::FrameHandler handler(km, windows, &store);
 
     auto r1 = handler.handle(bytesOk);
     ASSERT_TRUE(r1.allow);
@@ -76,6 +91,7 @@ TEST(FrameHandler, DecryptFailDoesNotPoisonReplayWindow) {
     ASSERT_GE(sodium_init(), 0);
 
     auto km = makeKm();
+    MockStore store;
 
     access_core::FrameHandler::ReplayWindowMap windows;
 
@@ -89,7 +105,7 @@ TEST(FrameHandler, DecryptFailDoesNotPoisonReplayWindow) {
     crypto_lib::aead::SecureAead sender(km.deriveAeadKey(h.reader_id, h.key_version));
     h.nonce = sender.deriveNonce(h.seq);
 
-    access_core::FrameHandler handler(km, windows);
+    access_core::FrameHandler handler(km, windows, &store);
 
     const auto aadVec = h.to_bytes();
     const std::span<const uint8_t> aad(aadVec.data(), aadVec.size());

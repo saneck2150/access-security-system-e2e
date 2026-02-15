@@ -78,9 +78,8 @@ bool KeyManager::isAcceptedKeyVersion(uint32_t keyVersion) const {
 }
 
 crypto_lib::aead::AeadKey KeyManager::deriveAeadKey(uint32_t readerId, uint32_t keyVersion) const {
-    if (!isAcceptedKeyVersion(keyVersion)) {
-        throw std::invalid_argument("KeyManager: key_version not accepted");
-    }
+    // Key version validation is handled by FrameHandler via the store
+    // deriveAeadKey only derives keys; policy is enforced elsewhere
 
     std::array<uint8_t, 8> salt{};
     putLe32(readerId, &salt[0]);

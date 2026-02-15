@@ -30,7 +30,7 @@ static key_manager::KeyManager makeKm() {
     return key_manager::KeyManager(mk, {.currentKeyVersion = 1, .allowPreviousKeyVersion = true});
 }
 
-
+/// @todo move to mock store file
 class InMemoryStore final : public access_decision::IAccessStore {
   public:
     void upsertCard(std::string cardHmacHex, std::string role) {
@@ -57,9 +57,30 @@ class InMemoryStore final : public access_decision::IAccessStore {
         return it->second.count(std::string(role)) != 0;
     }
 
+    void allowDoorForReader(uint32_t reader_id, uint32_t door_id) override {
+    _readerDoors[reader_id].insert(door_id);
+    }
+
+    bool isReaderAllowedDoor(uint32_t reader_id, uint32_t door_id) const override {
+        auto it = _readerDoors.find(reader_id);
+        if (it == _readerDoors.end()) return false;
+        return it->second.count(door_id) != 0;
+    }
+
+    uint32_t currentKeyVersionForReader(uint32_t readerId) const override {
+        auto it = _readerKeyVer.find(readerId);
+        return (it == _readerKeyVer.end()) ? 0u : it->second;
+    }
+
+    void upsertReader(uint32_t readerId, uint32_t currentKeyVersion) override {
+        _readerKeyVer[readerId] = currentKeyVersion;
+    }
+
   private:
     std::unordered_map<std::string, std::string> _cardToRole;
     std::unordered_map<uint32_t, std::unordered_set<std::string>> _doorAllowedRoles;
+    std::unordered_map<uint32_t, uint32_t> _readerKeyVer;
+    std::unordered_map<uint32_t, std::unordered_set<uint32_t>> _readerDoors;
 };
 
 static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sender,
@@ -105,6 +126,8 @@ TEST(DecisionEngine, AllowOk) {
     InMemoryStore store;
     store.upsertCard(hasher.hmacHex("CARD1"), "employee");
     store.allowRole(7, "employee");
+    store.upsertReader(readerId, 1);
+    store.allowDoorForReader(readerId, 7);
 
     access_decision::InMemoryAuditLog audit;
     access_decision::DecisionEngine engine(&store, hasher, &audit, km, {});
@@ -135,6 +158,8 @@ TEST(DecisionEngine, ReplayDenied) {
     InMemoryStore store;
     store.upsertCard(hasher.hmacHex("CARD1"), "employee");
     store.allowRole(7, "employee");
+    store.upsertReader(readerId, 1);
+    store.allowDoorForReader(readerId, 7);
 
     access_decision::DecisionEngine engine(&store, hasher, nullptr, km, {});
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
@@ -164,6 +189,8 @@ TEST(DecisionEngine, UnknownCardDenied) {
 
     InMemoryStore store;
     store.allowRole(7, "employee");
+    store.upsertReader(readerId, 1);
+    store.allowDoorForReader(readerId, 7);
 
     access_decision::DecisionEngine engine(&store, hasher, nullptr, km, {});
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
@@ -174,4 +201,34 @@ TEST(DecisionEngine, UnknownCardDenied) {
 
     EXPECT_FALSE(r.allow);
     EXPECT_EQ(r.reason, "unknown_card");
+}
+
+TEST(DecisionEngine, ReaderDoorForbidden) {
+    ASSERT_GE(sodium_init(), 0);
+
+    auto km = makeKm();
+    constexpr uint32_t readerId = 1;
+
+    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, 1));
+
+    std::array<uint8_t, 32> pepper{};
+    pepper.fill(0x11);
+    access_decision::CardIdHasher hasher(pepper);
+
+    InMemoryStore store;
+    store.upsertReader(readerId, 1);
+    // store.allowDoorForReader(readerId, 7);  // intentionally missing
+
+    store.upsertCard(hasher.hmacHex("CARD1"), "employee");
+    store.allowRole(7, "employee");
+
+    access_decision::DecisionEngine engine(&store, hasher, nullptr, km, {});
+    std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
+
+    const auto bytes =
+        make_frame_bytes(sender, readerId, 7, 42, R"({"card_id":"CARD1","action":"open"})");
+
+    const auto r = engine.handleFrameBytes(bytes, windows);
+    EXPECT_FALSE(r.allow);
+    EXPECT_EQ(r.reason, "reader_door_forbidden");
 }

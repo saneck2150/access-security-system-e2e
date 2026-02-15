@@ -11,6 +11,7 @@ target_link_libraries(access_core PUBLIC
   crypto_lib
   protocol_lib
   key_manager
+  access_decision
 )
 
 if (TESTING_MODE)

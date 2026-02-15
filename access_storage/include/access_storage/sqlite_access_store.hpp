@@ -25,6 +25,10 @@ class SqliteAccessStore final : public access_decision::IAccessStore {
 
     std::optional<std::string> roleForCardHmac(std::string_view cardHmacHex) const override;
     bool isAllowed(uint32_t doorId, std::string_view role) const override;
+    uint32_t currentKeyVersionForReader(uint32_t reader_id) const override;
+    void upsertReader(uint32_t reader_id, uint32_t current_key_version) override;
+    bool isReaderAllowedDoor(uint32_t reader_id, uint32_t door_id) const override;
+    void allowDoorForReader(uint32_t reader_id, uint32_t door_id) override;
 
   private:
     sqlite3* _db = nullptr;
