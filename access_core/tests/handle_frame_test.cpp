@@ -1,8 +1,8 @@
 #include <access_core/handle_frame.hpp>
 #include <crypto_lib/secure_aead.hpp>
+#include <key_manager/key_manager.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
-#include <key_manager/key_manager.hpp>
 
 #include <gtest/gtest.h>
 #include <sodium.h>
@@ -19,7 +19,8 @@ static uint64_t nowUnixMs() {
 
 static key_manager::KeyManager makeKm() {
     key_manager::KeyManager::MasterKey mk{};
-    for (size_t i = 0; i < mk.size(); ++i) mk[i] = static_cast<uint8_t>(i);
+    for (size_t i = 0; i < mk.size(); ++i)
+        mk[i] = static_cast<uint8_t>(i);
     return key_manager::KeyManager(mk, {.currentKeyVersion = 1, .allowPreviousKeyVersion = true});
 }
 

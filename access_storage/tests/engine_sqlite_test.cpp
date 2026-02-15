@@ -19,9 +19,8 @@ static uint64_t nowUnixMs() {
         duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
 }
 
-static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
-                                           uint32_t readerId, uint32_t doorId, uint64_t seq,
-                                           uint32_t keyVersion,
+static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender, uint32_t readerId,
+                                           uint32_t doorId, uint64_t seq, uint32_t keyVersion,
                                            const std::string& jsonPayload) {
     protocol::packet::Header h;
     h.reader_id = readerId;
@@ -78,7 +77,7 @@ TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
     const auto bytes = makeFrameBytes(sender, readerId, 7, 42, keyVersion,
-                                       R"({"card_id":"CARD1","action":"open"})");
+                                      R"({"card_id":"CARD1","action":"open"})");
     const auto res = engine.handleFrameBytes(bytes, windows);
 
     EXPECT_TRUE(res.allow);

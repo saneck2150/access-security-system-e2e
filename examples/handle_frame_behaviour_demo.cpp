@@ -1,9 +1,9 @@
 #include <access_core/handle_frame.hpp>
 #include <config_loader/config.hpp>
 #include <crypto_lib/secure_aead.hpp>
+#include <key_manager/key_manager.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
-#include <key_manager/key_manager.hpp>
 
 #include <sodium.h>
 
@@ -20,14 +20,16 @@ static uint64_t nowUnixMs() {
 }
 
 int main(int argc, char** argv) {
-    if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
+    if (sodium_init() < 0)
+        throw std::runtime_error("libsodium init failed");
 
     const std::string cfgPath = (argc > 1) ? argv[1] : "../config/access_security.yaml";
     auto cfg = config_loader::loadFromYaml(cfgPath);
-    
+
     /// @note
-    // reader sending a frame to the server simulation 
-    // (in prod, reader and server are separate programs, here we do both sides in one place for demo)
+    // reader sending a frame to the server simulation
+    // (in prod, reader and server are separate programs, here we do both sides in one place for
+    // demo)
     auto master = key_manager::KeyManager::loadMasterKeyHexFile("../secrets/master_key.hex");
     key_manager::KeyManager km(master, {.currentKeyVersion = 1, .allowPreviousKeyVersion = true});
 

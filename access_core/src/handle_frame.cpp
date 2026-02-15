@@ -5,8 +5,7 @@
 namespace access_core {
 
 FrameHandler::FrameHandler(const key_manager::KeyManager& keyManager,
-                           ReplayWindowMap& replayWindows,
-                           FrameHandlerConfig config)
+                           ReplayWindowMap& replayWindows, FrameHandlerConfig config)
     : _keyManager(keyManager), _replayWindows(replayWindows), _config(config) {}
 
 HandleResult FrameHandler::handle(std::span<const uint8_t> frameBytes) {
@@ -51,9 +50,11 @@ HandleResult FrameHandler::tryDecrypt(const protocol::frame::Frame& frame,
     }
 
     try {
-        const auto aeadKey = _keyManager.deriveAeadKey(frame.header.reader_id, frame.header.key_version);
+        const auto aeadKey =
+            _keyManager.deriveAeadKey(frame.header.reader_id, frame.header.key_version);
         crypto_lib::aead::SecureAead aead(aeadKey);
-        access_core::FrameDecryptor decryptor(aead, access_core::DecryptorConfig{.maxSkewMs = _config.maxSkewMs});
+        access_core::FrameDecryptor decryptor(
+            aead, access_core::DecryptorConfig{.maxSkewMs = _config.maxSkewMs});
 
         auto dec = decryptor.decrypt(frame);
 
@@ -65,15 +66,13 @@ HandleResult FrameHandler::tryDecrypt(const protocol::frame::Frame& frame,
             window->remember(frame.header.seq);
         }
 
-        return HandleResult{
-            .allow = true,
-            .reason = "ok",
-            .plaintext = std::move(dec.plaintext),
-            .header = frame.header
-        };
+        return HandleResult{.allow = true,
+                            .reason = "ok",
+                            .plaintext = std::move(dec.plaintext),
+                            .header = frame.header};
     } catch (...) {
         return makeError("decrypt_failed", frame.header);
     }
 }
 
-}  // namespace access_core
+} // namespace access_core

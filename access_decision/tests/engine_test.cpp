@@ -4,8 +4,8 @@
 #include "access_decision/card_id_hasher.hpp"
 
 #include <crypto_lib/secure_aead.hpp>
-#include <protocol_lib/frame.hpp>
 #include <key_manager/key_manager.hpp>
+#include <protocol_lib/frame.hpp>
 
 #include <gtest/gtest.h>
 #include <sodium.h>
@@ -25,7 +25,8 @@ static uint64_t now_unix_ms() {
 
 static key_manager::KeyManager makeKm() {
     key_manager::KeyManager::MasterKey mk{};
-    for (size_t i = 0; i < mk.size(); ++i) mk[i] = static_cast<uint8_t>(i);
+    for (size_t i = 0; i < mk.size(); ++i)
+        mk[i] = static_cast<uint8_t>(i);
     return key_manager::KeyManager(mk, {.currentKeyVersion = 1, .allowPreviousKeyVersion = true});
 }
 
@@ -110,7 +111,8 @@ TEST(DecisionEngine, AllowOk) {
 
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
-    const auto bytes = make_frame_bytes(sender, readerId, 7, 42, R"({"card_id":"CARD1","action":"open"})");
+    const auto bytes =
+        make_frame_bytes(sender, readerId, 7, 42, R"({"card_id":"CARD1","action":"open"})");
     const auto res = engine.handleFrameBytes(bytes, windows);
 
     EXPECT_TRUE(res.allow);
@@ -137,7 +139,8 @@ TEST(DecisionEngine, ReplayDenied) {
     access_decision::DecisionEngine engine(&store, hasher, nullptr, km, {});
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
-    const auto bytes = make_frame_bytes(sender, readerId, 7, 42, R"({"card_id":"CARD1","action":"open"})");
+    const auto bytes =
+        make_frame_bytes(sender, readerId, 7, 42, R"({"card_id":"CARD1","action":"open"})");
 
     const auto r1 = engine.handleFrameBytes(bytes, windows);
     EXPECT_TRUE(r1.allow);
@@ -165,7 +168,8 @@ TEST(DecisionEngine, UnknownCardDenied) {
     access_decision::DecisionEngine engine(&store, hasher, nullptr, km, {});
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
-    const auto bytes = make_frame_bytes(sender, readerId, 7, 42, R"({"card_id":"NOPE","action":"open"})");
+    const auto bytes =
+        make_frame_bytes(sender, readerId, 7, 42, R"({"card_id":"NOPE","action":"open"})");
     const auto r = engine.handleFrameBytes(bytes, windows);
 
     EXPECT_FALSE(r.allow);

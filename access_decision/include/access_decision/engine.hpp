@@ -8,8 +8,8 @@
 
 #include <access_core/handle_frame.hpp>
 #include <crypto_lib/secure_aead.hpp>
-#include <protocol_lib/replay_window.hpp>
 #include <key_manager/key_manager.hpp>
+#include <protocol_lib/replay_window.hpp>
 
 #include <cstdint>
 #include <span>
@@ -27,11 +27,9 @@ struct DecisionResult {
 
 class DecisionEngine {
   public:
-    DecisionEngine(const IAccessStore* store,
-                      CardIdHasher hasher,
-                      IAuditLog* audit,
-                      const key_manager::KeyManager& keyManager,
-                      access_core::FrameHandlerConfig frameHandlerCfg = {});
+    DecisionEngine(const IAccessStore* store, CardIdHasher hasher, IAuditLog* audit,
+                   const key_manager::KeyManager& keyManager,
+                   access_core::FrameHandlerConfig frameHandlerCfg = {});
 
     DecisionResult handleFrameBytes(
         std::span<const uint8_t> frameBytes,

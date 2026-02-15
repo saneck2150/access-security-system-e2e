@@ -33,8 +33,7 @@ class FrameHandler {
   public:
     using ReplayWindowMap = std::unordered_map<uint32_t, protocol::replay::ReplayWindow>;
 
-    FrameHandler(const key_manager::KeyManager& keyManager,
-                 ReplayWindowMap& replayWindows,
+    FrameHandler(const key_manager::KeyManager& keyManager, ReplayWindowMap& replayWindows,
                  FrameHandlerConfig config = {});
 
     HandleResult handle(std::span<const uint8_t> frameBytes);

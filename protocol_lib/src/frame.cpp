@@ -20,7 +20,7 @@ std::vector<uint8_t> serialize(const Frame& frame) {
     protocol::utils::put_le64(frame.header.seq, out);
 
     protocol::utils::put_le32(frame.header.key_version, out);
-    
+
     out.insert(out.end(), frame.header.nonce.begin(), frame.header.nonce.end());
 
     protocol::utils::put_le32(static_cast<uint32_t>(frame.ct.size()), out);

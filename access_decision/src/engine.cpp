@@ -4,17 +4,14 @@
 
 namespace access_decision {
 
-DecisionEngine::DecisionEngine(
-    const IAccessStore* store,
-    CardIdHasher hasher,
-    IAuditLog* audit,
-    const key_manager::KeyManager& keyManager,
-    access_core::FrameHandlerConfig frameHandlerCfg) : 
-    _store(store),
-    _hasher(std::move(hasher)),
-    _audit(audit),
-    _keyManager(keyManager),
-    _frameHandlerCfg(frameHandlerCfg) {}
+DecisionEngine::DecisionEngine(const IAccessStore* store, CardIdHasher hasher, IAuditLog* audit,
+                               const key_manager::KeyManager& keyManager,
+                               access_core::FrameHandlerConfig frameHandlerCfg)
+    : _store(store),
+      _hasher(std::move(hasher)),
+      _audit(audit),
+      _keyManager(keyManager),
+      _frameHandlerCfg(frameHandlerCfg) {}
 
 void DecisionEngine::logAuditEvent(const protocol::packet::Header& header, bool allow,
                                    const std::string& reason, const std::string& cardId,
@@ -77,7 +74,6 @@ DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult
 DecisionResult DecisionEngine::handleFrameBytes(
     std::span<const uint8_t> frameBytes,
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replayByReader) {
-
     access_core::FrameHandler handler(_keyManager, replayByReader, _frameHandlerCfg);
     const auto frameResult = handler.handle(frameBytes);
 

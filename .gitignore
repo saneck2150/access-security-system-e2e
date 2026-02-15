@@ -1,5 +1,5 @@
 .vscode/
 third_party/
 build/
-secrets/
+secrets/master_key.hex
 config/access_security.yaml

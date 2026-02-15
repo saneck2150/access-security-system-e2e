@@ -12,7 +12,7 @@ namespace key_manager {
 
 struct KeyManagerConfig {
     uint32_t currentKeyVersion = 1;
-    bool allowPreviousKeyVersion = true;  
+    bool allowPreviousKeyVersion = true;
 };
 
 class KeyManager {
@@ -34,4 +34,4 @@ class KeyManager {
     void putLe32(uint32_t v, uint8_t out[4]) const;
 };
 
-}  // namespace key_manager
+} // namespace key_manager

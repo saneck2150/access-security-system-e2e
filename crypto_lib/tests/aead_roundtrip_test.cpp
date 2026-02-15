@@ -140,8 +140,8 @@ TEST(AeadRoundtrip, TamperKeyVersionFails) {
 
     const std::string msg = "hello";
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()),
-        aad, h.seq);
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad,
+        h.seq);
 
     protocol::packet::Header h2 = h;
     h2.nonce = cipher.nonce;
