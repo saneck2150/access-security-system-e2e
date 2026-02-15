@@ -17,6 +17,7 @@ include(${CMAKE_SOURCE_DIR}/cmake_other/third_party.cmake)
 
 add_subdirectory(crypto_lib)
 add_subdirectory(protocol_lib)
+add_subdirectory(key_manager)
 add_subdirectory(access_core)
 add_subdirectory(access_decision)
 add_subdirectory(access_storage)

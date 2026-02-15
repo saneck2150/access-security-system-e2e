@@ -28,6 +28,7 @@ TEST(AeadRoundtrip, RoundtripOk) {
     h.door_id = 2;
     h.ts_unix_ms = now_unix_ms();
     h.seq = 42;
+    h.key_version = 1;
 
     h.nonce = sender.deriveNonce(h.seq);
 
@@ -59,6 +60,7 @@ TEST(AeadRoundtrip, TamperDoorIdFails) {
     h.door_id = 2;
     h.ts_unix_ms = now_unix_ms();
     h.seq = 42;
+    h.key_version = 1;
     h.nonce = sender.deriveNonce(h.seq);
 
     const auto aad_vec = h.to_bytes();
@@ -94,6 +96,7 @@ TEST(AeadRoundtrip, SameNonceDifferentAadFails) {
     h1.door_id = 20;
     h1.ts_unix_ms = now_unix_ms();
     h1.seq = 42;
+    h1.key_version = 1;
     h1.nonce = sender.deriveNonce(h1.seq);
 
     const auto aad1_vec = h1.to_bytes();
@@ -107,6 +110,42 @@ TEST(AeadRoundtrip, SameNonceDifferentAadFails) {
     protocol::packet::Header h2 = h1;
     h2.nonce = cipher.nonce;
     h2.reader_id = 999;
+
+    const auto aad2_vec = h2.to_bytes();
+    const std::span<const uint8_t> aad2(aad2_vec.data(), aad2_vec.size());
+
+    EXPECT_THROW((void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce),
+                 std::runtime_error);
+}
+
+TEST(AeadRoundtrip, TamperKeyVersionFails) {
+    ASSERT_GE(sodium_init(), 0);
+
+    crypto_lib::aead::AeadKey key;
+    randombytes_buf(key.key.data(), key.key.size());
+
+    crypto_lib::aead::SecureAead sender(key);
+    crypto_lib::aead::SecureAead receiver(key);
+
+    protocol::packet::Header h;
+    h.reader_id = 1;
+    h.door_id = 2;
+    h.ts_unix_ms = now_unix_ms();
+    h.seq = 42;
+    h.key_version = 1;
+    h.nonce = sender.deriveNonce(h.seq);
+
+    const auto aad_vec = h.to_bytes();
+    const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
+
+    const std::string msg = "hello";
+    const auto cipher = sender.sealWithSeq(
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()),
+        aad, h.seq);
+
+    protocol::packet::Header h2 = h;
+    h2.nonce = cipher.nonce;
+    h2.key_version = 999; // tamper
 
     const auto aad2_vec = h2.to_bytes();
     const std::span<const uint8_t> aad2(aad2_vec.data(), aad2_vec.size());

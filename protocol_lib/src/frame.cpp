@@ -9,7 +9,7 @@ namespace protocol::frame {
 
 std::vector<uint8_t> serialize(const Frame& frame) {
     std::vector<uint8_t> out;
-    out.reserve(4 + 1 + 48 + 4 + frame.ct.size() + 16);
+    out.reserve(4 + 1 + 52 + 4 + frame.ct.size() + 16);
 
     out.insert(out.end(), kMagic, kMagic + 4);
     out.push_back(kVersion);
@@ -18,6 +18,9 @@ std::vector<uint8_t> serialize(const Frame& frame) {
     protocol::utils::put_le32(frame.header.door_id, out);
     protocol::utils::put_le64(frame.header.ts_unix_ms, out);
     protocol::utils::put_le64(frame.header.seq, out);
+
+    protocol::utils::put_le32(frame.header.key_version, out);
+    
     out.insert(out.end(), frame.header.nonce.begin(), frame.header.nonce.end());
 
     protocol::utils::put_le32(static_cast<uint32_t>(frame.ct.size()), out);

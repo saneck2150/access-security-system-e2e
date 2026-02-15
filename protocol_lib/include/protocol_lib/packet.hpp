@@ -12,6 +12,8 @@ struct Header {
     uint64_t ts_unix_ms{};
     uint64_t seq{};
 
+    uint32_t key_version{};
+
     std::array<uint8_t, 24> nonce{};
 
     std::vector<uint8_t> to_bytes() const;

@@ -10,6 +10,7 @@ target_include_directories(access_core PUBLIC
 target_link_libraries(access_core PUBLIC
   crypto_lib
   protocol_lib
+  key_manager
 )
 
 if (TESTING_MODE)

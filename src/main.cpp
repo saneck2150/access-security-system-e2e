@@ -27,6 +27,7 @@ int main() {
     header.door_id = 7;
     header.ts_unix_ms = nowUnixMs();
     header.seq = 42;
+    header.key_version = 1;
     //////////////////////////////////////////////////////////////
 
     session::SecureFrameSession init(header, textToCipher);

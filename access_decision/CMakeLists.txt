@@ -13,6 +13,7 @@ target_link_libraries(access_decision PUBLIC
   access_core
   crypto_lib
   protocol_lib
+  key_manager
   nlohmann_json::nlohmann_json
 )
 

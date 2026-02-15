@@ -1,4 +1,5 @@
 .vscode/
 third_party/
 build/
+secrets/
 config/access_security.yaml

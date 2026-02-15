@@ -9,6 +9,7 @@
 #include <access_core/handle_frame.hpp>
 #include <crypto_lib/secure_aead.hpp>
 #include <protocol_lib/replay_window.hpp>
+#include <key_manager/key_manager.hpp>
 
 #include <cstdint>
 #include <span>
@@ -26,21 +27,24 @@ struct DecisionResult {
 
 class DecisionEngine {
   public:
-    DecisionEngine(const IAccessStore* store, CardIdHasher hasher, IAuditLog* audit,
-                   access_core::FrameHandlerConfig frameHandlerCfg = {});
+    DecisionEngine(const IAccessStore* store,
+                      CardIdHasher hasher,
+                      IAuditLog* audit,
+                      const key_manager::KeyManager& keyManager,
+                      access_core::FrameHandlerConfig frameHandlerCfg = {});
 
     DecisionResult handleFrameBytes(
-        std::span<const uint8_t> frameBytes, crypto_lib::aead::SecureAead& serverAead,
+        std::span<const uint8_t> frameBytes,
         std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replayByReader);
 
   private:
-    // dependencies
     const IAccessStore* _store = nullptr;
     CardIdHasher _hasher;
     IAuditLog* _audit = nullptr;
+
+    const key_manager::KeyManager& _keyManager;
     access_core::FrameHandlerConfig _frameHandlerCfg{};
 
-    // helpers
     void logAuditEvent(const protocol::packet::Header& header, bool allow,
                        const std::string& reason, const std::string& cardId = "",
                        const std::string& action = "");

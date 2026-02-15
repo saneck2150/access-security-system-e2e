@@ -2,6 +2,7 @@
 #include <crypto_lib/secure_aead.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
+#include <key_manager/key_manager.hpp>
 
 #include <gtest/gtest.h>
 #include <sodium.h>
@@ -16,20 +17,25 @@ static uint64_t nowUnixMs() {
         duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
 }
 
+static key_manager::KeyManager makeKm() {
+    key_manager::KeyManager::MasterKey mk{};
+    for (size_t i = 0; i < mk.size(); ++i) mk[i] = static_cast<uint8_t>(i);
+    return key_manager::KeyManager(mk, {.currentKeyVersion = 1, .allowPreviousKeyVersion = true});
+}
+
 TEST(FrameHandler, ReplayRejectedBeforeDecrypt) {
     ASSERT_GE(sodium_init(), 0);
 
-    crypto_lib::aead::AeadKey key;
-    randombytes_buf(key.key.data(), key.key.size());
-
-    crypto_lib::aead::SecureAead sender(key);
-    crypto_lib::aead::SecureAead server(key);
+    auto km = makeKm();
 
     protocol::packet::Header h;
     h.reader_id = 1;
     h.door_id = 2;
     h.ts_unix_ms = nowUnixMs();
     h.seq = 42;
+    h.key_version = 1;
+
+    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(h.reader_id, h.key_version));
     h.nonce = sender.deriveNonce(h.seq);
 
     const auto aadVec = h.to_bytes();
@@ -49,7 +55,7 @@ TEST(FrameHandler, ReplayRejectedBeforeDecrypt) {
     const auto bytesOk = protocol::frame::serialize(f);
 
     access_core::FrameHandler::ReplayWindowMap windows;
-    access_core::FrameHandler handler(server, windows);
+    access_core::FrameHandler handler(km, windows);
 
     auto r1 = handler.handle(bytesOk);
     ASSERT_TRUE(r1.allow);
@@ -68,21 +74,21 @@ TEST(FrameHandler, ReplayRejectedBeforeDecrypt) {
 TEST(FrameHandler, DecryptFailDoesNotPoisonReplayWindow) {
     ASSERT_GE(sodium_init(), 0);
 
-    crypto_lib::aead::AeadKey key;
-    randombytes_buf(key.key.data(), key.key.size());
-
-    crypto_lib::aead::SecureAead sender(key);
-    crypto_lib::aead::SecureAead server(key);
+    auto km = makeKm();
 
     access_core::FrameHandler::ReplayWindowMap windows;
-    access_core::FrameHandler handler(server, windows);
 
     protocol::packet::Header h;
     h.reader_id = 7;
     h.door_id = 9;
     h.ts_unix_ms = nowUnixMs();
     h.seq = 100;
+    h.key_version = 1;
+
+    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(h.reader_id, h.key_version));
     h.nonce = sender.deriveNonce(h.seq);
+
+    access_core::FrameHandler handler(km, windows);
 
     const auto aadVec = h.to_bytes();
     const std::span<const uint8_t> aad(aadVec.data(), aadVec.size());

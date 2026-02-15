@@ -1,23 +1,19 @@
 #include "access_core/handle_frame.hpp"
 
+#include <crypto_lib/secure_aead.hpp>
+
 namespace access_core {
 
-FrameHandler::FrameHandler(crypto_lib::aead::SecureAead& aead, ReplayWindowMap& replayWindows,
+FrameHandler::FrameHandler(const key_manager::KeyManager& keyManager,
+                           ReplayWindowMap& replayWindows,
                            FrameHandlerConfig config)
-    : _decryptor(aead, DecryptorConfig{.maxSkewMs = config.maxSkewMs}),
-      _replayWindows(replayWindows),
-      _config(config) {}
-
+    : _keyManager(keyManager), _replayWindows(replayWindows), _config(config) {}
 
 HandleResult FrameHandler::handle(std::span<const uint8_t> frameBytes) {
     protocol::frame::Frame frame;
     try {
         frame = protocol::frame::parseFrame(frameBytes, _config.maxCtLen);
-    } catch (const std::exception& e) {
-        const std::string msg = e.what();
-        if (msg.find("ctLen exceeds limit") != std::string::npos) {
-            return makeError("frame_too_large");
-        }
+    } catch (...) {
         return makeError("parse_error");
     }
 
@@ -29,7 +25,7 @@ HandleResult FrameHandler::handle(std::span<const uint8_t> frameBytes) {
         }
     }
 
-    return processDecryption(frame, window);
+    return tryDecrypt(frame, window);
 }
 
 HandleResult FrameHandler::makeError(const std::string& reason,
@@ -48,22 +44,36 @@ bool FrameHandler::isReplay(protocol::replay::ReplayWindow* window, uint64_t seq
     return window && window->contains(seq);
 }
 
-HandleResult FrameHandler::processDecryption(const protocol::frame::Frame& frame,
-                                             protocol::replay::ReplayWindow* window) {
-    const auto decryptResult = _decryptor.decrypt(frame);
-
-    if (!decryptResult.success) {
-        return makeError(decryptResult.error, frame.header);
+HandleResult FrameHandler::tryDecrypt(const protocol::frame::Frame& frame,
+                                      protocol::replay::ReplayWindow* window) {
+    if (!_keyManager.isAcceptedKeyVersion(frame.header.key_version)) {
+        return makeError("bad_key_version", frame.header);
     }
 
-    if (_config.antiReplayEnabled && window) {
-        window->remember(frame.header.seq);
-    }
+    try {
+        const auto aeadKey = _keyManager.deriveAeadKey(frame.header.reader_id, frame.header.key_version);
+        crypto_lib::aead::SecureAead aead(aeadKey);
+        access_core::FrameDecryptor decryptor(aead, access_core::DecryptorConfig{.maxSkewMs = _config.maxSkewMs});
 
-    return HandleResult{.allow = true,
-                        .reason = "ok",
-                        .plaintext = decryptResult.plaintext,
-                        .header = frame.header};
+        auto dec = decryptor.decrypt(frame);
+
+        if (!dec.success) {
+            return makeError(dec.error, frame.header);
+        }
+
+        if (_config.antiReplayEnabled && window) {
+            window->remember(frame.header.seq);
+        }
+
+        return HandleResult{
+            .allow = true,
+            .reason = "ok",
+            .plaintext = std::move(dec.plaintext),
+            .header = frame.header
+        };
+    } catch (...) {
+        return makeError("decrypt_failed", frame.header);
+    }
 }
 
-} // namespace access_core
+}  // namespace access_core

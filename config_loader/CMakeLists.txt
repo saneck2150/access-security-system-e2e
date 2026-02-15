@@ -8,5 +8,6 @@ target_include_directories(config_loader PUBLIC
 
 target_link_libraries(config_loader PUBLIC
   access_core
+  key_manager
   yaml-cpp
 )

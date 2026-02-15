@@ -4,6 +4,7 @@
 #include <access_decision/card_id_hasher.hpp>
 #include <access_decision/engine.hpp>
 #include <crypto_lib/secure_aead.hpp>
+#include <key_manager/key_manager.hpp>
 #include <protocol_lib/frame.hpp>
 
 #include <gtest/gtest.h>
@@ -12,28 +13,31 @@
 #include <chrono>
 #include <unordered_map>
 
-static uint64_t now_unix_ms() {
+static uint64_t nowUnixMs() {
     using namespace std::chrono;
     return static_cast<uint64_t>(
         duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
 }
 
-static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sender,
-                                             uint32_t reader_id, uint32_t door_id, uint64_t seq,
-                                             const std::string& json_payload) {
+static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
+                                           uint32_t readerId, uint32_t doorId, uint64_t seq,
+                                           uint32_t keyVersion,
+                                           const std::string& jsonPayload) {
     protocol::packet::Header h;
-    h.reader_id = reader_id;
-    h.door_id = door_id;
-    h.ts_unix_ms = now_unix_ms();
+    h.reader_id = readerId;
+    h.door_id = doorId;
+    h.ts_unix_ms = nowUnixMs();
     h.seq = seq;
+    h.key_version = keyVersion;
 
     h.nonce = sender.deriveNonce(h.seq);
-    const auto aad_vec = h.to_bytes();
-    const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
+    const auto aadVec = h.to_bytes();
+    const std::span<const uint8_t> aad(aadVec.data(), aadVec.size());
 
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>((const uint8_t*)json_payload.data(), json_payload.size()), aad,
-        h.seq);
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(jsonPayload.data()),
+                                 jsonPayload.size()),
+        aad, h.seq);
 
     protocol::frame::Frame f;
     f.header = h;
@@ -47,10 +51,14 @@ static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sende
 TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
     ASSERT_GE(sodium_init(), 0);
 
-    crypto_lib::aead::AeadKey key;
-    randombytes_buf(key.key.data(), key.key.size());
-    crypto_lib::aead::SecureAead sender(key);
-    crypto_lib::aead::SecureAead server_aead(key);
+    key_manager::KeyManager::MasterKey masterKey{};
+    randombytes_buf(masterKey.data(), masterKey.size());
+    key_manager::KeyManager keyManager(masterKey);
+
+    constexpr uint32_t readerId = 1;
+    constexpr uint32_t keyVersion = 1;
+    const auto aeadKey = keyManager.deriveAeadKey(readerId, keyVersion);
+    crypto_lib::aead::SecureAead sender(aeadKey);
 
     std::array<uint8_t, 32> pepper{};
     pepper.fill(0x11);
@@ -65,12 +73,13 @@ TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
     store.allowRole(7, "employee");
 
     access_decision::InMemoryAuditLog audit;
-    access_decision::DecisionEngine engine(&store, hasher, &audit);
+    access_decision::DecisionEngine engine(&store, hasher, &audit, keyManager);
 
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
-    const auto bytes = make_frame_bytes(sender, 1, 7, 42, R"({"card_id":"CARD1","action":"open"})");
-    const auto res = engine.handleFrameBytes(bytes, server_aead, windows);
+    const auto bytes = makeFrameBytes(sender, readerId, 7, 42, keyVersion,
+                                       R"({"card_id":"CARD1","action":"open"})");
+    const auto res = engine.handleFrameBytes(bytes, windows);
 
     EXPECT_TRUE(res.allow);
     EXPECT_EQ(res.reason, "ok");

@@ -2,7 +2,7 @@
 
 #include "access_core/frame_decryptor.hpp"
 
-#include <crypto_lib/secure_aead.hpp>
+#include <key_manager/key_manager.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
 #include <protocol_lib/replay_window.hpp>
@@ -33,22 +33,23 @@ class FrameHandler {
   public:
     using ReplayWindowMap = std::unordered_map<uint32_t, protocol::replay::ReplayWindow>;
 
-    FrameHandler(crypto_lib::aead::SecureAead& aead, ReplayWindowMap& replayWindows,
+    FrameHandler(const key_manager::KeyManager& keyManager,
+                 ReplayWindowMap& replayWindows,
                  FrameHandlerConfig config = {});
 
     HandleResult handle(std::span<const uint8_t> frameBytes);
 
   private:
-    FrameDecryptor _decryptor;
+    const key_manager::KeyManager& _keyManager;
     ReplayWindowMap& _replayWindows;
     FrameHandlerConfig _config;
 
     HandleResult makeError(const std::string& reason,
                            const protocol::packet::Header& header = {}) const;
+
     protocol::replay::ReplayWindow* getOrCreateWindow(uint32_t readerId);
     bool isReplay(protocol::replay::ReplayWindow* window, uint64_t seq) const;
-    HandleResult processDecryption(const protocol::frame::Frame& frame,
-                                   protocol::replay::ReplayWindow* window);
+    HandleResult tryDecrypt(const protocol::frame::Frame& frame,
+                            protocol::replay::ReplayWindow* window);
 };
-
 } // namespace access_core

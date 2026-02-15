@@ -9,6 +9,7 @@ TEST(Frame, Roundtrip) {
     f.header.ts_unix_ms = 1234;
     f.header.seq = 42;
     f.header.nonce.fill(0xAB);
+    f.header.key_version = 1;
 
     f.ct = {1, 2, 3, 4, 5};
     f.tag.v.fill(0xCD);

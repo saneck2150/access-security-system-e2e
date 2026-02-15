@@ -20,7 +20,7 @@ class FrameParser {
         const size_t kU32 = sizeof(uint32_t);
         const size_t kU64 = sizeof(uint64_t);
 
-        const size_t kHeaderFixedSize = (2 * kU32) + (2 * kU64);
+        const size_t kHeaderFixedSize = (3 * kU32) + (2 * kU64);
         const size_t kNonceSize = std::tuple_size_v<decltype(Frame{}.header.nonce)>;
         const size_t kTagSize = std::tuple_size_v<decltype(Frame{}.tag.v)>;
         const size_t kCtLenSize = kU32;
