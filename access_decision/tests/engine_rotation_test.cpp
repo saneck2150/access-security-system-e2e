@@ -66,12 +66,12 @@ TEST(KeyRotation, AcceptCurrentAndPrevious) {
   store.initSchema();
 
   // reader policy: current=2
-  store.upsertReader(10, 2);
+  const uint32_t readerKeyVersion = 2;
+  store.upsertReader(10, readerKeyVersion);
   store.allowDoorForReader(10, 7);
 
-  // HMAC setup
-  std::array<uint8_t, 32> pepper{};
-  pepper.fill(0x11);
+  // Use KeyManager-derived pepper for card HMAC (based on reader's current key version)
+  const auto pepper = km.deriveCardPepper(readerKeyVersion);
   access_decision::CardIdHasher hasher(pepper);
 
   // allow
@@ -100,4 +100,53 @@ TEST(KeyRotation, AcceptCurrentAndPrevious) {
   const auto r3 = engine.handleFrameBytes(bad_v3, windows);
   EXPECT_FALSE(r3.allow);
   EXPECT_EQ(r3.reason, "bad_key_version");
+}
+
+TEST(PepperRotation, FindsCardWithPreviousPepper) {
+    ASSERT_GE(sodium_init(), 0);
+
+    // fixed master key
+    key_manager::KeyManager::MasterKey mk{};
+    for (size_t i = 0; i < mk.size(); ++i) mk[i] = static_cast<uint8_t>(i);
+    key_manager::KeyManager km(mk, {.currentKeyVersion = 999, .allowPreviousKeyVersion = true});
+
+    access_storage::SqliteAccessStore store(":memory:");
+    store.initSchema();
+
+    const uint32_t readerId = 10;
+    const uint32_t doorId = 7;
+
+    store.upsertReader(readerId, 2);
+    store.allowDoorForReader(readerId, doorId);
+
+    store.allowRole(doorId, "employee");
+
+    // Store card under OLD pepper (v=1)
+    const auto pepperPrev = km.deriveCardPepper(1);
+    access_decision::CardIdHasher hasherPrev(pepperPrev);
+    store.upsertCardHmac(hasherPrev.hmacHex("CARD1"), "employee");
+
+    access_decision::InMemoryAuditLog audit;
+
+    // engine ctor requires a CardIdHasher; give any dummy (won't be used in new logic)
+    std::array<uint8_t, 32> dummyPepper{};
+    dummyPepper.fill(0x42);
+    access_decision::CardIdHasher dummyHasher(dummyPepper);
+
+    access_core::FrameHandlerConfig fh;
+    fh.allowPreviousKeyVersion = true;
+    fh.maxSkewMs = 0; // avoid time issues
+
+    access_decision::DecisionEngine engine(&store, dummyHasher, &audit, km, fh);
+
+    std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
+
+    // Frame encrypted with key_version=2 (current)
+    const auto bytes = make_frame_bytes(
+        km, readerId, doorId, /*seq*/1, /*key_version*/2,
+        R"({"card_id":"CARD1","action":"open"})");
+
+    const auto res = engine.handleFrameBytes(bytes, windows);
+    EXPECT_TRUE(res.allow);
+    EXPECT_EQ(res.reason, "ok");
 }

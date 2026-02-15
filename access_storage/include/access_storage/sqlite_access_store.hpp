@@ -29,6 +29,7 @@ class SqliteAccessStore final : public access_decision::IAccessStore {
     void upsertReader(uint32_t reader_id, uint32_t current_key_version) override;
     bool isReaderAllowedDoor(uint32_t reader_id, uint32_t door_id) const override;
     void allowDoorForReader(uint32_t reader_id, uint32_t door_id) override;
+    sqlite3* dbHandle() const { return _db; }
 
   private:
     sqlite3* _db = nullptr;

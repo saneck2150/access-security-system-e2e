@@ -1,14 +1,18 @@
-#include "access_storage/sqlite_access_store.hpp"
+#include <access_storage/sqlite_access_store.hpp>
+#include <access_storage/sqlite_audit_log.hpp>
+#include <access_storage/audit_verify.hpp>
 
-#include <access_decision/audit.hpp>
 #include <access_decision/card_id_hasher.hpp>
 #include <access_decision/engine.hpp>
+
 #include <crypto_lib/secure_aead.hpp>
 #include <key_manager/key_manager.hpp>
 #include <protocol_lib/frame.hpp>
 
 #include <gtest/gtest.h>
 #include <sodium.h>
+#include <sqlite3.h>
+
 #include <array>
 #include <chrono>
 #include <unordered_map>
@@ -47,12 +51,14 @@ static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
     return protocol::frame::serialize(f);
 }
 
-TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
+TEST(AuditChain, DetectsTampering) {
     ASSERT_GE(sodium_init(), 0);
 
     key_manager::KeyManager::MasterKey masterKey{};
     randombytes_buf(masterKey.data(), masterKey.size());
     key_manager::KeyManager keyManager(masterKey);
+
+    const auto auditKey = keyManager.deriveAuditHmacKey();
 
     constexpr uint32_t readerId = 1;
     constexpr uint32_t keyVersion = 1;
@@ -65,23 +71,55 @@ TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
 
     access_storage::SqliteAccessStore store(":memory:");
     store.initSchema();
-
-    const std::string cardId = "CARD1";
-    const std::string cardHmac = hasher.hmacHex(cardId);
-    store.upsertCardHmac(cardHmac, "employee");
-    store.allowRole(7, "employee");
-    store.upsertReader(readerId, keyVersion);  // Register reader with key version
+    store.upsertReader(readerId, keyVersion);
     store.allowDoorForReader(readerId, 7);
+    store.allowRole(7, "employee");
 
-    access_decision::InMemoryAuditLog audit;
+    const std::string cardHmac = hasher.hmacHex("CARD1");
+    store.upsertCardHmac(cardHmac, "employee");
+
+    access_storage::SqliteAuditLog audit(store.dbHandle(), auditKey);
+
     access_decision::DecisionEngine engine(&store, hasher, &audit, keyManager);
 
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
-    const auto bytes = makeFrameBytes(sender, readerId, 7, 42, keyVersion,
-                                      R"({"card_id":"CARD1","action":"open"})");
-    const auto res = engine.handleFrameBytes(bytes, windows);
+    // write 2 audit rows
+    {
+        const auto bytes = makeFrameBytes(sender, readerId, 7, 1, keyVersion,
+                                          R"({"card_id":"CARD1","action":"open"})");
+        const auto r = engine.handleFrameBytes(bytes, windows);
+        ASSERT_TRUE(r.allow);
+    }
+    {
+        const auto bytes = makeFrameBytes(sender, readerId, 7, 2, keyVersion,
+                                          R"({"card_id":"NOPE","action":"open"})");
+        const auto r = engine.handleFrameBytes(bytes, windows);
+        ASSERT_FALSE(r.allow);
+    }
 
-    EXPECT_TRUE(res.allow);
-    EXPECT_EQ(res.reason, "ok");
+    // should verify ok
+    {
+        const auto vr = access_storage::verifyAuditChain(store.dbHandle(), auditKey);
+        EXPECT_TRUE(vr.ok) << vr.error;
+    }
+
+    // tamper with row 1
+    {
+        char* err = nullptr;
+        const int rc = sqlite3_exec(store.dbHandle(),
+            "UPDATE audit_log SET reason='TAMPERED' WHERE id=1;", nullptr, nullptr, &err);
+        if (rc != SQLITE_OK) {
+            std::string msg = err ? err : "sqlite error";
+            sqlite3_free(err);
+            FAIL() << msg;
+        }
+    }
+
+    // must fail now
+    {
+        const auto vr = access_storage::verifyAuditChain(store.dbHandle(), auditKey);
+        EXPECT_FALSE(vr.ok);
+        EXPECT_EQ(vr.bad_id, 1);
+    }
 }

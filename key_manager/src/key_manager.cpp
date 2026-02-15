@@ -101,4 +101,54 @@ crypto_lib::aead::AeadKey KeyManager::deriveAeadKey(uint32_t readerId, uint32_t 
     return out;
 }
 
+std::array<uint8_t, 32> KeyManager::deriveCardPepper(uint32_t keyVersion) const {
+    if (keyVersion == 0) {
+        throw std::invalid_argument("KeyManager: keyVersion must be > 0");
+    }
+
+    std::array<uint8_t, 4> salt{};
+    putLe32(keyVersion, salt.data());
+
+    constexpr std::string_view info = "card-pepper-v1";
+
+    crypto_lib::hkdf::Hkdf hkdf(
+        std::span<const uint8_t>(_masterKey.data(), _masterKey.size()),
+        std::span<const uint8_t>(salt.data(), salt.size()),
+        info,
+        /*outputLen=*/32);
+
+    const auto okm = hkdf.derive();
+    if (okm.size() != 32) {
+        throw std::runtime_error("KeyManager: HKDF wrong length");
+    }
+
+    std::array<uint8_t, 32> out{};
+    std::copy(okm.begin(), okm.end(), out.begin());
+    return out;
+}
+
+std::array<uint8_t, 32> KeyManager::deriveAuditHmacKey() const {
+    constexpr std::string_view saltStr = "audit-chain-salt-v1";
+    constexpr std::string_view info    = "audit-hmac-v1";
+
+    const auto salt = std::span<const uint8_t>(
+        reinterpret_cast<const uint8_t*>(saltStr.data()), saltStr.size());
+
+    crypto_lib::hkdf::Hkdf hkdf(
+        std::span<const uint8_t>(_masterKey.data(), _masterKey.size()),
+        salt,
+        info,
+        /*outputLen=*/32);
+
+    const auto okm = hkdf.derive();
+    if (okm.size() != 32) {
+        throw std::runtime_error("KeyManager: HKDF returned wrong length (audit key)");
+    }
+
+    std::array<uint8_t, 32> out{};
+    std::copy(okm.begin(), okm.end(), out.begin());
+    return out;
+}
+
+
 } // namespace key_manager

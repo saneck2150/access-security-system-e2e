@@ -2,6 +2,7 @@ add_executable(handle_frame_test handle_frame_test.cpp)
 
 target_link_libraries(handle_frame_test PRIVATE 
     access_core
+    access_decision
     sodium 
     GTest::gtest_main)
 

@@ -29,4 +29,5 @@ std::string CardIdHasher::hmacHex(std::string_view cardId) const {
     crypto_lib::utils::hmac_sha256(keySpan, dataSpan, hmacOutput);
     return toHex(hmacOutput, outputSize);
 }
+
 } // namespace access_decision

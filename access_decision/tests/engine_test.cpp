@@ -116,17 +116,18 @@ TEST(DecisionEngine, AllowOk) {
 
     auto km = makeKm();
     constexpr uint32_t readerId = 1;
+    constexpr uint32_t keyVersion = 1;
 
-    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, 1));
+    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, keyVersion));
 
-    std::array<uint8_t, 32> pepper{};
-    pepper.fill(0x11);
+    // Use KeyManager-derived pepper for card HMAC
+    const auto pepper = km.deriveCardPepper(keyVersion);
     access_decision::CardIdHasher hasher(pepper);
 
     InMemoryStore store;
     store.upsertCard(hasher.hmacHex("CARD1"), "employee");
     store.allowRole(7, "employee");
-    store.upsertReader(readerId, 1);
+    store.upsertReader(readerId, keyVersion);
     store.allowDoorForReader(readerId, 7);
 
     access_decision::InMemoryAuditLog audit;
@@ -148,17 +149,18 @@ TEST(DecisionEngine, ReplayDenied) {
     ASSERT_GE(sodium_init(), 0);
     auto km = makeKm();
     constexpr uint32_t readerId = 1;
+    constexpr uint32_t keyVersion = 1;
 
-    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, 1));
+    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, keyVersion));
 
-    std::array<uint8_t, 32> pepper{};
-    pepper.fill(0x11);
+    // Use KeyManager-derived pepper for card HMAC
+    const auto pepper = km.deriveCardPepper(keyVersion);
     access_decision::CardIdHasher hasher(pepper);
 
     InMemoryStore store;
     store.upsertCard(hasher.hmacHex("CARD1"), "employee");
     store.allowRole(7, "employee");
-    store.upsertReader(readerId, 1);
+    store.upsertReader(readerId, keyVersion);
     store.allowDoorForReader(readerId, 7);
 
     access_decision::DecisionEngine engine(&store, hasher, nullptr, km, {});
@@ -180,16 +182,17 @@ TEST(DecisionEngine, UnknownCardDenied) {
 
     auto km = makeKm();
     constexpr uint32_t readerId = 1;
+    constexpr uint32_t keyVersion = 1;
 
-    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, 1));
+    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, keyVersion));
 
-    std::array<uint8_t, 32> pepper{};
-    pepper.fill(0x11);
+    // Use KeyManager-derived pepper for card HMAC
+    const auto pepper = km.deriveCardPepper(keyVersion);
     access_decision::CardIdHasher hasher(pepper);
 
     InMemoryStore store;
     store.allowRole(7, "employee");
-    store.upsertReader(readerId, 1);
+    store.upsertReader(readerId, keyVersion);
     store.allowDoorForReader(readerId, 7);
 
     access_decision::DecisionEngine engine(&store, hasher, nullptr, km, {});
@@ -208,15 +211,16 @@ TEST(DecisionEngine, ReaderDoorForbidden) {
 
     auto km = makeKm();
     constexpr uint32_t readerId = 1;
+    constexpr uint32_t keyVersion = 1;
 
-    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, 1));
+    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(readerId, keyVersion));
 
-    std::array<uint8_t, 32> pepper{};
-    pepper.fill(0x11);
+    // Use KeyManager-derived pepper for card HMAC
+    const auto pepper = km.deriveCardPepper(keyVersion);
     access_decision::CardIdHasher hasher(pepper);
 
     InMemoryStore store;
-    store.upsertReader(readerId, 1);
+    store.upsertReader(readerId, keyVersion);
     // store.allowDoorForReader(readerId, 7);  // intentionally missing
 
     store.upsertCard(hasher.hmacHex("CARD1"), "employee");

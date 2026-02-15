@@ -1,5 +1,6 @@
 #include "access_core/handle_frame.hpp"
 
+#include <access_decision/access_store.hpp>
 #include <crypto_lib/secure_aead.hpp>
 
 namespace access_core {

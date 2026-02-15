@@ -6,13 +6,14 @@
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
 #include <protocol_lib/replay_window.hpp>
-#include <access_decision/access_store.hpp>
 
 #include <cstdint>
 #include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+namespace access_decision { class IAccessStore; }
 
 namespace access_core {
 

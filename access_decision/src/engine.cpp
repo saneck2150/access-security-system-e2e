@@ -38,6 +38,7 @@ DecisionResult DecisionEngine::createDeniedResult(const std::string& reason) {
     return result;
 }
 
+///@todo: split into smaller functions
 DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult& frameResult,
                                                  const AccessRequest& request) {
     DecisionResult result;
@@ -54,8 +55,35 @@ DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult
         return result;
     }
 
-    const auto cardHmac = _hasher.hmacHex(request.cardId);
-    const auto roleOpt = _store->roleForCardHmac(cardHmac);
+    const uint32_t currentKv = _store->currentKeyVersionForReader(frameResult.header.reader_id);
+    if (currentKv == 0) {
+        const auto res = createDeniedResult("unknown_reader");
+        logAuditEvent(frameResult.header, false, res.reason);
+        return res;
+    }
+
+    const auto pepperCur = _keyManager.deriveCardPepper(currentKv);
+    access_decision::CardIdHasher hasherCur(pepperCur);
+
+    std::string cardHmac = hasherCur.hmacHex(request.cardId);
+    auto roleOpt = _store->roleForCardHmac(cardHmac);
+
+    if (!roleOpt.has_value() && _frameHandlerCfg.allowPreviousKeyVersion && currentKv > 1) {
+        const auto pepperPrev = _keyManager.deriveCardPepper(currentKv - 1);
+        access_decision::CardIdHasher hasherPrev(pepperPrev);
+        const std::string cardHmacPrev = hasherPrev.hmacHex(request.cardId);
+
+        roleOpt = _store->roleForCardHmac(cardHmacPrev);
+        if (roleOpt.has_value()) {
+            cardHmac = cardHmacPrev; // audit will log the found one
+        }
+    }
+
+    if (!roleOpt.has_value()) {
+        const auto res = createDeniedResult("unknown_card");
+        logAuditEvent(frameResult.header, false, res.reason, cardHmac, request.action);
+        return res;
+    }
 
     if (!roleOpt.has_value()) {
         result = createDeniedResult("unknown_card");

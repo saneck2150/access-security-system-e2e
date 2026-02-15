@@ -50,4 +50,6 @@ target_link_libraries(handle_frame_behaviour_demo PRIVATE
     crypto_lib 
     protocol_lib
 )
+add_executable(audit_verify examples/audit_verify.cpp)
+target_link_libraries(audit_verify PRIVATE access_storage key_manager sodium)
 endif()
