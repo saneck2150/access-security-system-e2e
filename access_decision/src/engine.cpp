@@ -85,9 +85,7 @@ DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult
         return res;
     }
 
-    if (!roleOpt.has_value()) {
-        result = createDeniedResult("unknown_card");
-    } else if (!_store->isAllowed(frameResult.header.door_id, *roleOpt)) {
+    if (!_store->isAllowed(frameResult.header.door_id, *roleOpt)) {
         result = createDeniedResult("forbidden");
     } else {
         result.allow = true;

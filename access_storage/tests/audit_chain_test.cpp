@@ -51,6 +51,7 @@ static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
     return protocol::frame::serialize(f);
 }
 
+///@todo split into smaller tests + make mock
 TEST(AuditChain, DetectsTampering) {
     ASSERT_GE(sodium_init(), 0);
 
@@ -116,10 +117,80 @@ TEST(AuditChain, DetectsTampering) {
         }
     }
 
-    // must fail now
     {
         const auto vr = access_storage::verifyAuditChain(store.dbHandle(), auditKey);
         EXPECT_FALSE(vr.ok);
         EXPECT_EQ(vr.bad_id, 1);
     }
+}
+///@todo split into smaller tests + make mock
+TEST(AuditChain, DetectsTruncation) {
+    ASSERT_GE(sodium_init(), 0);
+
+    key_manager::KeyManager::MasterKey masterKey{};
+    randombytes_buf(masterKey.data(), masterKey.size());
+    key_manager::KeyManager keyManager(masterKey);
+
+    const auto auditKey = keyManager.deriveAuditHmacKey();
+
+    constexpr uint32_t readerId = 1;
+    constexpr uint32_t keyVersion = 1;
+    const auto aeadKey = keyManager.deriveAeadKey(readerId, keyVersion);
+    crypto_lib::aead::SecureAead sender(aeadKey);
+
+    const auto pepper = keyManager.deriveCardPepper(keyVersion);
+    access_decision::CardIdHasher hasher(pepper);
+
+    access_storage::SqliteAccessStore store(":memory:");
+    store.initSchema();
+    store.upsertReader(readerId, keyVersion);
+    store.allowDoorForReader(readerId, 7);
+    store.allowRole(7, "employee");
+
+    const std::string cardHmac = hasher.hmacHex("CARD1");
+    store.upsertCardHmac(cardHmac, "employee");
+
+    access_storage::SqliteAuditLog audit(store.dbHandle(), auditKey);
+
+    access_decision::DecisionEngine engine(&store, hasher, &audit, keyManager);
+
+    std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
+
+    // Write 2 audit rows
+    {
+        const auto bytes = makeFrameBytes(sender, readerId, 7, 1, keyVersion,
+                                          R"({"card_id":"CARD1","action":"open"})");
+        const auto r = engine.handleFrameBytes(bytes, windows);
+        ASSERT_TRUE(r.allow);
+    }
+    {
+        const auto bytes = makeFrameBytes(sender, readerId, 7, 2, keyVersion,
+                                          R"({"card_id":"CARD1","action":"open"})");
+        const auto r = engine.handleFrameBytes(bytes, windows);
+        ASSERT_TRUE(r.allow);
+    }
+
+    // Should verify ok before truncation
+    {
+        const auto vr = access_storage::verifyAuditChain(store.dbHandle(), auditKey);
+        EXPECT_TRUE(vr.ok) << vr.error;
+    }
+
+    // Delete the last row (simulates truncation attack)
+    {
+        char* err = nullptr;
+        const int rc = sqlite3_exec(store.dbHandle(),
+            "DELETE FROM audit_log WHERE id = (SELECT MAX(id) FROM audit_log);",
+            nullptr, nullptr, &err);
+        if (rc != SQLITE_OK) {
+            std::string msg = err ? err : "sqlite error";
+            sqlite3_free(err);
+            FAIL() << msg;
+        }
+    }
+
+    // Should detect anchor mismatch
+    const auto vr = access_storage::verifyAuditChain(store.dbHandle(), auditKey);
+    EXPECT_FALSE(vr.ok);
+    EXPECT_NE(vr.error.find("anchor mismatch"), std::string::npos) << "actual error: " << vr.error;
 }

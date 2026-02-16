@@ -47,6 +47,16 @@ void SqliteAuditLog::initSchema() {
 
     execOrThrow(_db, "CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts_unix_ms);");
     execOrThrow(_db, "CREATE INDEX IF NOT EXISTS idx_audit_reader ON audit_log(reader_id);");
+    execOrThrow(_db,
+    "CREATE TABLE IF NOT EXISTS audit_anchor ("
+    "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+    "  last_hash BLOB NOT NULL,"
+    "  updated_ts INTEGER NOT NULL"
+    ");");
+
+    execOrThrow(_db,
+        "INSERT OR IGNORE INTO audit_anchor(id, last_hash, updated_ts) "
+        "VALUES(1, zeroblob(32), 0);");
 }
 
 void SqliteAuditLog::putLe32(uint32_t v, std::vector<uint8_t>& out) {
@@ -128,7 +138,6 @@ SqliteAuditLog::Hash32 SqliteAuditLog::computeEntryHash(const Hash32& prevHash,
 
 ///@todo split
 void SqliteAuditLog::append(access_decision::AuditEvent e) {
-    // Make it atomic (avoid races if later you add concurrency)
     execOrThrow(_db, "BEGIN IMMEDIATE;");
 
     try {
@@ -165,8 +174,23 @@ void SqliteAuditLog::append(access_decision::AuditEvent e) {
             sqlite3_finalize(st);
             throw std::runtime_error("SqliteAuditLog: insert failed");
         }
-
         sqlite3_finalize(st);
+
+        const char* sqlAnchor = "UPDATE audit_anchor SET last_hash = ?, updated_ts = ? WHERE id = 1;";
+        sqlite3_stmt* st2 = nullptr;
+        if (sqlite3_prepare_v2(_db, sqlAnchor, -1, &st2, nullptr) != SQLITE_OK) {
+            throw std::runtime_error("SqliteAuditLog: prepare anchor update failed");
+        }
+
+        sqlite3_bind_blob(st2, 1, entry.data(), 32, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(st2, 2, static_cast<sqlite3_int64>(e.ts_unix_ms));
+
+        if (sqlite3_step(st2) != SQLITE_DONE) {
+            sqlite3_finalize(st2);
+            throw std::runtime_error("SqliteAuditLog: anchor update failed");
+        }
+        sqlite3_finalize(st2);
+
         execOrThrow(_db, "COMMIT;");
     } catch (...) {
         execOrThrow(_db, "ROLLBACK;");

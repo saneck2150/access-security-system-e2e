@@ -82,6 +82,10 @@ AuditVerifyResult verifyAuditChain(sqlite3* db, const std::array<uint8_t,32>& hm
         "FROM audit_log ORDER BY id ASC;";
 
     sqlite3_stmt* st = nullptr;
+    std::array<uint8_t,32> lastEntry{};
+    lastEntry.fill(0);
+    bool anyRows = false;
+
     if (sqlite3_prepare_v2(db, sql, -1, &st, nullptr) != SQLITE_OK) {
         res.ok = false;
         res.error = "prepare failed";
@@ -153,7 +157,49 @@ AuditVerifyResult verifyAuditChain(sqlite3* db, const std::array<uint8_t,32>& hm
             return res;
         }
 
+        anyRows = true;
+        lastEntry = storedEntry;
+
         expectedPrev = storedEntry;
+    }
+    const char* sqlA = "SELECT last_hash FROM audit_anchor WHERE id = 1;";
+    sqlite3_stmt* sa = nullptr;
+    if (sqlite3_prepare_v2(db, sqlA, -1, &sa, nullptr) != SQLITE_OK) {
+        sqlite3_finalize(st);
+        res.ok = false;
+        res.error = "prepare anchor select failed";
+        return res;
+    }
+
+    const int rcA = sqlite3_step(sa);
+    if (rcA != SQLITE_ROW) {
+        sqlite3_finalize(sa);
+        sqlite3_finalize(st);
+        res.ok = false;
+        res.error = "anchor row missing";
+        return res;
+    }
+
+    const void* blob = sqlite3_column_blob(sa, 0);
+    const int n = sqlite3_column_bytes(sa, 0);
+    if (!blob || n != 32) {
+        sqlite3_finalize(sa);
+        sqlite3_finalize(st);
+        res.ok = false;
+        res.error = "anchor last_hash bad blob";
+        return res;
+    }
+
+    std::array<uint8_t,32> anchor{};
+    std::memcpy(anchor.data(), blob, 32);
+    sqlite3_finalize(sa);
+
+    if (sodium_memcmp(anchor.data(), lastEntry.data(), 32) != 0) {
+        sqlite3_finalize(st);
+        res.ok = false;
+        res.bad_id = anyRows ? -2 : -1; // distinguish "no rows" from "rows but anchor mismatch"
+        res.error = "anchor mismatch (possible truncation)";
+        return res;
     }
 
     sqlite3_finalize(st);
