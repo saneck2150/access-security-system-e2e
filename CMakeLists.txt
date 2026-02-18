@@ -22,6 +22,8 @@ add_subdirectory(access_core)
 add_subdirectory(access_decision)
 add_subdirectory(access_storage)
 add_subdirectory(config_loader)
+add_subdirectory(runtime_events)
+add_subdirectory(access_admin)
 add_subdirectory(src/startup)
 
 add_executable(access_security src/main.cpp)

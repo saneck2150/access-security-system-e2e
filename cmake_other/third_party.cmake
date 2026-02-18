@@ -31,3 +31,17 @@ FetchContent_Declare(yaml-cpp
   SOURCE_DIR     "${CMAKE_SOURCE_DIR}/third_party/yaml-cpp"
 )
 FetchContent_MakeAvailable(yaml-cpp)
+
+set(HTTPLIB_INSTALL_DIR "${CMAKE_SOURCE_DIR}/third_party/cpp-httplib")
+FetchContent_Declare(cpp_httplib
+  GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+  GIT_TAG        v0.30.1
+  SOURCE_DIR     "${HTTPLIB_INSTALL_DIR}"
+)
+FetchContent_MakeAvailable(cpp_httplib)
+
+# There are some strange bugs with cpp-httplib when it's built as a static library, so we will just use it as header-only. 
+if (NOT TARGET cpp_httplib)
+  add_library(cpp_httplib INTERFACE)
+  target_include_directories(cpp_httplib INTERFACE "${HTTPLIB_INSTALL_DIR}")
+endif()

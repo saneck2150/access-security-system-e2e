@@ -15,6 +15,7 @@ target_link_libraries(access_decision PUBLIC
   protocol_lib
   key_manager
   nlohmann_json::nlohmann_json
+  runtime_events
 )
 
 if (TESTING_MODE)

@@ -1,0 +1,325 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Access-Security Admin</title>
+<style>
+* { box-sizing: border-box; }
+body { 
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; 
+  margin: 0; 
+  display: flex; 
+  height: 100vh; 
+  background: #f5f7fa;
+}
+
+/* Sidebar Navigation */
+nav { 
+  width: 260px; 
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); 
+  color: #eee; 
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+nav h2 { 
+  font-size: 20px; 
+  font-weight: 600;
+  margin: 0 0 8px 0; 
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+nav button { 
+  width: 100%; 
+  padding: 12px 16px; 
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: #b8c5d6;
+  font-size: 14px;
+  text-align: left;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+nav button:hover { 
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+nav hr {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin: 12px 0;
+}
+nav input#token {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-size: 13px;
+}
+nav input#token::placeholder { color: rgba(255,255,255,0.4); }
+nav input#token:focus { 
+  outline: none; 
+  border-color: #4a9eff;
+  background: rgba(255,255,255,0.1);
+}
+nav > button[onclick="saveToken()"] {
+  background: #4a9eff;
+  color: #fff;
+  font-weight: 500;
+  margin-top: 4px;
+}
+nav > button[onclick="saveToken()"]:hover {
+  background: #3d8ce6;
+}
+
+/* Main Content Area */
+main { 
+  flex: 1; 
+  padding: 32px 40px; 
+  overflow: auto;
+  background: #f5f7fa;
+}
+main > h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 24px 0;
+}
+
+/* Sections */
+section { display: none; }
+section.active { display: block; }
+section h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+/* Form Controls */
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+input, select { 
+  padding: 10px 14px; 
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 200px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: #4a9eff;
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.15);
+}
+input::placeholder { color: #9ca3af; }
+
+button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+section button {
+  background: #4a9eff;
+  color: #fff;
+}
+section button:hover {
+  background: #3d8ce6;
+  transform: translateY(-1px);
+}
+section button:active {
+  transform: translateY(0);
+}
+
+/* Tables */
+table { 
+  border-collapse: collapse; 
+  width: 100%; 
+  margin-top: 16px;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+th { 
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 2px solid #e2e8f0;
+}
+td { 
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #374151;
+  border-bottom: 1px solid #f1f5f9;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #f8fafc; }
+td button {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: #ef4444;
+}
+td button:hover { background: #dc2626; }
+
+/* Helper Classes */
+.small { 
+  font-size: 13px; 
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+/* Log Panel */
+.log { 
+  background: #1e293b; 
+  color: #a7f3d0; 
+  padding: 16px; 
+  height: 350px; 
+  overflow: auto; 
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  border-radius: 8px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Status/Pre blocks */
+pre {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+}
+
+/* File input styling */
+input[type="file"] {
+  width: auto;
+  padding: 8px;
+  border: 2px dashed #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+</style>
+</head>
+<body>
+<nav>
+  <h2>Admin</h2>
+  <div class="small">X-Admin-Token (optional)</div>
+  <input id="token" placeholder="token" />
+  <button onclick="saveToken()">Save token</button>
+  <hr/>
+  <button onclick="show('readers')">Readers</button>
+  <button onclick="show('door_roles')">Door roles</button>
+  <button onclick="show('cards')">Cards</button>
+  <button onclick="show('audit')">Audit</button>
+  <button onclick="show('events')">Runtime logs</button>
+  <button onclick="show('db')">DB Export/Import</button>
+</nav>
+
+<main>
+  <h1>Access-Security Admin Panel</h1>
+
+  <section id="readers" class="active">
+    <h3>Readers</h3>
+    <div class="form-row">
+      <input id="reader_id" placeholder="reader_id (uint32)" />
+      <input id="reader_kv" placeholder="current_key_version (uint32)" />
+      <button onclick="upsertReader()">Upsert Reader</button>
+    </div>
+
+    <div class="form-row">
+      <input id="bind_reader_id" placeholder="reader_id" />
+      <input id="bind_door_id" placeholder="door_id" />
+      <button onclick="bindDoor()">Bind Door</button>
+    </div>
+
+    <div id="readers_table"></div>
+  </section>
+
+  <section id="door_roles">
+    <h3>Door Roles</h3>
+    <div class="form-row">
+      <input id="dr_door" placeholder="door_id" />
+      <input id="dr_role" placeholder="role (e.g. staff)" />
+      <button onclick="allowRole()">Allow Role</button>
+      <button onclick="revokeRole()" style="background:#ef4444;">Revoke Role</button>
+    </div>
+    <div id="door_roles_table"></div>
+  </section>
+
+  <section id="cards">
+    <h3>Cards</h3>
+    <p class="small">
+      Only HMAC(card_id) is stored in DB (pepper is taken from KeyManager by key_version).
+    </p>
+    <div class="form-row">
+      <input id="card_raw" placeholder="raw card_id" />
+      <input id="card_role" placeholder="role" />
+      <input id="card_kv" placeholder="key_version (optional)" />
+      <button onclick="addCard()">Add / Update Card</button>
+    </div>
+    <div class="form-row">
+      <input id="card_hmac_del" placeholder="card_hmac hex" style="width: 300px;" />
+      <button onclick="deleteCard()" style="background:#ef4444;">Delete Card</button>
+    </div>
+    <div id="cards_table"></div>
+  </section>
+
+  <section id="audit">
+    <h3>Audit Log</h3>
+    <div class="form-row">
+      <button onclick="loadAudit()">Refresh</button>
+      <button onclick="verifyAudit()" style="background:#10b981;">Verify Audit Chain</button>
+    </div>
+    <pre id="audit_status"></pre>
+    <div id="audit_table"></div>
+  </section>
+
+  <section id="events">
+    <h3>Runtime Logs</h3>
+    <p class="small">Polling /api/events every 500ms</p>
+    <div class="log" id="log"></div>
+  </section>
+
+  <section id="db">
+    <h3>Database Export / Import</h3>
+    <div class="form-row">
+      <button onclick="exportDb()" style="background:#10b981;">Export Database</button>
+    </div>
+    <div class="form-row">
+      <input type="file" id="dbfile"/>
+      <button onclick="importDb()">Import Database</button>
+    </div>
+    <pre id="db_status"></pre>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

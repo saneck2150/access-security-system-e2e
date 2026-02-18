@@ -17,6 +17,8 @@
 #include <unordered_map>
 #include <vector>
 
+namespace runtime_events { class EventBus; }
+
 namespace access_decision {
 
 struct DecisionResult {
@@ -28,8 +30,9 @@ struct DecisionResult {
 class DecisionEngine {
   public:
     DecisionEngine(const IAccessStore* store, CardIdHasher hasher, IAuditLog* audit,
-                   const key_manager::KeyManager& keyManager,
-                   access_core::FrameHandlerConfig frameHandlerCfg = {});
+                  const key_manager::KeyManager& keyManager,
+                  access_core::FrameHandlerConfig frameHandlerCfg = {},
+                  runtime_events::EventBus* events = nullptr);
 
     DecisionResult handleFrameBytes(
         std::span<const uint8_t> frameBytes,
@@ -39,6 +42,7 @@ class DecisionEngine {
     const IAccessStore* _store = nullptr;
     CardIdHasher _hasher;
     IAuditLog* _audit = nullptr;
+    runtime_events::EventBus* _events = nullptr;
 
     const key_manager::KeyManager& _keyManager;
     access_core::FrameHandlerConfig _frameHandlerCfg{};

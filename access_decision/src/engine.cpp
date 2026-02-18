@@ -1,17 +1,27 @@
 #include "access_decision/engine.hpp"
 
+#include <runtime_events/event_bus.hpp>
+
 #include <string_view>
+#include <chrono>
 
 namespace access_decision {
 
+uint64_t nowUnixMs() {
+    using namespace std::chrono;
+    return static_cast<uint64_t>(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
+}
+
 DecisionEngine::DecisionEngine(const IAccessStore* store, CardIdHasher hasher, IAuditLog* audit,
                                const key_manager::KeyManager& keyManager,
-                               access_core::FrameHandlerConfig frameHandlerCfg)
+                               access_core::FrameHandlerConfig frameHandlerCfg,
+                               runtime_events::EventBus* events)
     : _store(store),
       _hasher(std::move(hasher)),
       _audit(audit),
       _keyManager(keyManager),
-      _frameHandlerCfg(frameHandlerCfg) {}
+      _frameHandlerCfg(frameHandlerCfg),
+      _events(events) {}
 
 void DecisionEngine::logAuditEvent(const protocol::packet::Header& header, bool allow,
                                    const std::string& reason, const std::string& cardId,
@@ -29,6 +39,19 @@ void DecisionEngine::logAuditEvent(const protocol::packet::Header& header, bool 
     event.card_id = cardId;
     event.action = action;
     _audit->append(std::move(event));
+    
+    if (_events) {
+        runtime_events::Event ev;
+        ev.ts_unix_ms = nowUnixMs();
+        ev.kind = "audit";
+        ev.message = std::string("audit append: ") + (allow ? "ALLOW " : "DENY ") + reason;
+        ev.reader_id = header.reader_id;
+        ev.door_id = header.door_id;
+        ev.seq = header.seq;
+        ev.allow = allow;
+        ev.reason = reason;
+        _events->push(std::move(ev));
+    }
 }
 
 DecisionResult DecisionEngine::createDeniedResult(const std::string& reason) {
@@ -38,7 +61,7 @@ DecisionResult DecisionEngine::createDeniedResult(const std::string& reason) {
     return result;
 }
 
-///@todo: split into smaller functions
+///@todo: split into smaller functions + move buss to new file
 DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult& frameResult,
                                                  const AccessRequest& request) {
     DecisionResult result;
@@ -96,12 +119,38 @@ DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult
     return result;
 }
 
-
+///@todo split into smaller functions + move buss to new file
 DecisionResult DecisionEngine::handleFrameBytes(
     std::span<const uint8_t> frameBytes,
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replayByReader) {
     access_core::FrameHandler handler(_keyManager, replayByReader, _store, _frameHandlerCfg);
     const auto frameResult = handler.handle(frameBytes);
+    
+    if (_events) {
+        runtime_events::Event ev;
+        ev.ts_unix_ms = nowUnixMs();
+        ev.kind = "frame";
+        ev.message = "frame received, bytes=" + std::to_string(frameBytes.size());
+        _events->push(std::move(ev));
+    }
+
+    if (_events) {
+        runtime_events::Event ev;
+        ev.ts_unix_ms = nowUnixMs();
+        ev.kind = "decision";
+        ev.reader_id = frameResult.header.reader_id;
+        ev.door_id = frameResult.header.door_id;
+        ev.seq = frameResult.header.seq;
+        ev.allow = frameResult.allow;
+        ev.reason = frameResult.reason;
+        ev.message = std::string("frame handler: ") + (frameResult.allow ? "ALLOW " : "DENY ") + frameResult.reason;
+        _events->push(std::move(ev));
+    }
+
+    if (!frameResult.allow) {
+        logAuditEvent(frameResult.header, false, frameResult.reason);
+        return createDeniedResult(frameResult.reason);
+    }
 
     if (!frameResult.allow) {
         logAuditEvent(frameResult.header, false, frameResult.reason);

@@ -2,9 +2,12 @@
 
 #include <sqlite3.h>
 #include <stdexcept>
+#include <vector>
 
 namespace access_storage {
+///@todo split the whole file into smaller pieces
 
+///@todo static?
 static void execOrThrow(sqlite3* db, const char* sql) {
     char* err = nullptr;
     if (sqlite3_exec(db, sql, nullptr, nullptr, &err) != SQLITE_OK) {
@@ -12,6 +15,15 @@ static void execOrThrow(sqlite3* db, const char* sql) {
         sqlite3_free(err);
         throw std::runtime_error(msg);
     }
+}
+
+///@todo static?
+static sqlite3_stmt* prepareOrThrow(sqlite3* db, const char* sql) {
+    sqlite3_stmt* st = nullptr;
+    if (sqlite3_prepare_v2(db, sql, -1, &st, nullptr) != SQLITE_OK) {
+        throw std::runtime_error("sqlite prepare failed");
+    }
+    return st;
 }
 
 SqliteAccessStore::SqliteAccessStore(const std::string& path) {
@@ -186,5 +198,116 @@ bool SqliteAccessStore::isReaderAllowedDoor(uint32_t reader_id, uint32_t door_id
     sqlite3_finalize(stmt);
     return allowed;
 }
+
+std::vector<SqliteAccessStore::ReaderRow> SqliteAccessStore::listReaders() const {
+    std::vector<ReaderRow> out;
+    auto* st = prepareOrThrow(_db, "SELECT reader_id, current_key_version FROM readers ORDER BY reader_id;");
+    while (sqlite3_step(st) == SQLITE_ROW) {
+        ReaderRow r;
+        r.reader_id = static_cast<uint32_t>(sqlite3_column_int(st, 0));
+        r.current_key_version = static_cast<uint32_t>(sqlite3_column_int(st, 1));
+        out.push_back(std::move(r));
+    }
+    sqlite3_finalize(st);
+    return out;
+}
+
+std::vector<SqliteAccessStore::ReaderDoorRow> SqliteAccessStore::listReaderDoors(uint32_t reader_id) const {
+    std::vector<ReaderDoorRow> out;
+    const char* sql_all = "SELECT reader_id, door_id FROM reader_doors ORDER BY reader_id, door_id;";
+    const char* sql_one = "SELECT reader_id, door_id FROM reader_doors WHERE reader_id = ? ORDER BY door_id;";
+    auto* st = prepareOrThrow(_db, (reader_id == 0) ? sql_all : sql_one);
+    if (reader_id != 0) {
+        sqlite3_bind_int(st, 1, static_cast<int>(reader_id));
+    }
+    while (sqlite3_step(st) == SQLITE_ROW) {
+        ReaderDoorRow r;
+        r.reader_id = static_cast<uint32_t>(sqlite3_column_int(st, 0));
+        r.door_id = static_cast<uint32_t>(sqlite3_column_int(st, 1));
+        out.push_back(std::move(r));
+    }
+    sqlite3_finalize(st);
+    return out;
+}
+
+std::vector<SqliteAccessStore::DoorRoleRow> SqliteAccessStore::listDoorRoles(uint32_t door_id) const {
+    std::vector<DoorRoleRow> out;
+    const char* sql_all = "SELECT door_id, role FROM door_roles ORDER BY door_id, role;";
+    const char* sql_one = "SELECT door_id, role FROM door_roles WHERE door_id = ? ORDER BY role;";
+    auto* st = prepareOrThrow(_db, (door_id == 0) ? sql_all : sql_one);
+    if (door_id != 0) {
+        sqlite3_bind_int(st, 1, static_cast<int>(door_id));
+    }
+    while (sqlite3_step(st) == SQLITE_ROW) {
+        DoorRoleRow r;
+        r.door_id = static_cast<uint32_t>(sqlite3_column_int(st, 0));
+        const unsigned char* txt = sqlite3_column_text(st, 1);
+        r.role = txt ? reinterpret_cast<const char*>(txt) : "";
+        out.push_back(std::move(r));
+    }
+    sqlite3_finalize(st);
+    return out;
+}
+
+std::vector<SqliteAccessStore::CardRow> SqliteAccessStore::listCards(size_t limit, size_t offset) const {
+    std::vector<CardRow> out;
+    auto* st = prepareOrThrow(_db,
+        "SELECT card_hmac, role FROM cards ORDER BY card_hmac LIMIT ? OFFSET ?;");
+    sqlite3_bind_int64(st, 1, static_cast<sqlite3_int64>(limit));
+    sqlite3_bind_int64(st, 2, static_cast<sqlite3_int64>(offset));
+    while (sqlite3_step(st) == SQLITE_ROW) {
+        CardRow r;
+        const unsigned char* h = sqlite3_column_text(st, 0);
+        const unsigned char* role = sqlite3_column_text(st, 1);
+        r.card_hmac = h ? reinterpret_cast<const char*>(h) : "";
+        r.role = role ? reinterpret_cast<const char*>(role) : "";
+        out.push_back(std::move(r));
+    }
+    sqlite3_finalize(st);
+    return out;
+}
+
+void SqliteAccessStore::deleteReader(uint32_t reader_id) {
+    auto* st = prepareOrThrow(_db, "DELETE FROM readers WHERE reader_id = ?;");
+    sqlite3_bind_int(st, 1, static_cast<int>(reader_id));
+    if (sqlite3_step(st) != SQLITE_DONE) {
+        sqlite3_finalize(st);
+        throw std::runtime_error("deleteReader failed");
+    }
+    sqlite3_finalize(st);
+}
+
+void SqliteAccessStore::revokeDoorForReader(uint32_t reader_id, uint32_t door_id) {
+    auto* st = prepareOrThrow(_db, "DELETE FROM reader_doors WHERE reader_id = ? AND door_id = ?;");
+    sqlite3_bind_int(st, 1, static_cast<int>(reader_id));
+    sqlite3_bind_int(st, 2, static_cast<int>(door_id));
+    if (sqlite3_step(st) != SQLITE_DONE) {
+        sqlite3_finalize(st);
+        throw std::runtime_error("revokeDoorForReader failed");
+    }
+    sqlite3_finalize(st);
+}
+
+void SqliteAccessStore::revokeRole(uint32_t door_id, std::string_view role) {
+    auto* st = prepareOrThrow(_db, "DELETE FROM door_roles WHERE door_id = ? AND role = ?;");
+    sqlite3_bind_int(st, 1, static_cast<int>(door_id));
+    sqlite3_bind_text(st, 2, role.data(), static_cast<int>(role.size()), SQLITE_TRANSIENT);
+    if (sqlite3_step(st) != SQLITE_DONE) {
+        sqlite3_finalize(st);
+        throw std::runtime_error("revokeRole failed");
+    }
+    sqlite3_finalize(st);
+}
+
+void SqliteAccessStore::deleteCardHmac(std::string_view card_hmac) {
+    auto* st = prepareOrThrow(_db, "DELETE FROM cards WHERE card_hmac = ?;");
+    sqlite3_bind_text(st, 1, card_hmac.data(), static_cast<int>(card_hmac.size()), SQLITE_TRANSIENT);
+    if (sqlite3_step(st) != SQLITE_DONE) {
+        sqlite3_finalize(st);
+        throw std::runtime_error("deleteCardHmac failed");
+    }
+    sqlite3_finalize(st);
+}
+
 
 } // namespace access_storage

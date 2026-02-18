@@ -27,6 +27,7 @@ access_core::FrameHandlerConfig readValuesFromNode(const YAML::Node& node) {
     return cfg;
 }
 
+///@todo make a specific load function for each config section
 Config loadFromYaml(const std::string& path) {
     YAML::Node root;
     try {
@@ -36,7 +37,23 @@ Config loadFromYaml(const std::string& path) {
     }
 
     Config cfg;
-    cfg.frameHandler = readValuesFromNode(root["frame_handler"]);
+    cfg.storage.sqlitePath = readValue<std::string>(root["storage"], "sqlite_path", cfg.storage.sqlitePath);
+
+    // admin
+    cfg.admin.bindHost = readValue<std::string>(root["admin"], "bind_host", cfg.admin.bindHost);
+    cfg.admin.port = readValue<uint16_t>(root["admin"], "port", cfg.admin.port);
+    cfg.admin.adminToken = readValue<std::string>(root["admin"], "admin_token", cfg.admin.adminToken);
+    cfg.admin.maxUploadBytes = readValue<size_t>(root["admin"], "max_upload_bytes", cfg.admin.maxUploadBytes);
+    cfg.admin.maxEvents = readValue<size_t>(root["admin"], "max_events", cfg.admin.maxEvents);
+
+    // key_management
+    cfg.keyManagement.currentKeyVersion =
+        readValue<uint32_t>(root["key_management"], "current_key_version", cfg.keyManagement.currentKeyVersion);
+    cfg.keyManagement.allowPreviousKeyVersion =
+        readValue<bool>(root["key_management"], "allow_previous_key_version", cfg.keyManagement.allowPreviousKeyVersion);
+    cfg.keyManagement.masterKeyPath =
+        readValue<std::string>(root["key_management"], "master_key_path", cfg.keyManagement.masterKeyPath);
+
     return cfg;
 }
 
