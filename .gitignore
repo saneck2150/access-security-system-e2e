@@ -3,3 +3,4 @@ third_party/
 build/
 secrets/master_key.hex
 config/access_security.yaml
+data/ 
