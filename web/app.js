@@ -1,4 +1,5 @@
 let afterId = 0;
+const LAST_SECTION_KEY = "last_section";
 
 function token() { return localStorage.getItem("admin_token") || ""; }
 function saveToken() {
@@ -7,13 +8,48 @@ function saveToken() {
 
 document.getElementById("token").value = token();
 
+function clearInputs(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === "file") {
+      el.value = "";
+      return;
+    }
+    el.value = "";
+  });
+}
+
+function reloadPageSoon(delayMs = 150) {
+  setTimeout(() => window.location.reload(), delayMs);
+}
+
 function show(id) {
   document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
+  localStorage.setItem(LAST_SECTION_KEY, id);
   if (id === "readers") loadReaders();
   if (id === "door_roles") loadDoorRoles();
   if (id === "cards") loadCards();
   if (id === "audit") loadAudit();
+}
+
+function fmtTime(ms) {
+  const d = new Date(ms);
+  const iso = d.toISOString();
+  return iso.replace("T", " ").replace("Z", "");
+}
+
+function formatEvent(e) {
+  const base = `[${String(e.id).padStart(6, "0")}] ${fmtTime(e.ts_unix_ms)} ${String(e.kind).padEnd(8, " ")} `;
+
+  if (e.kind === "admin") {
+    return `${base}r=${e.reader_id} d=${e.door_id} :: ${e.message}\n`;
+  }
+
+  const allow = e.allow ? "ALLOW" : "DENY ";
+  const reason = (e.reason && e.reason.length) ? ` reason=${e.reason}` : "";
+  return `${base}r=${e.reader_id} d=${e.door_id} seq=${e.seq} ${allow}${reason} :: ${e.message}\n`;
 }
 
 async function api(path, opt = {}) {
@@ -55,19 +91,21 @@ async function upsertReader() {
       current_key_version: Number(document.getElementById("reader_kv").value)
     })
   });
-  loadReaders();
+  clearInputs(["reader_id", "reader_kv"]);
+  reloadPageSoon();
 }
 
 async function bindDoor() {
   const rid = Number(document.getElementById("bind_reader_id").value);
   const did = Number(document.getElementById("bind_door_id").value);
   await api(`/api/readers/${rid}/doors`, { method:"POST", body: JSON.stringify({door_id: did}) });
-  loadReaders();
+  clearInputs(["bind_reader_id", "bind_door_id"]);
+  reloadPageSoon();
 }
 
 async function delReader(rid) {
   await api(`/api/readers/${rid}`, { method:"DELETE" });
-  loadReaders();
+  reloadPageSoon();
 }
 
 async function loadDoorRoles() {
@@ -85,7 +123,8 @@ async function allowRole() {
     door_id: Number(document.getElementById("dr_door").value),
     role: document.getElementById("dr_role").value
   })});
-  loadDoorRoles();
+  clearInputs(["dr_door", "dr_role"]);
+  reloadPageSoon();
 }
 
 async function revokeRole() {
@@ -93,7 +132,8 @@ async function revokeRole() {
     door_id: Number(document.getElementById("dr_door").value),
     role: document.getElementById("dr_role").value
   })});
-  loadDoorRoles();
+  clearInputs(["dr_door", "dr_role"]);
+  reloadPageSoon();
 }
 
 async function loadCards() {
@@ -115,14 +155,16 @@ async function addCard() {
   if (kvRaw) body.key_version = Number(kvRaw);
 
   await api("/api/cards", { method:"POST", body: JSON.stringify(body) });
-  loadCards();
+  clearInputs(["card_raw", "card_role", "card_kv"]);
+  reloadPageSoon();
 }
 
 async function deleteCard() {
   await api("/api/cards", { method:"DELETE", body: JSON.stringify({
     card_hmac: document.getElementById("card_hmac_del").value
   })});
-  loadCards();
+  clearInputs(["card_hmac_del"]);
+  reloadPageSoon();
 }
 
 async function loadAudit() {
@@ -166,8 +208,7 @@ async function importDb() {
   const r = await fetch("/api/db/import", opt);
   const t = await r.text();
   document.getElementById("db_status").textContent = t;
-
-  loadReaders(); loadDoorRoles(); loadCards(); loadAudit();
+  reloadPageSoon();
 }
 
 async function pollEvents() {
@@ -176,11 +217,28 @@ async function pollEvents() {
     afterId = data.last_id;
     const log = document.getElementById("log");
     for (const e of data.events) {
-      log.textContent += `[${e.id}] ${e.kind} r=${e.reader_id} d=${e.door_id} seq=${e.seq} allow=${e.allow} reason=${e.reason} :: ${e.message}\n`;
+      log.textContent += formatEvent(e);
       log.scrollTop = log.scrollHeight;
     }
   } catch (e) {}
 }
 
+async function simulateScan() {
+  const cardId = document.getElementById("sim_card_id").value;
+  const readerId = Number(document.getElementById("sim_reader_id").value);
+  const doorId = Number(document.getElementById("sim_door_id").value);
+
+  const body = { card_id: cardId, reader_id: readerId, door_id: doorId };
+
+  try {
+    const data = await api("/api/simulate_scan", { method:"POST", body: JSON.stringify(body) });
+    document.getElementById("sim_result").textContent = JSON.stringify(data, null, 2);
+    clearInputs(["sim_card_id", "sim_reader_id", "sim_door_id"]);
+  } catch (e) {
+    document.getElementById("sim_result").textContent = String(e);
+  }
+}
+
 setInterval(pollEvents, 500);
-show("readers");
+const initialSection = localStorage.getItem(LAST_SECTION_KEY) || "readers";
+show(initialSection);

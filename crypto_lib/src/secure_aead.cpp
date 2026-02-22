@@ -26,7 +26,7 @@ void SecureAead::encryptDetached(const std::span<const uint8_t>& plaintext,
     if (crypto_aead_xchacha20poly1305_ietf_encrypt_detached(
             out.ct.data(), out.tag.v.data(), &maclen, plaintext.data(), plaintext.size(),
             aad.data(), aad.size(),
-            nullptr, // nsec
+            nullptr, 
             nonce.data(), _key.key.data())
         != 0) {
         throw std::runtime_error("AEAD encrypt failed");

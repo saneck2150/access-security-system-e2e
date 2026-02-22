@@ -28,6 +28,7 @@ struct AppState {
     std::unique_ptr<access_decision::DecisionEngine> engine;
 
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> replayByReader;
+    std::unordered_map<uint32_t, uint64_t> lastSeqByReader;
 
     AppState(config_loader::Config c, std::string db, key_manager::KeyManager km);
 

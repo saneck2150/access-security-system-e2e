@@ -3,12 +3,61 @@
 
 #include <access_storage/audit_verify.hpp>
 #include <access_decision/card_id_hasher.hpp>
+#include <crypto_lib/secure_aead.hpp>
+#include <protocol_lib/frame.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 
 /// @todo split into multiple files
+
+static std::string bytesToHex(const std::vector<uint8_t>& v) {
+    static const char* kHex = "0123456789abcdef";
+    std::string out;
+    out.resize(v.size() * 2);
+    for (size_t i = 0; i < v.size(); ++i) {
+        out[i * 2 + 0] = kHex[(v[i] >> 4) & 0x0F];
+        out[i * 2 + 1] = kHex[(v[i] >> 0) & 0x0F];
+    }
+    return out;
+}
+
+static std::vector<uint8_t> buildFrameBytes(const key_manager::KeyManager& km,
+                                           uint32_t reader_id,
+                                           uint32_t door_id,
+                                           uint64_t seq,
+                                           uint32_t key_version,
+                                           uint64_t ts_unix_ms,
+                                           std::string_view json_payload) {
+    protocol::packet::Header h;
+    h.reader_id = reader_id;
+    h.door_id = door_id;
+    h.ts_unix_ms = ts_unix_ms;
+    h.seq = seq;
+    h.key_version = key_version;
+
+    crypto_lib::aead::SecureAead sender(km.deriveAeadKey(reader_id, key_version));
+    h.nonce = sender.deriveNonce(seq);
+
+    const auto aad_vec = h.to_bytes();
+    const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
+
+    const auto cipher = sender.sealWithSeq(
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(json_payload.data()),
+                                 json_payload.size()),
+        aad,
+        seq);
+
+    protocol::frame::Frame f;
+    f.header = h;
+    f.header.nonce = cipher.nonce; // keep exact nonce used by sealWithSeq
+    f.ct = cipher.ct;
+    f.tag.v = cipher.tag.v;
+
+    return protocol::frame::serialize(f);
+}
+
 namespace admin {
 
 static void registerRoutes(httplib::Server& svr, AppState& app) {
@@ -46,6 +95,74 @@ static void registerRoutes(httplib::Server& svr, AppState& app) {
             });
         }
         setJson(res, out);
+    });
+
+    svr.Post("/api/simulate_scan", [&](const httplib::Request& req, httplib::Response& res) {
+        if (!checkAuth(req, app.cfg.admin.adminToken)) {
+            setJson(res, {{"error","unauthorized"}}, 401);
+            return;
+        }
+
+        try {
+            auto j = json::parse(req.body);
+            const std::string cardId = j.at("card_id").get<std::string>();
+            const uint32_t readerId = j.at("reader_id").get<uint32_t>();
+            const uint32_t doorId = j.at("door_id").get<uint32_t>();
+            const std::string action = j.contains("action") ? j.at("action").get<std::string>()
+                                                            : std::string("open");
+
+            std::lock_guard<std::mutex> lk(app.m);
+
+            const uint32_t currentKv = app.store->currentKeyVersionForReader(readerId);
+            if (currentKv == 0) {
+                app.events.push({.ts_unix_ms=nowUnixMs(), .kind="sim",
+                                .message="simulate_scan: unknown_reader",
+                                .reader_id=readerId, .door_id=doorId});
+                setJson(res, {{"error","unknown_reader"}}, 400);
+                return;
+            }
+
+            const uint32_t kv = j.contains("key_version") ? j.at("key_version").get<uint32_t>() : currentKv;
+            const uint64_t ts = j.contains("ts_unix_ms") ? j.at("ts_unix_ms").get<uint64_t>() : nowUnixMs();
+
+            uint64_t seq = 0;
+            if (j.contains("seq")) {
+                seq = j.at("seq").get<uint64_t>();
+            } else {
+                auto& last = app.lastSeqByReader[readerId];
+                last += 1;
+                seq = last;
+            }
+
+            // Build payload JSON expected by DecisionEngine
+            json payload;
+            payload["card_id"] = cardId;
+            payload["action"] = action;
+            const std::string payloadText = payload.dump();
+
+            app.events.push({.ts_unix_ms=nowUnixMs(), .kind="sim",
+                            .message="simulate_scan: build+send",
+                            .reader_id=readerId, .door_id=doorId, .seq=seq});
+
+            const auto frameBytes = buildFrameBytes(app.keyManager, readerId, doorId, seq, kv, ts, payloadText);
+            const auto dec = app.engine->handleFrameBytes(frameBytes, app.replayByReader);
+
+            json out;
+            out["allow"] = dec.allow;
+            out["reason"] = dec.reason;
+            out["reader_id"] = readerId;
+            out["door_id"] = doorId;
+            out["seq"] = seq;
+            out["key_version"] = kv;
+            out["ts_unix_ms"] = ts;
+            out["payload"] = payload;
+            out["frame_len"] = frameBytes.size();
+            out["frame_hex"] = bytesToHex(frameBytes);
+
+            setJson(res, out);
+        } catch (const std::exception& e) {
+            setJson(res, {{"error", e.what()}}, 400);
+        }
     });
 
     // ---- readers ----
