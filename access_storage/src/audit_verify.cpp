@@ -1,43 +1,35 @@
-#include <access_storage/audit_verify.hpp>
-
-#include <crypto_lib/crypto_utils.hpp>
-
-#include <sqlite3.h>
-#include <sodium.h>
-
 #include <cstring>
 #include <string_view>
 #include <vector>
 
+#include <access_storage/audit_verify.hpp>
+#include <access_storage/serialization.hpp>
+#include <access_storage/sqlite_helpers.hpp>
+#include <crypto_lib/crypto_utils.hpp>
+#include <sodium.h>
+#include <sqlite3.h>
+
 namespace access_storage {
 
-static void putLe32(uint32_t v, std::vector<uint8_t>& out) {
-    out.push_back(static_cast<uint8_t>( v        & 0xff));
-    out.push_back(static_cast<uint8_t>((v >> 8 ) & 0xff));
-    out.push_back(static_cast<uint8_t>((v >> 16) & 0xff));
-    out.push_back(static_cast<uint8_t>((v >> 24) & 0xff));
-}
+using Hash32 = std::array<uint8_t, kVerifyHashSize>;
+using detail::prepareOrThrow;
+using detail::putBytesWithLen;
+using detail::putLe32;
+using detail::putLe64;
+using detail::StmtGuard;
 
-static void putLe64(uint64_t v, std::vector<uint8_t>& out) {
-    for (int i = 0; i < 8; ++i) out.push_back(static_cast<uint8_t>((v >> (8*i)) & 0xff));
-}
+namespace {
 
-static void putBytesWithLen(std::string_view s, std::vector<uint8_t>& out) {
-    putLe32(static_cast<uint32_t>(s.size()), out);
-    out.insert(out.end(), s.begin(), s.end());
-}
-
-///@todo split and move to _utils cpp/hpp
-static std::array<uint8_t,32> computeEntryHash(const std::array<uint8_t,32>& key,
-                                               const std::array<uint8_t,32>& prev,
-                                               uint64_t ts,
-                                               uint32_t reader_id,
-                                               uint32_t door_id,
-                                               uint64_t seq,
-                                               bool allow,
-                                               std::string_view reason,
-                                               std::string_view card_hmac,
-                                               std::string_view action) {
+Hash32 computeEntryHash(const Hash32& key,
+                        const Hash32& prev,
+                        uint64_t ts,
+                        uint32_t reader_id,
+                        uint32_t door_id,
+                        uint64_t seq,
+                        bool allow,
+                        std::string_view reason,
+                        std::string_view card_hmac,
+                        std::string_view action) {
     std::vector<uint8_t> fields;
     fields.reserve(64 + reason.size() + card_hmac.size() + action.size());
 
@@ -51,23 +43,137 @@ static std::array<uint8_t,32> computeEntryHash(const std::array<uint8_t,32>& key
     putBytesWithLen(action, fields);
 
     std::vector<uint8_t> data;
-    data.reserve(32 + fields.size());
+    data.reserve(kVerifyHashSize + fields.size());
     data.insert(data.end(), prev.begin(), prev.end());
     data.insert(data.end(), fields.begin(), fields.end());
 
-    unsigned char out[32]{};
-    crypto_lib::utils::hmac_sha256(
-        std::span<const uint8_t>(key.data(), key.size()),
-        std::span<const uint8_t>(data.data(), data.size()),
-        out);
+    unsigned char out[kVerifyHashSize]{};
+    crypto_lib::utils::hmac_sha256(std::span<const uint8_t>(key.data(), key.size()),
+                                   std::span<const uint8_t>(data.data(), data.size()),
+                                   out);
 
-    std::array<uint8_t,32> h{};
-    std::memcpy(h.data(), out, 32);
+    Hash32 h{};
+    std::memcpy(h.data(), out, kVerifyHashSize);
     return h;
 }
 
-///@todo split and move to _utils cpp/hpp
-AuditVerifyResult verifyAuditChain(sqlite3* db, const std::array<uint8_t,32>& hmacKey) {
+struct AuditRow {
+    int64_t id = 0;
+    uint64_t ts = 0;
+    uint32_t reader_id = 0;
+    uint32_t door_id = 0;
+    uint64_t seq = 0;
+    bool allow = false;
+    std::string_view reason;
+    std::string_view card_hmac;
+    std::string_view action;
+    Hash32 storedPrev{};
+    Hash32 storedEntry{};
+};
+
+bool extractRow(sqlite3_stmt* st, AuditRow& row) {
+    row.id = sqlite3_column_int64(st, 0);
+    row.ts = static_cast<uint64_t>(sqlite3_column_int64(st, 1));
+    row.reader_id = static_cast<uint32_t>(sqlite3_column_int(st, 2));
+    row.door_id = static_cast<uint32_t>(sqlite3_column_int(st, 3));
+    row.seq = static_cast<uint64_t>(sqlite3_column_int64(st, 4));
+    row.allow = sqlite3_column_int(st, 5) != 0;
+
+    const char* reason = reinterpret_cast<const char*>(sqlite3_column_text(st, 6));
+    const char* card_hmac = reinterpret_cast<const char*>(sqlite3_column_text(st, 7));
+    const char* action = reinterpret_cast<const char*>(sqlite3_column_text(st, 8));
+
+    row.reason = reason ? std::string_view(reason) : std::string_view();
+    row.card_hmac = card_hmac ? std::string_view(card_hmac) : std::string_view();
+    row.action = action ? std::string_view(action) : std::string_view();
+
+    const void* prevBlob = sqlite3_column_blob(st, 9);
+    const int prevN = sqlite3_column_bytes(st, 9);
+    const void* entryBlob = sqlite3_column_blob(st, 10);
+    const int entryN = sqlite3_column_bytes(st, 10);
+
+    if (!prevBlob || prevN != static_cast<int>(kVerifyHashSize) || !entryBlob ||
+        entryN != static_cast<int>(kVerifyHashSize)) {
+        return false;
+    }
+
+    std::memcpy(row.storedPrev.data(), prevBlob, kVerifyHashSize);
+    std::memcpy(row.storedEntry.data(), entryBlob, kVerifyHashSize);
+    return true;
+}
+
+AuditVerifyResult verifyRow(const Hash32& hmacKey,
+                            const AuditRow& row,
+                            const Hash32& expectedPrev) {
+    AuditVerifyResult res;
+
+    if (sodium_memcmp(row.storedPrev.data(), expectedPrev.data(), kVerifyHashSize) != 0) {
+        res.ok = false;
+        res.bad_id = row.id;
+        res.error = "prev_hash mismatch";
+        return res;
+    }
+
+    const auto expectedEntry = computeEntryHash(hmacKey,
+                                                expectedPrev,
+                                                row.ts,
+                                                row.reader_id,
+                                                row.door_id,
+                                                row.seq,
+                                                row.allow,
+                                                row.reason,
+                                                row.card_hmac,
+                                                row.action);
+
+    if (sodium_memcmp(row.storedEntry.data(), expectedEntry.data(), kVerifyHashSize) != 0) {
+        res.ok = false;
+        res.bad_id = row.id;
+        res.error = "entry_hash mismatch";
+        return res;
+    }
+
+    res.ok = true;
+    return res;
+}
+
+AuditVerifyResult verifyAnchor(sqlite3* db, const Hash32& lastEntry, bool anyRows) {
+    AuditVerifyResult res;
+
+    const char* sql = "SELECT last_hash FROM audit_anchor WHERE id = 1;";
+    StmtGuard guard(prepareOrThrow(db, sql));
+
+    const int rc = sqlite3_step(guard.get());
+    if (rc != SQLITE_ROW) {
+        res.ok = false;
+        res.error = "anchor row missing";
+        return res;
+    }
+
+    const void* blob = sqlite3_column_blob(guard.get(), 0);
+    const int n = sqlite3_column_bytes(guard.get(), 0);
+    if (!blob || n != static_cast<int>(kVerifyHashSize)) {
+        res.ok = false;
+        res.error = "anchor last_hash bad blob";
+        return res;
+    }
+
+    Hash32 anchor{};
+    std::memcpy(anchor.data(), blob, kVerifyHashSize);
+
+    if (sodium_memcmp(anchor.data(), lastEntry.data(), kVerifyHashSize) != 0) {
+        res.ok = false;
+        res.bad_id = anyRows ? -2 : -1;
+        res.error = "anchor mismatch (possible truncation)";
+        return res;
+    }
+
+    res.ok = true;
+    return res;
+}
+
+}  // namespace
+
+AuditVerifyResult verifyAuditChain(sqlite3* db, const Hash32& hmacKey) {
     AuditVerifyResult res;
 
     if (!db) {
@@ -81,131 +187,44 @@ AuditVerifyResult verifyAuditChain(sqlite3* db, const std::array<uint8_t,32>& hm
         "       COALESCE(card_hmac,''), COALESCE(action,''), prev_hash, entry_hash "
         "FROM audit_log ORDER BY id ASC;";
 
-    sqlite3_stmt* st = nullptr;
-    std::array<uint8_t,32> lastEntry{};
+    StmtGuard guard(prepareOrThrow(db, sql));
+
+    Hash32 expectedPrev{};
+    expectedPrev.fill(0);
+    Hash32 lastEntry{};
     lastEntry.fill(0);
     bool anyRows = false;
 
-    if (sqlite3_prepare_v2(db, sql, -1, &st, nullptr) != SQLITE_OK) {
-        res.ok = false;
-        res.error = "prepare failed";
-        return res;
-    }
-
-    std::array<uint8_t,32> expectedPrev{};
-    expectedPrev.fill(0);
-
     while (true) {
-        const int rc = sqlite3_step(st);
-        if (rc == SQLITE_DONE) break;
+        const int rc = sqlite3_step(guard.get());
+        if (rc == SQLITE_DONE) {
+            break;
+        }
         if (rc != SQLITE_ROW) {
-            sqlite3_finalize(st);
             res.ok = false;
             res.error = "step failed";
             return res;
         }
 
-        const int64_t id = sqlite3_column_int64(st, 0);
-        const uint64_t ts = static_cast<uint64_t>(sqlite3_column_int64(st, 1));
-        const uint32_t reader_id = static_cast<uint32_t>(sqlite3_column_int(st, 2));
-        const uint32_t door_id   = static_cast<uint32_t>(sqlite3_column_int(st, 3));
-        const uint64_t seq       = static_cast<uint64_t>(sqlite3_column_int64(st, 4));
-        const bool allow         = sqlite3_column_int(st, 5) != 0;
-
-        const char* reason = reinterpret_cast<const char*>(sqlite3_column_text(st, 6));
-        const char* card_hmac = reinterpret_cast<const char*>(sqlite3_column_text(st, 7));
-        const char* action = reinterpret_cast<const char*>(sqlite3_column_text(st, 8));
-
-        const void* prevBlob = sqlite3_column_blob(st, 9);
-        const int prevN = sqlite3_column_bytes(st, 9);
-        const void* entryBlob = sqlite3_column_blob(st, 10);
-        const int entryN = sqlite3_column_bytes(st, 10);
-
-        if (!prevBlob || prevN != 32 || !entryBlob || entryN != 32) {
-            sqlite3_finalize(st);
+        AuditRow row;
+        if (!extractRow(guard.get(), row)) {
             res.ok = false;
-            res.bad_id = id;
+            res.bad_id = row.id;
             res.error = "bad hash blob length";
             return res;
         }
 
-        std::array<uint8_t,32> storedPrev{};
-        std::array<uint8_t,32> storedEntry{};
-        std::memcpy(storedPrev.data(), prevBlob, 32);
-        std::memcpy(storedEntry.data(), entryBlob, 32);
-
-        if (sodium_memcmp(storedPrev.data(), expectedPrev.data(), 32) != 0) {
-            sqlite3_finalize(st);
-            res.ok = false;
-            res.bad_id = id;
-            res.error = "prev_hash mismatch";
-            return res;
-        }
-
-        const auto expectedEntry = computeEntryHash(
-            hmacKey, expectedPrev,
-            ts, reader_id, door_id, seq, allow,
-            reason ? std::string_view(reason) : std::string_view(),
-            card_hmac ? std::string_view(card_hmac) : std::string_view(),
-            action ? std::string_view(action) : std::string_view());
-
-        if (sodium_memcmp(storedEntry.data(), expectedEntry.data(), 32) != 0) {
-            sqlite3_finalize(st);
-            res.ok = false;
-            res.bad_id = id;
-            res.error = "entry_hash mismatch";
-            return res;
+        auto rowResult = verifyRow(hmacKey, row, expectedPrev);
+        if (!rowResult.ok) {
+            return rowResult;
         }
 
         anyRows = true;
-        lastEntry = storedEntry;
-
-        expectedPrev = storedEntry;
-    }
-    const char* sqlA = "SELECT last_hash FROM audit_anchor WHERE id = 1;";
-    sqlite3_stmt* sa = nullptr;
-    if (sqlite3_prepare_v2(db, sqlA, -1, &sa, nullptr) != SQLITE_OK) {
-        sqlite3_finalize(st);
-        res.ok = false;
-        res.error = "prepare anchor select failed";
-        return res;
+        lastEntry = row.storedEntry;
+        expectedPrev = row.storedEntry;
     }
 
-    const int rcA = sqlite3_step(sa);
-    if (rcA != SQLITE_ROW) {
-        sqlite3_finalize(sa);
-        sqlite3_finalize(st);
-        res.ok = false;
-        res.error = "anchor row missing";
-        return res;
-    }
-
-    const void* blob = sqlite3_column_blob(sa, 0);
-    const int n = sqlite3_column_bytes(sa, 0);
-    if (!blob || n != 32) {
-        sqlite3_finalize(sa);
-        sqlite3_finalize(st);
-        res.ok = false;
-        res.error = "anchor last_hash bad blob";
-        return res;
-    }
-
-    std::array<uint8_t,32> anchor{};
-    std::memcpy(anchor.data(), blob, 32);
-    sqlite3_finalize(sa);
-
-    if (sodium_memcmp(anchor.data(), lastEntry.data(), 32) != 0) {
-        sqlite3_finalize(st);
-        res.ok = false;
-        res.bad_id = anyRows ? -2 : -1; // distinguish "no rows" from "rows but anchor mismatch"
-        res.error = "anchor mismatch (possible truncation)";
-        return res;
-    }
-
-    sqlite3_finalize(st);
-    res.ok = true;
-    res.error = "";
-    return res;
+    return verifyAnchor(db, lastEntry, anyRows);
 }
 
-} // namespace access_storage
+}  // namespace access_storage

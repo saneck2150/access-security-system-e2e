@@ -1,9 +1,9 @@
 #include "crypto_lib/hkdf.hpp"
 
-#include <gtest/gtest.h>
-
 #include <cstdint>
 #include <vector>
+
+#include <gtest/gtest.h>
 
 TEST(HKDFTest, OutputLength) {
     std::vector<uint8_t> ikm = {1, 2, 3, 4, 5};

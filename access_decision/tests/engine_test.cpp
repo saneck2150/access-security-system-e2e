@@ -1,14 +1,4 @@
 #include "access_decision/engine.hpp"
-#include "access_decision/access_store.hpp"
-#include "access_decision/audit.hpp"
-#include "access_decision/card_id_hasher.hpp"
-
-#include <crypto_lib/secure_aead.hpp>
-#include <key_manager/key_manager.hpp>
-#include <protocol_lib/frame.hpp>
-
-#include <gtest/gtest.h>
-#include <sodium.h>
 
 #include <array>
 #include <chrono>
@@ -16,6 +6,16 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+
+#include <crypto_lib/secure_aead.hpp>
+#include <gtest/gtest.h>
+#include <key_manager/key_manager.hpp>
+#include <protocol_lib/frame.hpp>
+#include <sodium.h>
+
+#include "access_decision/access_store.hpp"
+#include "access_decision/audit.hpp"
+#include "access_decision/card_id_hasher.hpp"
 
 static uint64_t now_unix_ms() {
     using namespace std::chrono;
@@ -25,8 +25,9 @@ static uint64_t now_unix_ms() {
 
 static key_manager::KeyManager makeKm() {
     key_manager::KeyManager::MasterKey mk{};
-    for (size_t i = 0; i < mk.size(); ++i)
+    for (size_t i = 0; i < mk.size(); ++i) {
         mk[i] = static_cast<uint8_t>(i);
+    }
     return key_manager::KeyManager(mk, {.currentKeyVersion = 1, .allowPreviousKeyVersion = true});
 }
 
@@ -58,12 +59,14 @@ class InMemoryStore final : public access_decision::IAccessStore {
     }
 
     void allowDoorForReader(uint32_t reader_id, uint32_t door_id) override {
-    _readerDoors[reader_id].insert(door_id);
+        _readerDoors[reader_id].insert(door_id);
     }
 
     bool isReaderAllowedDoor(uint32_t reader_id, uint32_t door_id) const override {
         auto it = _readerDoors.find(reader_id);
-        if (it == _readerDoors.end()) return false;
+        if (it == _readerDoors.end()) {
+            return false;
+        }
         return it->second.count(door_id) != 0;
     }
 
@@ -84,7 +87,9 @@ class InMemoryStore final : public access_decision::IAccessStore {
 };
 
 static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sender,
-                                             uint32_t reader_id, uint32_t door_id, uint64_t seq,
+                                             uint32_t reader_id,
+                                             uint32_t door_id,
+                                             uint64_t seq,
                                              const std::string& json_payload) {
     protocol::packet::Header h;
     h.reader_id = reader_id;
@@ -100,7 +105,8 @@ static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sende
     const auto cipher = sender.sealWithSeq(
         std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(json_payload.data()),
                                  json_payload.size()),
-        aad, h.seq);
+        aad,
+        h.seq);
 
     protocol::frame::Frame f;
     f.header = h;

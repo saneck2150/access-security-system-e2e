@@ -1,56 +1,77 @@
+BasedOnStyle: Chromium
 Language: Cpp
-BasedOnStyle: Google
-Standard: c++20
 
+# Chromium defaults with minor adjustments
+ColumnLimit: 100
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-IndentCaseLabels: true
-IndentPPDirectives: BeforeHash
 
-ColumnLimit: 100
-
-BreakBeforeBraces: Attach
-Cpp11BracedListStyle: true
-
-SpaceBeforeParens: ControlStatements
-SpaceInEmptyParentheses: false
-SpacesInContainerLiterals: false
-SpacesInParentheses: false
-SpacesInSquareBrackets: false
-
-AlignAfterOpenBracket: Align
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
-AlignOperands: true
-AlignTrailingComments: true
-SpacesBeforeTrailingComments: 1
-
-SortIncludes: true
-IncludeBlocks: Preserve
-AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: false
-AllowShortLoopsOnASingleLine: false
-AllowShortBlocksOnASingleLine: Never
-
-KeepEmptyLinesAtTheStartOfBlocks: false
-MaxEmptyLinesToKeep: 2
-
-PointerAlignment: Left
-ReferenceAlignment: Left
-
-NamespaceIndentation: None
-CompactNamespaces: false
-
+# Keep some useful overrides
 AccessModifierOffset: -2
+IndentCaseLabels: true
+NamespaceIndentation: None
 
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
-ConstructorInitializerIndentWidth: 4
+# Pointer/reference alignment
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReferenceAlignment: Pointer
 
+# Include sorting
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+
+IncludeCategories:
+  # C system headers
+  - Regex: '^<[a-z_]+>$'
+    Priority: 1
+    SortPriority: 0
+    CaseSensitive: false
+  # C++ system headers with .h/.hpp
+  - Regex: '^<.+\.h(pp)?>$'
+    Priority: 2
+    SortPriority: 0
+    CaseSensitive: false
+  # Other system headers
+  - Regex: '^<.*>$'
+    Priority: 3
+    SortPriority: 0
+    CaseSensitive: false
+  # Project headers
+  - Regex: '.*'
+    Priority: 4
+    SortPriority: 0
+    CaseSensitive: false
+
+# Braces
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Line breaks
 AlwaysBreakTemplateDeclarations: Yes
-BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
 
-BreakStringLiterals: false
-PenaltyBreakComment: 300
-PenaltyBreakString: 1000
-PenaltyReturnTypeOnItsOwnLine: 200
+# Spacing
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpacesBeforeTrailingComments: 2
+
+# Packing
+BinPackArguments: false
+BinPackParameters: false
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+PackConstructorInitializers: NextLine
+
+# Misc
+FixNamespaceComments: true
+MaxEmptyLinesToKeep: 1
+InsertNewlineAtEOF: true
+LineEnding: LF
+
+Standard: Auto

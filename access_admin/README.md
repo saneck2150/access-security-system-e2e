@@ -1,0 +1,191 @@
+# Access Admin Module
+
+The `access_admin` module provides an HTTP-based administration server for managing the access control system. It includes a REST API for configuration, card enrollment, audit viewing, and access simulation.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         HTTP Server                                  │
+│                        (cpp-httplib)                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                       routes_api.cpp                                 │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
+│  │   Static Files   │  │    REST API      │  │  Event Stream    │   │
+│  │   /static/*      │  │    /api/*        │  │  /api/events     │   │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘   │
+│                                │                                     │
+├────────────────────────────────▼─────────────────────────────────────┤
+│                          Services Layer                              │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────────┐    │
+│  │  events    │ │  simulate  │ │  readers   │ │  door_roles    │    │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────────┘    │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────────┐    │
+│  │   cards    │ │   audit    │ │     db     │ │    access      │    │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────────┘    │
+│                                │                                     │
+├────────────────────────────────▼─────────────────────────────────────┤
+│                           AppState                                   │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  │
+│  │ KeyManager  │  │ AccessStore │  │  AuditLog   │  │  EventBus  │  │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └────────────┘  │
+│                                │                                     │
+│                                ▼                                     │
+│                        DecisionEngine                                │
+│                    (for /api/simulate_scan)                          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Components
+
+### AppState (`app_state.hpp`)
+
+Central application state container. Thread-safe via mutex.
+
+| Member | Description |
+|--------|-------------|
+| `cfg` | Server configuration from YAML |
+| `dbPath` | SQLite database path |
+| `keyManager` | Cryptographic key derivation |
+| `store` | Access policy storage |
+| `audit` | Audit log with hash chain |
+| `engine` | Decision engine for simulation |
+| `events` | Real-time event bus |
+
+### HTTP Utilities (`http_utils.hpp`)
+
+Helper functions for HTTP request handling.
+
+| Function | Description |
+|----------|-------------|
+| `nowUnixMs()` | Current Unix timestamp in ms |
+| `sodiumInitOrThrow()` | Initialize libsodium |
+| `setJson()` | Send JSON response |
+| `checkAuth()` | Validate X-Admin-Token header |
+| `hexToBytes()` | Decode hex string to bytes |
+| `bytesToHex()` | Encode bytes to hex string |
+| `sqliteIntegrityOk()` | Verify SQLite database integrity |
+
+### Services (`service/`)
+
+Business logic separated from HTTP routing.
+
+| Service | Description |
+|---------|-------------|
+| `events_service` | Real-time event polling |
+| `simulate_service` | Card scan simulation with encrypted frames |
+| `readers_service` | Reader and door binding management |
+| `door_roles_service` | Door-role access mappings |
+| `cards_service` | Card enrollment and deletion |
+| `audit_service` | Audit log viewing and chain verification |
+| `db_service` | Database export and import |
+| `access_service` | Raw frame access check |
+
+## API Endpoints
+
+### Events
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/events?after=N&limit=M` | Get events after ID N |
+
+### Readers
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/readers` | List all readers |
+| POST | `/api/readers` | Register/update reader |
+| DELETE | `/api/readers/:id` | Remove reader |
+| POST | `/api/readers/:id/doors` | Bind door to reader |
+| DELETE | `/api/readers/:id/doors/:did` | Unbind door |
+
+### Door Roles
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/door_roles` | List all door-role mappings |
+| POST | `/api/door_roles` | Allow role for door |
+| DELETE | `/api/door_roles` | Revoke role from door |
+
+### Cards
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/cards?limit=N&offset=M` | List cards (HMAC only) |
+| POST | `/api/cards` | Enroll card with role |
+| DELETE | `/api/cards` | Remove card by HMAC |
+
+### Audit
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/audit?limit=N&offset=M` | View audit log |
+| POST | `/api/audit/verify` | Verify audit chain integrity |
+
+### Database
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/db/export` | Download database file |
+| POST | `/api/db/import` | Upload and replace database |
+
+### Simulation
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/simulate_scan` | Simulate card scan |
+| POST | `/api/access/check` | Check access with raw frame |
+
+## Dataflow: Card Scan Simulation
+
+```
+1. Client POST /api/simulate_scan
+   {"card_id": "...", "reader_id": 1, "door_id": 1}
+           │
+           ▼
+2. buildFrameBytes()
+   - Derive AEAD key from KeyManager
+   - Build protocol header
+   - Encrypt payload JSON
+   - Serialize frame
+           │
+           ▼
+3. engine->handleFrameBytes()
+   - Decrypt and validate
+   - Check replay window
+   - Lookup card role
+   - Check door permission
+   - Log to audit
+           │
+           ▼
+4. Response
+   {"allow": true, "reason": "ok", ...}
+```
+
+## Configuration
+
+Server settings in `config/access_security.yaml`:
+
+```yaml
+admin:
+  bind_host: "0.0.0.0"
+  port: 8080
+  admin_token: "secret"     # X-Admin-Token header
+  max_events: 10000
+  max_upload_bytes: 10485760
+```
+
+## Running
+
+```bash
+./build/access_admin/access_admin config/access_security.yaml
+```
+
+Web UI available at `http://localhost:8080/static/index.html`
+
+## Security Notes
+
+- All management endpoints require `X-Admin-Token` header
+- Card IDs are never stored - only HMAC hashes
+- Audit log uses hash chain for tamper detection
+- Database import verifies integrity before replacing

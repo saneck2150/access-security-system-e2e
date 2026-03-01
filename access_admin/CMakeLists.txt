@@ -1,6 +1,16 @@
 add_library(access_admin_lib
   src/app_state.cpp
+  src/http_utils.cpp
   src/routes_api.cpp
+  src/service/service_types.cpp
+  src/service/events_service.cpp
+  src/service/simulate_service.cpp
+  src/service/readers_service.cpp
+  src/service/door_roles_service.cpp
+  src/service/cards_service.cpp
+  src/service/audit_service.cpp
+  src/service/db_service.cpp
+  src/service/access_service.cpp
 )
 
 target_include_directories(access_admin_lib PUBLIC

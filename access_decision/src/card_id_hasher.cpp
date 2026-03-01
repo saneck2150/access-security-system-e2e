@@ -1,8 +1,8 @@
 #include "access_decision/card_id_hasher.hpp"
 
-#include <crypto_lib/crypto_utils.hpp>
-
 #include <stdexcept>
+
+#include <crypto_lib/crypto_utils.hpp>
 
 namespace access_decision {
 
@@ -30,4 +30,4 @@ std::string CardIdHasher::hmacHex(std::string_view cardId) const {
     return toHex(hmacOutput, outputSize);
 }
 
-} // namespace access_decision
+}  // namespace access_decision

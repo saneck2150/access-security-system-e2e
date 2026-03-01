@@ -1,9 +1,10 @@
 #include "protocol_lib/frame.hpp"
-#include "protocol_lib/frame_parser.hpp"
-#include "protocol_lib/protocol_utils.hpp"
 
 #include <cstring>
 #include <stdexcept>
+
+#include "protocol_lib/frame_parser.hpp"
+#include "protocol_lib/protocol_utils.hpp"
 
 namespace protocol::frame {
 
@@ -35,4 +36,4 @@ Frame parseFrame(std::span<const uint8_t> bytes, uint32_t maxCtLen) {
     return parser.parse();
 }
 
-} // namespace protocol::frame
+}  // namespace protocol::frame

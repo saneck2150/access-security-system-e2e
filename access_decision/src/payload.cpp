@@ -1,8 +1,8 @@
 #include "access_decision/payload.hpp"
 
-#include <nlohmann/json.hpp>
-
 #include <stdexcept>
+
+#include <nlohmann/json.hpp>
 
 namespace access_decision {
 
@@ -40,4 +40,4 @@ AccessRequest parseAccessRequestJson(std::string_view jsonText) {
     return request;
 }
 
-} // namespace access_decision
+}  // namespace access_decision

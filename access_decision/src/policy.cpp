@@ -26,4 +26,4 @@ bool AccessPolicy::isAllowed(uint32_t doorId, const std::string& role) const {
     return it->second.count(role) != 0;
 }
 
-} // namespace access_decision
+}  // namespace access_decision

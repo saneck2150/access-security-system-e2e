@@ -1,4 +1,5 @@
 add_library(access_storage
+  src/serialization.cpp
   src/sqlite_access_store.cpp
   src/sqlite_audit_log.cpp
   src/audit_verify.cpp

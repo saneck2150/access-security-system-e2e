@@ -1,8 +1,9 @@
 #include "protocol_lib/frame_parser.hpp"
-#include "protocol_lib/protocol_utils.hpp"
 
 #include <cstring>
 #include <stdexcept>
+
+#include "protocol_lib/protocol_utils.hpp"
 
 namespace protocol::frame {
 
@@ -53,29 +54,18 @@ void FrameParser::parseHeader() {
         _computedValues.kHeaderFixedSize + _computedValues.kNonceSize + _computedValues.kCtLenSize,
         "frame: too small");
 
-    _frame.header.reader_id = protocol::utils::get_le32(_ptr);
-    _ptr += _computedValues.kU32;
-
-    _frame.header.door_id = protocol::utils::get_le32(_ptr);
-    _ptr += _computedValues.kU32;
-
-    _frame.header.ts_unix_ms = protocol::utils::get_le64(_ptr);
-    _ptr += _computedValues.kU64;
-
-    _frame.header.seq = protocol::utils::get_le64(_ptr);
-    _ptr += _computedValues.kU64;
-
-    _frame.header.key_version = protocol::utils::get_le32(_ptr);
-    _ptr += _computedValues.kU32;
-    /// @todo wrap into function/template
+    _frame.header.reader_id = protocol::utils::read_le<uint32_t>(_ptr);
+    _frame.header.door_id = protocol::utils::read_le<uint32_t>(_ptr);
+    _frame.header.ts_unix_ms = protocol::utils::read_le<uint64_t>(_ptr);
+    _frame.header.seq = protocol::utils::read_le<uint64_t>(_ptr);
+    _frame.header.key_version = protocol::utils::read_le<uint32_t>(_ptr);
 
     std::memcpy(_frame.header.nonce.data(), _ptr, _computedValues.kNonceSize);
     _ptr += _computedValues.kNonceSize;
 }
 
 void FrameParser::parseCiphertext() {
-    const uint32_t ctLen = protocol::utils::get_le32(_ptr);
-    _ptr += _computedValues.kCtLenSize;
+    const uint32_t ctLen = protocol::utils::read_le<uint32_t>(_ptr);
 
     if (ctLen > _maxCtLen) {
         throw std::runtime_error("frame: ctLen exceeds limit");
@@ -98,4 +88,4 @@ void FrameParser::validateNoTrailingBytes() {
     }
 }
 
-} // namespace protocol::frame
+}  // namespace protocol::frame

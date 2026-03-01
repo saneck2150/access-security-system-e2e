@@ -1,5 +1,6 @@
 add_library(key_manager
   src/key_manager.cpp
+  src/hex_utils.cpp
 )
 
 target_include_directories(key_manager PUBLIC

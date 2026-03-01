@@ -1,15 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 project(access_security)
 
-set (TESTING_MODE ON)
-set (ENABLE_DEMOS ON)
+set(TESTING_MODE ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SODIUM_DISABLE_TESTS ON)
 
-if (TESTING_MODE)
+if(TESTING_MODE)
     enable_testing()
 endif()
 
@@ -24,34 +23,3 @@ add_subdirectory(access_storage)
 add_subdirectory(config_loader)
 add_subdirectory(runtime_events)
 add_subdirectory(access_admin)
-add_subdirectory(src/startup)
-
-add_executable(access_security src/main.cpp)
-
-target_link_libraries(access_security PRIVATE 
-    sodium 
-    crypto_lib 
-    protocol_lib
-    access_core
-    access_storage
-    access_decision
-    config_loader
-    startup
-    nlohmann_json::nlohmann_json
-    yaml-cpp
-)
-
-if (ENABLE_DEMOS)
-add_executable(handle_frame_behaviour_demo examples/handle_frame_behaviour_demo.cpp)
-target_link_libraries(handle_frame_behaviour_demo PRIVATE 
-    access_core
-    access_storage
-    config_loader
-    key_manager
-    sodium 
-    crypto_lib 
-    protocol_lib
-)
-add_executable(audit_verify examples/audit_verify.cpp)
-target_link_libraries(audit_verify PRIVATE access_storage key_manager sodium)
-endif()

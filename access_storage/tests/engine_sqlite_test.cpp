@@ -1,17 +1,17 @@
-#include "access_storage/sqlite_access_store.hpp"
+#include <array>
+#include <chrono>
+#include <unordered_map>
 
 #include <access_decision/audit.hpp>
 #include <access_decision/card_id_hasher.hpp>
 #include <access_decision/engine.hpp>
 #include <crypto_lib/secure_aead.hpp>
+#include <gtest/gtest.h>
 #include <key_manager/key_manager.hpp>
 #include <protocol_lib/frame.hpp>
-
-#include <gtest/gtest.h>
 #include <sodium.h>
-#include <array>
-#include <chrono>
-#include <unordered_map>
+
+#include "access_storage/sqlite_access_store.hpp"
 
 static uint64_t nowUnixMs() {
     using namespace std::chrono;
@@ -19,8 +19,11 @@ static uint64_t nowUnixMs() {
         duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
 }
 
-static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender, uint32_t readerId,
-                                           uint32_t doorId, uint64_t seq, uint32_t keyVersion,
+static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
+                                           uint32_t readerId,
+                                           uint32_t doorId,
+                                           uint64_t seq,
+                                           uint32_t keyVersion,
                                            const std::string& jsonPayload) {
     protocol::packet::Header h;
     h.reader_id = readerId;
@@ -36,7 +39,8 @@ static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
     const auto cipher = sender.sealWithSeq(
         std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(jsonPayload.data()),
                                  jsonPayload.size()),
-        aad, h.seq);
+        aad,
+        h.seq);
 
     protocol::frame::Frame f;
     f.header = h;
@@ -78,8 +82,8 @@ TEST(DecisionEngineSqlite, AllowOkWithHmacLookup) {
 
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> windows;
 
-    const auto bytes = makeFrameBytes(sender, readerId, 7, 42, keyVersion,
-                                      R"({"card_id":"CARD1","action":"open"})");
+    const auto bytes = makeFrameBytes(
+        sender, readerId, 7, 42, keyVersion, R"({"card_id":"CARD1","action":"open"})");
     const auto res = engine.handleFrameBytes(bytes, windows);
 
     EXPECT_TRUE(res.allow);

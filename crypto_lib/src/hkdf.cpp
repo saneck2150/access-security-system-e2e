@@ -1,14 +1,17 @@
 #include "crypto_lib/hkdf.hpp"
-#include "crypto_lib/crypto_utils.hpp"
 
 #include <algorithm>
 #include <stdexcept>
+
+#include "crypto_lib/crypto_utils.hpp"
 
 namespace crypto_lib::hkdf {
 
 using crypto_lib::utils::hmac_sha256;
 
-Hkdf::Hkdf(std::span<const uint8_t> ikm, std::span<const uint8_t> salt, std::string_view info,
+Hkdf::Hkdf(std::span<const uint8_t> ikm,
+           std::span<const uint8_t> salt,
+           std::string_view info,
            size_t outputLen)
     : _ikm(ikm), _salt(salt), _info(info), _outputLen(outputLen) {
     _okm.reserve(outputLen);
@@ -41,8 +44,8 @@ void Hkdf::updateWithPrevBlock(crypto_auth_hmacsha256_state& state) const {
 
 void Hkdf::updateWithInfo(crypto_auth_hmacsha256_state& state) const {
     if (!_info.empty()) {
-        crypto_auth_hmacsha256_update(&state, reinterpret_cast<const unsigned char*>(_info.data()),
-                                      _info.size());
+        crypto_auth_hmacsha256_update(
+            &state, reinterpret_cast<const unsigned char*>(_info.data()), _info.size());
     }
 }
 
@@ -80,4 +83,4 @@ std::vector<uint8_t> Hkdf::derive() {
     return _okm;
 }
 
-} // namespace crypto_lib::hkdf
+}  // namespace crypto_lib::hkdf

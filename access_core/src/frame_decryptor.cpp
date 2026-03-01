@@ -58,4 +58,4 @@ uint64_t FrameDecryptor::nowUnixMs() const {
         duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
 }
 
-} // namespace access_core
+}  // namespace access_core

@@ -1,16 +1,15 @@
-#include <access_core/handle_frame.hpp>
-#include <access_decision/access_store.hpp>
-#include <crypto_lib/secure_aead.hpp>
-#include <key_manager/key_manager.hpp>
-#include <protocol_lib/frame.hpp>
-#include <protocol_lib/packet.hpp>
-
-#include <gtest/gtest.h>
-#include <sodium.h>
-
 #include <chrono>
 #include <string>
 #include <unordered_map>
+
+#include <access_core/handle_frame.hpp>
+#include <access_decision/access_store.hpp>
+#include <crypto_lib/secure_aead.hpp>
+#include <gtest/gtest.h>
+#include <key_manager/key_manager.hpp>
+#include <protocol_lib/frame.hpp>
+#include <protocol_lib/packet.hpp>
+#include <sodium.h>
 
 static uint64_t nowUnixMs() {
     using namespace std::chrono;
@@ -20,21 +19,27 @@ static uint64_t nowUnixMs() {
 
 static key_manager::KeyManager makeKm() {
     key_manager::KeyManager::MasterKey mk{};
-    for (size_t i = 0; i < mk.size(); ++i)
+    for (size_t i = 0; i < mk.size(); ++i) {
         mk[i] = static_cast<uint8_t>(i);
+    }
     return key_manager::KeyManager(mk, {.currentKeyVersion = 1, .allowPreviousKeyVersion = true});
 }
 
 // Simple mock store for tests
 class MockStore final : public access_decision::IAccessStore {
-public:
+  public:
     std::optional<std::string> roleForCardHmac(std::string_view) const override {
         return std::nullopt;
     }
+
     bool isAllowed(uint32_t, std::string_view) const override { return false; }
+
     uint32_t currentKeyVersionForReader(uint32_t) const override { return 1; }
+
     void upsertReader(uint32_t, uint32_t) override {}
+
     bool isReaderAllowedDoor(uint32_t, uint32_t) const override { return true; }
+
     void allowDoorForReader(uint32_t, uint32_t) override {}
 };
 
@@ -59,7 +64,8 @@ TEST(FrameHandler, ReplayRejectedBeforeDecrypt) {
 
     const std::string msg = "payload";
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad,
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()),
+        aad,
         h.seq);
 
     protocol::frame::Frame f;
@@ -112,7 +118,8 @@ TEST(FrameHandler, DecryptFailDoesNotPoisonReplayWindow) {
 
     const std::string msg = "ok";
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad,
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()),
+        aad,
         h.seq);
 
     protocol::frame::Frame f;

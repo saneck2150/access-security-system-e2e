@@ -1,93 +1,67 @@
 #pragma once
 
-#include <httplib.h>
-#include <nlohmann/json.hpp>
-#include <sqlite3.h>
-#include <sodium.h>
+//! @file http_utils.hpp
+//! HTTP utilities for the admin server.
 
 #include <chrono>
-#include <cctype>
 #include <cstdint>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <httplib.h>
+#include <nlohmann/json.hpp>
+#include <sodium.h>
+#include <sqlite3.h>
 
 namespace admin {
 
 using json = nlohmann::json;
 
-inline uint64_t nowUnixMs() {
-    using namespace std::chrono;
-    return static_cast<uint64_t>(
-        duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
-}
+//! Hex character lookup table.
+constexpr const char* kHexChars = "0123456789abcdef";
 
-inline void sodiumInitOrThrow() {
-    if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
-}
+//! SQL for integrity check.
+constexpr const char* kIntegrityCheckSql = "PRAGMA integrity_check;";
 
-inline void setJson(httplib::Response& res, const json& j, int status = 200) {
-    res.status = status;
-    res.set_content(j.dump(2), "application/json");
-}
+//! Returns current Unix time in milliseconds.
+//! @return Milliseconds since Unix epoch.
+uint64_t nowUnixMs();
 
-inline bool checkAuth(const httplib::Request& req, const std::string& token) {
-    if (token.empty()) return true;
-    return req.get_header_value("X-Admin-Token") == token;
-}
+//! Initializes libsodium or throws on failure.
+void sodiumInitOrThrow();
 
-inline std::vector<uint8_t> hexToBytes(std::string_view hex) {
-    auto hexNibble = [](char c) -> uint8_t {
-        if (c >= '0' && c <= '9') return uint8_t(c - '0');
-        if (c >= 'a' && c <= 'f') return uint8_t(10 + (c - 'a'));
-        if (c >= 'A' && c <= 'F') return uint8_t(10 + (c - 'A'));
-        throw std::runtime_error("invalid hex char");
-    };
+//! Sets JSON response with status code.
+//! @param [out] res    HTTP response to modify.
+//! @param [in]  j      JSON object to send.
+//! @param [in]  status HTTP status code (default 200).
+void setJson(httplib::Response& res, const json& j, int status = 200);
 
-    std::string s;
-    s.reserve(hex.size());
-    for (char c : hex) {
-        if (!std::isspace(static_cast<unsigned char>(c))) s.push_back(c);
-    }
-    if (s.size() % 2 != 0) throw std::runtime_error("hex odd length");
+//! Checks X-Admin-Token header against expected token.
+//! @param [in] req   HTTP request to check.
+//! @param [in] token Expected token (empty = no auth required).
+//! @return True if authorized.
+bool checkAuth(const httplib::Request& req, const std::string& token);
 
-    std::vector<uint8_t> out;
-    out.reserve(s.size() / 2);
-    for (size_t i = 0; i < s.size(); i += 2) {
-        out.push_back(uint8_t((hexNibble(s[i]) << 4) | hexNibble(s[i + 1])));
-    }
-    return out;
-}
+//! Converts a hex character to nibble value.
+//! @param [in] c Hex character (0-9, a-f, A-F).
+//! @return Nibble value (0-15).
+uint8_t hexNibble(char c);
 
-inline bool sqliteIntegrityOk(const std::string& path, std::string& err) {
-    sqlite3* db = nullptr;
-    if (sqlite3_open(path.c_str(), &db) != SQLITE_OK) {
-        err = "sqlite_open failed";
-        if (db) sqlite3_close(db);
-        return false;
-    }
+//! Converts hex string to byte vector.
+//! @param [in] hex Hex string (whitespace ignored).
+//! @return Decoded bytes.
+std::vector<uint8_t> hexToBytes(std::string_view hex);
 
-    sqlite3_stmt* st = nullptr;
-    if (sqlite3_prepare_v2(db, "PRAGMA integrity_check;", -1, &st, nullptr) != SQLITE_OK) {
-        err = "prepare integrity_check failed";
-        sqlite3_close(db);
-        return false;
-    }
+//! Converts byte vector to lowercase hex string.
+//! @param [in] v Bytes to convert.
+//! @return Hex string.
+std::string bytesToHex(const std::vector<uint8_t>& v);
 
-    bool ok = false;
-    if (sqlite3_step(st) == SQLITE_ROW) {
-        const unsigned char* txt = sqlite3_column_text(st, 0);
-        std::string v = txt ? reinterpret_cast<const char*>(txt) : "";
-        ok = (v == "ok");
-        if (!ok) err = "integrity_check: " + v;
-    } else {
-        err = "integrity_check: no row";
-    }
+//! Checks SQLite database integrity.
+//! @param [in]  path Database file path.
+//! @param [out] err  Error message if failed.
+//! @return True if integrity check passed.
+bool sqliteIntegrityOk(const std::string& path, std::string& err);
 
-    sqlite3_finalize(st);
-    sqlite3_close(db);
-    return ok;
-}
-
-} // namespace admin
+}  // namespace admin

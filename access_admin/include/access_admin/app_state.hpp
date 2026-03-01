@@ -1,5 +1,13 @@
 #pragma once
 
+//! @file app_state.hpp
+//! Application state container for the admin server.
+
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+
 #include <access_decision/engine.hpp>
 #include <access_storage/sqlite_access_store.hpp>
 #include <access_storage/sqlite_audit_log.hpp>
@@ -7,33 +15,42 @@
 #include <key_manager/key_manager.hpp>
 #include <runtime_events/event_bus.hpp>
 
-#include <mutex>
-#include <memory>
-#include <string>
-#include <unordered_map>
-
 namespace admin {
 
+//! Central application state holding all server components.
+//! Thread-safe via mutex for concurrent HTTP request handling.
 struct AppState {
-    std::mutex m;
+    std::mutex m;  //!< Protects all mutable state.
 
-    config_loader::Config cfg{};
-    std::string dbPath;
+    config_loader::Config cfg{};  //!< Server configuration.
+    std::string dbPath;           //!< SQLite database path.
 
-    runtime_events::EventBus events;
-    key_manager::KeyManager keyManager;
+    runtime_events::EventBus events;     //!< Real-time event stream.
+    key_manager::KeyManager keyManager;  //!< Cryptographic key manager.
 
-    std::unique_ptr<access_storage::SqliteAccessStore> store;
-    std::unique_ptr<access_storage::SqliteAuditLog> audit;
-    std::unique_ptr<access_decision::DecisionEngine> engine;
+    std::unique_ptr<access_storage::SqliteAccessStore> store;  //!< Access policy store.
+    std::unique_ptr<access_storage::SqliteAuditLog> audit;     //!< Audit log.
+    std::unique_ptr<access_decision::DecisionEngine> engine;   //!< Decision engine.
 
+    //!< Replay windows per reader for anti-replay.
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> replayByReader;
+    //!< Last sequence number per reader for simulation.
     std::unordered_map<uint32_t, uint64_t> lastSeqByReader;
 
+    //! Constructs AppState with configuration.
+    //! @param [in] c   Server configuration.
+    //! @param [in] db  SQLite database path.
+    //! @param [in] km  Key manager instance.
     AppState(config_loader::Config c, std::string db, key_manager::KeyManager km);
 
+    //! Opens or creates the database and initializes all components.
     void openOrCreate();
+
+    //! Imports a database file after verification.
+    //! @param [in]  uploadedPath Path to uploaded DB file.
+    //! @param [out] error        Error message if failed.
+    //! @return True if import succeeded.
     bool importDbFile(const std::string& uploadedPath, std::string& error);
 };
 
-} // namespace admin
+}  // namespace admin

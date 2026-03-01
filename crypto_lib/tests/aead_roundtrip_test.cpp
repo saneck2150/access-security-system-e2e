@@ -1,12 +1,11 @@
-#include "crypto_lib/secure_aead.hpp"
-
-#include <protocol_lib/packet.hpp>
-
-#include <gtest/gtest.h>
-#include <sodium.h>
-
 #include <chrono>
 #include <string>
+
+#include <gtest/gtest.h>
+#include <protocol_lib/packet.hpp>
+#include <sodium.h>
+
+#include "crypto_lib/secure_aead.hpp"
 
 static uint64_t now_unix_ms() {
     using namespace std::chrono;
@@ -37,7 +36,8 @@ TEST(AeadRoundtrip, RoundtripOk) {
 
     const std::string msg = "hello";
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad,
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()),
+        aad,
         h.seq);
 
     h.nonce = cipher.nonce;
@@ -68,7 +68,8 @@ TEST(AeadRoundtrip, TamperDoorIdFails) {
 
     const std::string msg = "hello";
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad,
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()),
+        aad,
         h.seq);
 
     protocol::packet::Header h2 = h;
@@ -104,7 +105,8 @@ TEST(AeadRoundtrip, SameNonceDifferentAadFails) {
 
     const std::string msg = "payload";
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad1,
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()),
+        aad1,
         h1.seq);
 
     protocol::packet::Header h2 = h1;
@@ -140,12 +142,13 @@ TEST(AeadRoundtrip, TamperKeyVersionFails) {
 
     const std::string msg = "hello";
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()), aad,
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg.data()), msg.size()),
+        aad,
         h.seq);
 
     protocol::packet::Header h2 = h;
     h2.nonce = cipher.nonce;
-    h2.key_version = 999; // tamper
+    h2.key_version = 999;  // tamper
 
     const auto aad2_vec = h2.to_bytes();
     const std::span<const uint8_t> aad2(aad2_vec.data(), aad2_vec.size());
