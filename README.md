@@ -111,10 +111,25 @@ python3 .dev-tools/clang_run.py
 ### Docker
 
 ```bash
-# Build container with all dependencies
+# Build image
 docker build -t access-security .
+
+# Run container (--rm auto-removes on stop)
+docker run -d --rm \
+  --name access-server \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/secrets:/app/secrets:ro \
+  access-security
+
+# View logs
+docker logs -f access-server
+
+# Stop (container auto-removed due to --rm)
+docker stop access-server
 ```
 
-## License
-
-Proprietary – All rights reserved.
+The container:
+- Exposes port 8080 for the admin UI
+- Mounts `/app/data` for SQLite database persistence
+- Mounts `/app/secrets` (read-only) for master key file
