@@ -31,10 +31,18 @@ class ReplayWindow {
     //! Maximum number of sequence numbers to track.
     size_t _window;
 
+    //! Highest sequence number seen so far.
+    uint64_t _maxSeen = 0;
+
     //! Hash set for O(1) lookup of seen sequence numbers.
     std::unordered_set<uint64_t> _seen;
     //! Queue maintaining insertion order for FIFO eviction.
     std::deque<uint64_t> _order;
+
+    //! Checks if seq is too old (older than maxSeen - window).
+    //! @param seq [in] Sequence number to check.
+    //! @return True if seq is outside the valid window.
+    bool isTooOld(uint64_t seq) const;
 
     //! Checks if seq exists in the seen set.
     //! @param seq [in] Sequence number to look up.

@@ -18,7 +18,6 @@
   <button onclick="show('audit')">Audit</button>
   <button onclick="show('events')">Runtime logs</button>
   <button onclick="show('db')">DB Export/Import</button>
-  <button onclick="show('simulate')">Simulate scan</button>
 </nav>
 
 <main>
@@ -96,21 +95,6 @@
       <button onclick="importDb()">Import Database</button>
     </div>
     <pre id="db_status"></pre>
-  </section>
-
-  <section id="simulate">
-    <h3>Simulate scan (no hardware)</h3>
-    <p class="small">
-      Builds payload → encrypts → serializes frame → runs DecisionEngine.
-      Result is returned, audit is appended, and runtime events are emitted.
-    </p>
-    <div class="form-row">
-      <input id="sim_card_id" placeholder="card_id (raw)" style="width: 260px;" />
-      <input id="sim_reader_id" placeholder="reader_id" />
-      <input id="sim_door_id" placeholder="door_id" />
-      <button onclick="simulateScan()" style="background:#10b981;">Send</button>
-    </div>
-    <pre id="sim_result"></pre>
   </section>
 </main>
 

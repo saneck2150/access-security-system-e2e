@@ -109,7 +109,10 @@ static const char* WIFI_PASS = "YourPassword";
 
 // Server endpoint
 static const char* SERVER_URL = "http://192.168.1.100:8080/api/hw/uid";
-static const char* ADMIN_TOKEN = "your-admin-token";
+
+// HMAC secret (64 hex chars = 32 bytes). Same as server's hw_shared_secret_hex.
+// Generate with: openssl rand -hex 32
+static const char* HW_SECRET_HEX = "your-64-char-hex-secret";
 
 // Device identification
 static const uint32_t READER_ID = 1;  // Unique ID for this reader
@@ -166,7 +169,7 @@ pio device monitor
                                             │    "uid": "...", │
                                             │    "reader_id":..,│
                                             │    "door_id": ...,│
-                                            │    "ts_ms": ...  │
+                                            │    "hw_seq": ...  │
                                             │  }               │
                                             └────────┬─────────┘
                                                      │
@@ -176,7 +179,7 @@ pio device monitor
                    │                                                       │
                    │   POST /api/hw/uid                                    │
                    │   Content-Type: application/json                      │
-                   │   X-Admin-Token: <token>                              │
+                   │   X-HW-Signature: HMAC-SHA256(secret, msg)            │
                    │                                                       │
                    └──────────────────────────┬───────────────────────────┘
                                               │
@@ -260,14 +263,16 @@ pio device monitor
 Connect at 115200 baud to see debug output:
 
 ```
-RC522 ready (WiFi mode).
+RC522 ready (WiFi + HMAC mode).
 Place card near the reader...
+hw_seq loaded: 42
 Connecting to WiFi TestHost...
 ..... OK
 IP: 192.168.1.42
 UID: A1B2C3D4
 POST http://192.168.1.100:8080/api/hw/uid
-Body: {"uid":"A1B2C3D4","reader_id":1,"door_id":1,"ts_ms":12345}
+Body: {"uid":"A1B2C3D4","reader_id":1,"door_id":1,"hw_seq":43}
+Sig: a1b2c3d4...
 HTTP 200
 Resp: {"allow":true}
 ALLOW
@@ -285,7 +290,8 @@ ALLOW
 
 - WiFi credentials are stored in plaintext in firmware
 - HTTP (not HTTPS) is used for server communication
-- Admin token is transmitted in headers
+- HMAC-SHA256 signature protects against request forgery
+- `hw_seq` monotonic counter prevents replay attacks
 - For production, consider:
   - Using HTTPS with certificate validation
   - Storing credentials in ESP32 NVS (encrypted)

@@ -14,9 +14,9 @@ using json = nlohmann::json;
 
 //! Result of a service operation.
 struct ServiceResult {
-    bool ok = true;         //!< Operation success flag.
-    int http_status = 200;  //!< HTTP status code.
-    json body;              //!< Response JSON body.
+    bool ok = true;         //! Operation success flag.
+    int http_status = 200;  //! HTTP status code.
+    json body;              //! W Response JSON body.
 };
 
 //! HTTP status codes.

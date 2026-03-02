@@ -21,8 +21,10 @@ struct AdminConfig {
     std::string bindHost = "127.0.0.1";
     //! HTTP port number.
     uint16_t port = 8080;
-    //! Bearer token for admin authentication.
+    //! Token for admin authentication (X-Admin-Token header).
     std::string adminToken = "";
+    //! Shared secret for hardware HMAC auth (64 hex chars = 32 bytes). Empty = disabled.
+    std::string hwSharedSecretHex = "";
     //! Maximum file upload size in bytes.
     size_t maxUploadBytes = 20 * 1024 * 1024;
     //! Maximum events to keep in circular buffer.

@@ -19,10 +19,10 @@ The `access_admin` module provides an HTTP-based administration server for manag
 ├────────────────────────────────▼─────────────────────────────────────┤
 │                          Services Layer                              │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────────┐    │
-│  │  events    │ │  simulate  │ │  readers   │ │  door_roles    │    │
+│  │  events    │ │  readers   │ │ door_roles │ │    cards       │    │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────────┘    │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────────┐    │
-│  │   cards    │ │   audit    │ │     db     │ │    access      │    │
+│  │   audit    │ │     db     │ │   access   │ │      hw        │    │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────────┘    │
 │                                │                                     │
 ├────────────────────────────────▼─────────────────────────────────────┤
@@ -33,7 +33,7 @@ The `access_admin` module provides an HTTP-based administration server for manag
 │                                │                                     │
 │                                ▼                                     │
 │                        DecisionEngine                                │
-│                    (for /api/simulate_scan)                          │
+│                    (for /api/hw/uid)                                 │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,13 +74,13 @@ Business logic separated from HTTP routing.
 | Service | Description |
 |---------|-------------|
 | `events_service` | Real-time event polling |
-| `simulate_service` | Card scan simulation with encrypted frames |
 | `readers_service` | Reader and door binding management |
 | `door_roles_service` | Door-role access mappings |
 | `cards_service` | Card enrollment and deletion |
 | `audit_service` | Audit log viewing and chain verification |
 | `db_service` | Database export and import |
 | `access_service` | Raw frame access check |
+| `hw_service` | Hardware reader endpoint for ESP32 |
 
 ## API Endpoints
 
@@ -130,25 +130,24 @@ Business logic separated from HTTP routing.
 | GET | `/api/db/export` | Download database file |
 | POST | `/api/db/import` | Upload and replace database |
 
-### Simulation
+### Hardware
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/simulate_scan` | Simulate card scan |
+| POST | `/api/hw/uid` | Process card scan from hardware reader |
 | POST | `/api/access/check` | Check access with raw frame |
 
-## Dataflow: Card Scan Simulation
+## Dataflow: Hardware Card Scan
 
 ```
-1. Client POST /api/simulate_scan
-   {"card_id": "...", "reader_id": 1, "door_id": 1}
+1. ESP32 POST /api/hw/uid
+   {"uid": "...", "reader_id": 1, "door_id": 1}
            │
            ▼
-2. buildFrameBytes()
-   - Derive AEAD key from KeyManager
-   - Build protocol header
-   - Encrypt payload JSON
-   - Serialize frame
+2. hw_service.processHwUid()
+   - Validate reader exists
+   - Build encrypted frame
+   - Run through DecisionEngine
            │
            ▼
 3. engine->handleFrameBytes()

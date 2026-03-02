@@ -59,28 +59,6 @@ async function pollEvents() {
 }
 
 /**
- * Simulates a card scan without hardware.
- * Reads values from sim_card_id, sim_reader_id, sim_door_id input fields.
- * Displays result in sim_result element.
- * @returns {Promise<void>}
- */
-async function simulateScan() {
-  const cardId = document.getElementById("sim_card_id").value;
-  const readerId = Number(document.getElementById("sim_reader_id").value);
-  const doorId = Number(document.getElementById("sim_door_id").value);
-
-  const body = { card_id: cardId, reader_id: readerId, door_id: doorId };
-
-  try {
-    const data = await api("/api/simulate_scan", { method: "POST", body: JSON.stringify(body) });
-    document.getElementById("sim_result").textContent = JSON.stringify(data, null, 2);
-    clearInputs(["sim_card_id", "sim_reader_id", "sim_door_id"]);
-  } catch (e) {
-    document.getElementById("sim_result").textContent = String(e);
-  }
-}
-
-/**
  * Starts the event polling interval (every 500ms).
  */
 function startEventPolling() {

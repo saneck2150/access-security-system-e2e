@@ -16,10 +16,10 @@ namespace admin::service {
 
 //! Result of database export.
 struct DbExportResult {
-    bool ok = true;          //!< Operation success flag.
-    int http_status = 200;   //!< HTTP status code.
-    std::string error;       //!< Error message if failed.
-    std::vector<char> data;  //!< Database file contents.
+    bool ok = true;          //! Operation success flag.
+    int http_status = 200;   //! HTTP status code.
+    std::string error;       //! Error message if failed.
+    std::vector<char> data;  //! Database file contents.
 };
 
 //! Exports the database file.

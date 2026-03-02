@@ -42,6 +42,8 @@ AdminConfig loadAdmin(const YAML::Node& node) {
     cfg.bindHost = readValue<std::string>(node, "bind_host", cfg.bindHost);
     cfg.port = readValue<uint16_t>(node, "port", cfg.port);
     cfg.adminToken = readValue<std::string>(node, "admin_token", cfg.adminToken);
+    cfg.hwSharedSecretHex =
+        readValue<std::string>(node, "hw_shared_secret_hex", cfg.hwSharedSecretHex);
     cfg.maxUploadBytes = readValue<size_t>(node, "max_upload_bytes", cfg.maxUploadBytes);
     cfg.maxEvents = readValue<size_t>(node, "max_events", cfg.maxEvents);
     return cfg;

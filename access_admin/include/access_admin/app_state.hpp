@@ -20,21 +20,21 @@ namespace admin {
 //! Central application state holding all server components.
 //! Thread-safe via mutex for concurrent HTTP request handling.
 struct AppState {
-    std::mutex m;  //!< Protects all mutable state.
+    std::mutex m;  //! Protects all mutable state.
 
-    config_loader::Config cfg{};  //!< Server configuration.
-    std::string dbPath;           //!< SQLite database path.
+    config_loader::Config cfg{};  //! Server configuration.
+    std::string dbPath;           //! SQLite database path.
 
-    runtime_events::EventBus events;     //!< Real-time event stream.
-    key_manager::KeyManager keyManager;  //!< Cryptographic key manager.
+    runtime_events::EventBus events;     //! Real-time event stream.
+    key_manager::KeyManager keyManager;  //! Cryptographic key manager.
 
-    std::unique_ptr<access_storage::SqliteAccessStore> store;  //!< Access policy store.
-    std::unique_ptr<access_storage::SqliteAuditLog> audit;     //!< Audit log.
-    std::unique_ptr<access_decision::DecisionEngine> engine;   //!< Decision engine.
+    std::unique_ptr<access_storage::SqliteAccessStore> store;  //! Access policy store.
+    std::unique_ptr<access_storage::SqliteAuditLog> audit;     //! Audit log.
+    std::unique_ptr<access_decision::DecisionEngine> engine;   //! Decision engine.
 
-    //!< Replay windows per reader for anti-replay.
+    //! Replay windows per reader for anti-replay.
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> replayByReader;
-    //!< Last sequence number per reader for simulation.
+    //! Last sequence number per reader for hardware scanner.
     std::unordered_map<uint32_t, uint64_t> lastSeqByReader;
 
     //! Constructs AppState with configuration.

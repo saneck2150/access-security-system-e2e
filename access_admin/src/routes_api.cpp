@@ -1,15 +1,18 @@
 #include <access_admin/app_state.hpp>
 #include <access_admin/http_utils.hpp>
 #include <access_admin/routes_api.hpp>
-#include <access_admin/service/access_service.hpp>
 #include <access_admin/service/audit_service.hpp>
 #include <access_admin/service/cards_service.hpp>
 #include <access_admin/service/db_service.hpp>
 #include <access_admin/service/door_roles_service.hpp>
 #include <access_admin/service/events_service.hpp>
+#include <access_admin/service/hw_service.hpp>
 #include <access_admin/service/readers_service.hpp>
 #include <access_admin/service/service_types.hpp>
-#include <access_admin/service/simulate_service.hpp>
+
+#include <crypto_lib/secure_aead.hpp>
+#include <protocol_lib/frame.hpp>
+#include <protocol_lib/packet.hpp>
 
 namespace admin {
 
@@ -57,25 +60,6 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
                            : kDefaultLimit;
 
         sendResult(res, getEvents(app, after, limit));
-    });
-
-    // ---- simulate ----
-    svr.Post("/api/simulate_scan", [&](const httplib::Request& req, httplib::Response& res) {
-        if (!requireAuth(req, res, app.cfg.admin.adminToken)) {
-            return;
-        }
-
-        try {
-            auto j = json::parse(req.body);
-            SimulateScanRequest scanReq;
-            if (!parseSimulateScanRequest(j, scanReq)) {
-                sendResult(res, errorResult("invalid request", kHttpBadRequest));
-                return;
-            }
-            sendResult(res, simulateScan(app, scanReq));
-        } catch (const std::exception& e) {
-            sendResult(res, errorResult(e.what(), kHttpBadRequest));
-        }
     });
 
     // ---- readers ----
@@ -279,12 +263,31 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
         res.set_content(result.body.value("message", "OK"), "text/plain");
     });
 
-    // ---- access/check ----
-    svr.Post("/api/access/check", [&](const httplib::Request& req, httplib::Response& res) {
+    // ---- hardware endpoint (ESP32 RC522) ----
+    // ESP posts {"uid":"...", "reader_id":N, "door_id":N, "hw_seq":N}
+    // with X-HW-Signature header (HMAC-SHA256 of "POST /api/hw/uid\n" + body)
+    svr.Post("/api/hw/uid", [&](const httplib::Request& req, httplib::Response& res) {
+        // Verify HMAC signature (no admin token for hardware)
+        std::string sigErr;
+        const std::string sigHex = req.get_header_value("X-HW-Signature");
+        if (!verifyHwSignature(sigHex, req.body, app.cfg.admin.hwSharedSecretHex, sigErr)) {
+            int status = (sigErr == "misconfigured") ? kHttpServerError : kHttpUnauthorized;
+            setJson(res, {{"allow", false}, {"reason", sigErr}}, status);
+            return;
+        }
+
         try {
             auto j = json::parse(req.body);
-            auto bytes = hexToBytes(j.at("frame_hex").get<std::string>());
-            sendResult(res, checkAccess(app, bytes));
+            HwUidRequest hwReq;
+            if (!parseHwUidRequest(j, hwReq)) {
+                sendResult(res, errorResult("invalid request", kHttpBadRequest));
+                return;
+            }
+            if (hwReq.hw_seq == 0) {
+                sendResult(res, errorResult("hw_seq must be > 0", kHttpBadRequest));
+                return;
+            }
+            sendResult(res, processHwUid(app, hwReq));
         } catch (const std::exception& e) {
             sendResult(res, errorResult(e.what(), kHttpBadRequest));
         }
