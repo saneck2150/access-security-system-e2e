@@ -50,6 +50,7 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
 
     // ---- events ----
     svr.Get("/api/events", [&](const httplib::Request& req, httplib::Response& res) {
+        ///@todo we can make this check once for all routes
         if (!requireAuth(req, res, app.cfg.admin.adminToken)) {
             return;
         }

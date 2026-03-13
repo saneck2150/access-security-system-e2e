@@ -12,7 +12,6 @@ static const char* WIFI_PASS = "11111111";
 static const char* SERVER_URL = "http://10.124.3.72:8080/api/hw/uid";
 
 // HMAC secret (64 hex chars = 32 bytes). Same as server's hw_shared_secret_hex.
-// Generate with: openssl rand -hex 32
 static const char* HW_SECRET_HEX = "a7aa5de55ad5ccd6b9d155ded41751cb06276819e8188c062e64350b5966fae3";
 
 // Reader/door IDs for this device
@@ -29,6 +28,7 @@ constexpr uint8_t BUZZER    = 15;
 
 // ---- LEDC PWM for buzzer ----
 constexpr uint8_t LEDC_CHANNEL = 0;
+constexpr uint32_t LEDC_FREQ = 2000;
 constexpr uint8_t LEDC_RESOLUTION = 8;  // 8-bit resolution
 
 // ---- Persistent storage ----
@@ -80,12 +80,12 @@ static void ledsOff() { digitalWrite(LED_GREEN, LOW); }
 
 //! Starts LEDC tone at given frequency.
 static void ledcToneStart(uint32_t freq) {
-  ledcWriteTone(LEDC_CHANNEL, freq);
+  ledcWriteTone(BUZZER, freq);
 }
 
 //! Stops LEDC tone.
 static void ledcToneStop() {
-  ledcWriteTone(LEDC_CHANNEL, 0);
+  ledcWriteTone(BUZZER, 0);
 }
 
 //! Plays a beep using LEDC PWM.
@@ -239,9 +239,8 @@ void setup() {
   pinMode(LED_GREEN, OUTPUT);
   ledsOff();
 
-  // Setup LEDC for buzzer (avoids tone() crashes on ESP32)
-  ledcSetup(LEDC_CHANNEL, 2000, LEDC_RESOLUTION);
-  ledcAttachPin(BUZZER, LEDC_CHANNEL);
+  // Setup LEDC for buzzer (ESP32 Arduino Core 3.x API)
+  ledcAttach(BUZZER, LEDC_FREQ, LEDC_RESOLUTION);
 
   // Load persistent hw_seq from NVS
   prefs.begin("access", false);
