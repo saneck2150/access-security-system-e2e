@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 
+#include <access_core/protocol_anomaly_detector.hpp>
 #include <access_decision/engine.hpp>
 #include <access_storage/sqlite_access_store.hpp>
 #include <access_storage/sqlite_audit_log.hpp>
@@ -25,8 +26,9 @@ struct AppState {
     config_loader::Config cfg{};  //! Server configuration.
     std::string dbPath;           //! SQLite database path.
 
-    runtime_events::EventBus events;     //! Real-time event stream.
-    key_manager::KeyManager keyManager;  //! Cryptographic key manager.
+    runtime_events::EventBus events;                   //! Real-time event stream.
+    key_manager::KeyManager keyManager;                //! Cryptographic key manager.
+    access_core::ProtocolAnomalyDetector anomalyDetector;  //! R2 runtime anomaly detector.
 
     std::unique_ptr<access_storage::SqliteAccessStore> store;  //! Access policy store.
     std::unique_ptr<access_storage::SqliteAuditLog> audit;     //! Audit log.

@@ -1,7 +1,6 @@
 #include "crypto_lib/secure_aead.hpp"
 
 #include <cstring>
-#include <limits>
 
 #include "crypto_lib/crypto_utils.hpp"
 
@@ -112,14 +111,14 @@ SecureAead::Ciphertext SecureAead::sealWithSeq(
     return out;
 }
 
-SecureAead::Ciphertext SecureAead::seal(
-    std::span<const uint8_t> plaintext, std::span<const uint8_t> aad) {
-    if (_seq == std::numeric_limits<uint64_t>::max()) {
-        throw std::runtime_error("nonce/seq overflow");
-    }
-    auto result = sealWithSeq(plaintext, aad, _seq);
-    _seq++;
-    return result;
+SecureAead::Ciphertext SecureAead::sealWithNonce(std::span<const uint8_t> plaintext,
+    std::span<const uint8_t> aad,
+    const std::array<uint8_t, 24>& nonce) {
+    Ciphertext out;
+    out.ct.resize(plaintext.size());
+    out.nonce = nonce;
+    encryptDetached(plaintext, aad, out.nonce, out);
+    return out;
 }
 
 std::vector<uint8_t> SecureAead::openWithNonce(std::span<const uint8_t> ct,

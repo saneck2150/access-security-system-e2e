@@ -3,6 +3,7 @@
 #include <access_admin/app_state.hpp>
 #include <access_admin/http_utils.hpp>
 #include <access_admin/service/hw_service.hpp>
+#include <crypto_lib/nonce_generator.hpp>
 #include <crypto_lib/secure_aead.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
@@ -36,11 +37,42 @@ protocol::packet::Header buildPacketHeader(uint32_t reader_id,
     return h;
 }
 
+//! Creates the appropriate NonceGenerator based on mode string.
+std::unique_ptr<crypto_lib::nonce::INonceGenerator> createNonceGenerator(
+    std::string_view nonceMode,
+    crypto_lib::aead::CipherMode cm,
+    const key_manager::KeyManager& km,
+    uint32_t reader_id,
+    uint32_t key_version) {
+    if (nonceMode == "random") {
+        return std::make_unique<crypto_lib::nonce::RandomNonceGenerator>(cm);
+    }
+    const auto nonceKey = km.deriveNonceKey(reader_id, key_version);
+    return std::make_unique<crypto_lib::nonce::HmacNonceGenerator>(nonceKey, cm);
+}
+
+//! Serializes header fields (without nonce) as context for HMAC nonce derivation.
+std::vector<uint8_t> buildNonceContext(uint32_t reader_id,
+    uint32_t door_id,
+    uint64_t ts_unix_ms,
+    uint64_t seq,
+    uint32_t key_version) {
+    // Build a temporary header to serialize, nonce field is zeroed (not part of context).
+    protocol::packet::Header h;
+    h.reader_id = reader_id;
+    h.door_id = door_id;
+    h.ts_unix_ms = ts_unix_ms;
+    h.seq = seq;
+    h.key_version = key_version;
+    h.nonce = {};  // zeroed — nonce is excluded from its own derivation context
+    return h.to_bytes();
+}
+
 //! Encrypts payload and serializes frame.
 std::vector<uint8_t> encryptAndSerialize(crypto_lib::aead::SecureAead& aead,
     const protocol::packet::Header& header,
     const std::string& payload_text,
-    uint64_t seq,
+    const std::array<uint8_t, 24>& nonce,
     std::string_view aadMode) {
     std::vector<uint8_t> aadVec;
     std::span<const uint8_t> aad{};
@@ -51,7 +83,7 @@ std::vector<uint8_t> encryptAndSerialize(crypto_lib::aead::SecureAead& aead,
     const std::span<const uint8_t> pt(
         reinterpret_cast<const uint8_t*>(payload_text.data()), payload_text.size());
 
-    const auto c = aead.sealWithSeq(pt, aad, seq);
+    const auto c = aead.sealWithNonce(pt, aad, nonce);
 
     protocol::frame::Frame f;
     f.header = header;
@@ -72,7 +104,8 @@ std::vector<uint8_t> buildEncryptedFrameBytes(const key_manager::KeyManager& km,
     std::string_view action,
     std::string_view keyDerivationMode,
     std::string_view aadMode,
-    std::string_view cipherMode) {
+    std::string_view cipherMode,
+    std::string_view nonceMode) {
     const std::string payloadText = buildPayloadJson(uid, action);
 
     const auto aeadKey = (keyDerivationMode == "direct") ? km.masterAsAeadKey()
@@ -81,10 +114,13 @@ std::vector<uint8_t> buildEncryptedFrameBytes(const key_manager::KeyManager& km,
                                                : crypto_lib::aead::CipherMode::XChaCha20Poly1305;
     crypto_lib::aead::SecureAead aead(aeadKey, cm);
 
-    const auto header =
-        buildPacketHeader(reader_id, door_id, seq, key_version, ts_unix_ms, aead.deriveNonce(seq));
+    auto nonceGen = createNonceGenerator(nonceMode, cm, km, reader_id, key_version);
+    const auto context = buildNonceContext(reader_id, door_id, ts_unix_ms, seq, key_version);
+    const auto nonce = nonceGen->generate(context, seq);
 
-    return encryptAndSerialize(aead, header, payloadText, seq, aadMode);
+    const auto header = buildPacketHeader(reader_id, door_id, seq, key_version, ts_unix_ms, nonce);
+
+    return encryptAndSerialize(aead, header, payloadText, nonce, aadMode);
 }
 
 //! Pushes hardware event to event bus.
@@ -251,7 +287,8 @@ ServiceResult processHwUid(AppState& app, const HwUidRequest& req) {
         req.action,
         app.cfg.experiment.keyDerivationMode,
         app.cfg.experiment.aadMode,
-        app.cfg.experiment.cipherMode);
+        app.cfg.experiment.cipherMode,
+        app.cfg.experiment.nonceMode);
 
     const auto r = app.engine->handleFrameBytes(frameBytes, app.replayByReader);
 

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <access_core/handle_frame.hpp>
+#include <access_core/protocol_anomaly_detector.hpp>
 #include <crypto_lib/secure_aead.hpp>
 #include <key_manager/key_manager.hpp>
 #include <protocol_lib/replay_window.hpp>
@@ -53,12 +54,14 @@ class DecisionEngine {
     //! @param [in] keyManager      Reference to key manager for key derivation.
     //! @param [in] frameHandlerCfg Configuration for frame handling.
     //! @param [in] events          Optional EventBus for real-time events.
+    //! @param [in] detector        Optional R2 anomaly detector (may be nullptr).
     DecisionEngine(const IAccessStore* store,
         CardIdHasher hasher,
         IAuditLog* audit,
         const key_manager::KeyManager& keyManager,
         access_core::FrameHandlerConfig frameHandlerCfg = {},
-        runtime_events::EventBus* events = nullptr);
+        runtime_events::EventBus* events = nullptr,
+        access_core::ProtocolAnomalyDetector* detector = nullptr);
 
     //! Processes an encrypted frame and returns an access decision.
     //! @param [in]     frameBytes     Raw encrypted frame bytes from the reader.
@@ -72,6 +75,7 @@ class DecisionEngine {
     CardIdHasher _hasher;
     IAuditLog* _audit = nullptr;
     runtime_events::EventBus* _events = nullptr;
+    access_core::ProtocolAnomalyDetector* _detector = nullptr;
     const key_manager::KeyManager& _keyManager;
     access_core::FrameHandlerConfig _frameHandlerCfg{};
 
@@ -105,6 +109,10 @@ class DecisionEngine {
     //! Checks access policy after frame validation.
     DecisionResult checkAccessPolicy(
         const access_core::HandleResult& frameResult, const AccessRequest& request);
+
+    //! Publishes an anomaly event to the event bus.
+    void publishAnomalyEvent(uint32_t readerId, access_core::AnomalyType type,
+        const std::string& detail);
 };
 
 }  // namespace access_decision

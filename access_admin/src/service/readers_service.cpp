@@ -79,4 +79,24 @@ ServiceResult unbindDoor(AppState& app, uint32_t reader_id, uint32_t door_id) {
     return okResult({{"ok", true}});
 }
 
+ServiceResult unquarantineReader(AppState& app, uint32_t reader_id) {
+    std::lock_guard<std::mutex> lk(app.m);
+
+    if (!app.anomalyDetector.config().enabled) {
+        return errorResult("misuse_detection_disabled", kHttpBadRequest);
+    }
+
+    const bool was = app.anomalyDetector.unquarantine(reader_id);
+    if (!was) {
+        return errorResult("not_quarantined", kHttpBadRequest);
+    }
+
+    app.events.push({.ts_unix_ms = nowUnixMs(),
+        .kind = "admin",
+        .message = "unquarantine",
+        .reader_id = reader_id});
+
+    return okResult({{"ok", true}, {"reader_id", reader_id}});
+}
+
 }  // namespace admin::service

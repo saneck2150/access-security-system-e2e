@@ -38,7 +38,7 @@ class SqliteAuditLog final : public access_decision::IAuditLog {
     sqlite3* _db = nullptr;
     //! HMAC key for chain integrity.
     Hash32 _key{};
-    //! If false, entries are logged without HMAC chaining (P0 baseline mode).
+    //! If false, entries are logged without HMAC chaining.
     bool _chainEnabled = true;
 
     //! Creates audit_log and audit_anchor tables if not exist.

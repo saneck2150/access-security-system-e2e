@@ -2,7 +2,7 @@ BasedOnStyle: Chromium
 Language: Cpp
 
 # Chromium defaults with minor adjustments
-ColumnLimit: 100
+ColumnLimit: 130
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never

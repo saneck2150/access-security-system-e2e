@@ -127,6 +127,19 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
             }
         });
 
+    svr.Post(R"(/api/readers/(\d+)/unquarantine)",
+        [&](const httplib::Request& req, httplib::Response& res) {
+            if (!requireAuth(req, res, app.cfg.admin.adminToken)) {
+                return;
+            }
+            try {
+                sendResult(res,
+                    unquarantineReader(app, static_cast<uint32_t>(std::stoul(req.matches[1]))));
+            } catch (const std::exception& e) {
+                sendResult(res, errorResult(e.what(), kHttpServerError));
+            }
+        });
+
     // ---- door_roles ----
     svr.Get("/api/door_roles", [&](const httplib::Request& req, httplib::Response& res) {
         if (!requireAuth(req, res, app.cfg.admin.adminToken)) {

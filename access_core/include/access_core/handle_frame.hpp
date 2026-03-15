@@ -45,6 +45,9 @@ struct FrameHandlerConfig {
     //! AEAD cipher: "xchacha20" (XChaCha20-Poly1305) or "chacha20" (ChaCha20-Poly1305 IETF).
     //! Populated at runtime from ExperimentConfig, not loaded directly from YAML.
     std::string cipherMode = "xchacha20";
+    //! Nonce strategy: "deterministic" (HMAC-based, R1/R2) or "random" (randombytes, R0).
+    //! Populated at runtime from ExperimentConfig.
+    std::string nonceMode = "deterministic";
 };
 
 //! Result of frame handling operation.

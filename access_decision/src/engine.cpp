@@ -3,6 +3,8 @@
 #include <chrono>
 #include <string_view>
 
+#include <access_core/protocol_anomaly_detector.hpp>
+#include <crypto_lib/nonce_generator.hpp>
 #include <runtime_events/event_bus.hpp>
 
 namespace access_decision {
@@ -18,13 +20,15 @@ DecisionEngine::DecisionEngine(const IAccessStore* store,
     IAuditLog* audit,
     const key_manager::KeyManager& keyManager,
     access_core::FrameHandlerConfig frameHandlerCfg,
-    runtime_events::EventBus* events)
+    runtime_events::EventBus* events,
+    access_core::ProtocolAnomalyDetector* detector)
     : _store(store),
       _hasher(std::move(hasher)),
       _audit(audit),
       _keyManager(keyManager),
       _frameHandlerCfg(frameHandlerCfg),
-      _events(events) {}
+      _events(events),
+      _detector(detector) {}
 
 void DecisionEngine::logAuditEvent(const protocol::packet::Header& header,
     bool allow,
@@ -98,7 +102,7 @@ void DecisionEngine::publishDecisionEvent(const access_core::HandleResult& frame
 
 std::string DecisionEngine::resolveCardHmac(
     const std::string& cardId, uint32_t currentKv, std::optional<std::string>& roleOut) {
-    // P0 baseline: static pepper — always use key version 1, no rotation.
+    // Static pepper mode: always use key version 1, no rotation.
     if (_frameHandlerCfg.pepperMode == "static") {
         const auto pepper = _keyManager.deriveCardPepper(1);
         CardIdHasher hasher(pepper);
@@ -175,17 +179,99 @@ DecisionResult DecisionEngine::checkAccessPolicy(
     return result;
 }
 
+void DecisionEngine::publishAnomalyEvent(
+    uint32_t readerId, access_core::AnomalyType type, const std::string& detail) {
+    if (!_events) {
+        return;
+    }
+    runtime_events::Event ev;
+    ev.ts_unix_ms = nowUnixMs();
+    ev.kind = "anomaly";
+    ev.reader_id = readerId;
+    ev.message = std::string("anomaly: ") + access_core::anomalyTypeToString(type);
+    if (!detail.empty()) {
+        ev.message += " " + detail;
+    }
+    ev.reason = access_core::anomalyTypeToString(type);
+    _events->push(std::move(ev));
+}
+
 DecisionResult DecisionEngine::handleFrameBytes(std::span<const uint8_t> frameBytes,
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replayByReader) {
     access_core::FrameHandler handler(_keyManager, replayByReader, _store, _frameHandlerCfg);
     const auto frameResult = handler.handle(frameBytes);
+    const uint32_t readerId = frameResult.header.reader_id;
+    const bool detectorActive = _detector && _detector->config().enabled;
 
     publishFrameEvent(frameBytes.size());
+
+    // R2: check quarantine before any further processing.
+    if (detectorActive && _detector->isQuarantined(readerId)) {
+        logAuditEvent(frameResult.header, false, "quarantined");
+        publishDecisionEvent(frameResult);
+        return createDeniedResult("quarantined");
+    }
+
+    // R2: check sequence rollback.
+    if (detectorActive && frameResult.header.seq > 0) {
+        if (auto anomaly = _detector->reportSeq(readerId, frameResult.header.seq, nowUnixMs())) {
+            publishAnomalyEvent(readerId, *anomaly, "");
+            logAuditEvent(frameResult.header, false, "quarantined");
+            publishDecisionEvent(frameResult);
+            return createDeniedResult("quarantined");
+        }
+    }
+
+    // R2: verify deterministic nonce matches expected value.
+    if (detectorActive && _frameHandlerCfg.nonceMode == "deterministic") {
+        const auto nonceKey = _keyManager.deriveNonceKey(
+            readerId, frameResult.header.key_version);
+        const auto cm = (_frameHandlerCfg.cipherMode == "chacha20")
+                            ? crypto_lib::aead::CipherMode::ChaCha20Poly1305
+                            : crypto_lib::aead::CipherMode::XChaCha20Poly1305;
+        crypto_lib::nonce::HmacNonceGenerator gen(nonceKey, cm);
+
+        // Build context: header fields with nonce zeroed.
+        protocol::packet::Header ctxHeader = frameResult.header;
+        ctxHeader.nonce = {};
+        const auto context = ctxHeader.to_bytes();
+
+        const auto expected = gen.generate(context, frameResult.header.seq);
+        const size_t nonceLen = crypto_lib::nonce::nonceLenFor(cm);
+
+        if (!access_core::ProtocolAnomalyDetector::nonceEqual(
+                frameResult.header.nonce, expected, nonceLen)) {
+            _detector->reportNonceMismatch(readerId, nowUnixMs());
+            publishAnomalyEvent(readerId, access_core::AnomalyType::nonce_mismatch, "");
+            logAuditEvent(frameResult.header, false, "quarantined");
+            publishDecisionEvent(frameResult);
+            return createDeniedResult("quarantined");
+        }
+    }
+
     publishDecisionEvent(frameResult);
 
     if (!frameResult.allow) {
+        // R2: track replay and tag failures.
+        if (detectorActive) {
+            if (frameResult.reason == "replay") {
+                auto anomaly = _detector->reportReplay(
+                    readerId, frameResult.header.seq, nowUnixMs());
+                publishAnomalyEvent(readerId, anomaly, "");
+            } else if (frameResult.reason == "mac_verification_failed" ||
+                       frameResult.reason == "decrypt_failed") {
+                if (auto anomaly = _detector->reportTagFailure(readerId, nowUnixMs())) {
+                    publishAnomalyEvent(readerId, *anomaly, "");
+                }
+            }
+        }
         logAuditEvent(frameResult.header, false, frameResult.reason);
         return createDeniedResult(frameResult.reason);
+    }
+
+    // Success: reset tag failure streak.
+    if (detectorActive) {
+        _detector->reportSuccess(readerId, frameResult.header.seq);
     }
 
     std::string_view plaintext(

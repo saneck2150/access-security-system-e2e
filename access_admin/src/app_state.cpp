@@ -64,7 +64,11 @@ AppState::AppState(config_loader::Config c, std::string db, key_manager::KeyMana
     : cfg(std::move(c)),
       dbPath(std::move(db)),
       events(cfg.admin.maxEvents),
-      keyManager(std::move(km)) {}
+      keyManager(std::move(km)),
+      anomalyDetector(access_core::DetectorConfig{
+          .enabled = cfg.experiment.misuseDetectionEnabled,
+          .rollbackThreshold = cfg.experiment.rollbackThreshold,
+          .tagFailStreakLimit = cfg.experiment.tagFailStreakLimit}) {}
 
 void AppState::openOrCreate() {
     std::lock_guard<std::mutex> lk(m);
@@ -85,9 +89,10 @@ void AppState::openOrCreate() {
     fhCfg.aadMode = cfg.experiment.aadMode;
     fhCfg.pepperMode = cfg.experiment.pepperMode;
     fhCfg.cipherMode = cfg.experiment.cipherMode;
+    fhCfg.nonceMode = cfg.experiment.nonceMode;
 
     engine = std::make_unique<access_decision::DecisionEngine>(
-        store.get(), std::move(hasher), audit.get(), keyManager, fhCfg, &events);
+        store.get(), std::move(hasher), audit.get(), keyManager, fhCfg, &events, &anomalyDetector);
 
     events.push(
         {.ts_unix_ms = nowUnixMs(), .kind = "admin", .message = "storage opened: " + dbPath});

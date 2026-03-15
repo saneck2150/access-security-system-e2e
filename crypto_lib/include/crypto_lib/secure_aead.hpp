@@ -13,8 +13,8 @@ namespace crypto_lib::aead {
 
 //! AEAD cipher variant to use.
 enum class CipherMode {
-    XChaCha20Poly1305,  //!< 192-bit nonce (24 bytes). Recommended default.
-    ChaCha20Poly1305,   //!< 96-bit nonce (12 bytes, IETF). For P1 comparison profile.
+    XChaCha20Poly1305,  //!< 192-bit nonce (24 bytes). Algorithm A2.
+    ChaCha20Poly1305,   //!< 96-bit nonce (12 bytes, IETF RFC 8439). Algorithm A1.
 };
 
 //! 256-bit AEAD encryption key.
@@ -50,14 +50,6 @@ class SecureAead {
     //! @param [in] mode Cipher variant (default: XChaCha20Poly1305).
     explicit SecureAead(const AeadKey& key, CipherMode mode = CipherMode::XChaCha20Poly1305);
 
-    //! Encrypts plaintext with automatic sequence number management.
-    //! Increments internal sequence counter after each call.
-    //! @param [in] plaintext Data to encrypt.
-    //! @param [in] aad       Additional authenticated data (not encrypted).
-    //! @return Ciphertext with tag and nonce.
-    //! @throws std::runtime_error If sequence counter overflows.
-    Ciphertext seal(std::span<const uint8_t> plaintext, std::span<const uint8_t> aad);
-
     //! Encrypts plaintext with an explicit sequence number.
     //! Does not modify internal sequence counter.
     //! @param [in] plaintext Data to encrypt.
@@ -66,6 +58,16 @@ class SecureAead {
     //! @return Ciphertext with tag and nonce.
     Ciphertext sealWithSeq(
         std::span<const uint8_t> plaintext, std::span<const uint8_t> aad, uint64_t seq);
+
+    //! Encrypts plaintext with an explicitly provided nonce.
+    //! Use this when nonce is generated externally (e.g., by INonceGenerator).
+    //! @param [in] plaintext Data to encrypt.
+    //! @param [in] aad       Additional authenticated data.
+    //! @param [in] nonce     24-byte nonce (for ChaCha20 only first 12 bytes are used).
+    //! @return Ciphertext with tag and the provided nonce.
+    Ciphertext sealWithNonce(std::span<const uint8_t> plaintext,
+        std::span<const uint8_t> aad,
+        const std::array<uint8_t, 24>& nonce);
 
     //! Decrypts ciphertext using the provided nonce.
     //! @param [in] ct    Ciphertext bytes.
@@ -93,8 +95,6 @@ class SecureAead {
     CipherMode _cipherMode;
     //! Random 16-byte prefix for nonce generation (ChaCha20 uses only first 4 bytes).
     std::array<uint8_t, 16> _noncePrefix{};
-    //! Internal sequence counter for seal().
-    uint64_t _seq = 0;
 
     //! Performs AEAD encryption (detached mode), dispatches on _cipherMode.
     void encryptDetached(const std::span<const uint8_t>& plaintext,

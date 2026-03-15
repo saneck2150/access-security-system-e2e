@@ -163,7 +163,7 @@ void SqliteAuditLog::append(access_decision::AuditEvent e) {
 
     try {
         if (!_chainEnabled) {
-            // P0 baseline mode: store event without HMAC chaining.
+            // Chain disabled: store event without HMAC chaining.
             const Hash32 zeros{};
             insertAuditEntry(e, zeros, zeros);
             execOrThrow(_db, "COMMIT;");

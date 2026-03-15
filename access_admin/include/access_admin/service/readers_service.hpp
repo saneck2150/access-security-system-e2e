@@ -45,4 +45,10 @@ ServiceResult bindDoor(AppState& app, uint32_t reader_id, uint32_t door_id);
 //! @return ServiceResult indicating success.
 ServiceResult unbindDoor(AppState& app, uint32_t reader_id, uint32_t door_id);
 
+//! Removes quarantine from a reader (R2 admin action).
+//! @param [in,out] app Application state.
+//! @param [in] reader_id Reader to unquarantine.
+//! @return ServiceResult with ok=true if was quarantined, error if not.
+ServiceResult unquarantineReader(AppState& app, uint32_t reader_id);
+
 }  // namespace admin::service

@@ -61,11 +61,18 @@ KeyManagementYaml loadKeyManagement(const YAML::Node& node) {
 ExperimentConfig loadExperiment(const YAML::Node& node) {
     ExperimentConfig cfg;
     cfg.cipherMode = readValue<std::string>(node, "cipher_mode", cfg.cipherMode);
+    cfg.nonceMode = readValue<std::string>(node, "nonce_mode", cfg.nonceMode);
     cfg.keyDerivationMode =
         readValue<std::string>(node, "key_derivation_mode", cfg.keyDerivationMode);
     cfg.aadMode = readValue<std::string>(node, "aad_mode", cfg.aadMode);
     cfg.pepperMode = readValue<std::string>(node, "pepper_mode", cfg.pepperMode);
     cfg.auditChainEnabled = readValue<bool>(node, "audit_chain_enabled", cfg.auditChainEnabled);
+    cfg.misuseDetectionEnabled =
+        readValue<bool>(node, "misuse_detection_enabled", cfg.misuseDetectionEnabled);
+    cfg.rollbackThreshold =
+        readValue<uint64_t>(node, "rollback_threshold", cfg.rollbackThreshold);
+    cfg.tagFailStreakLimit =
+        readValue<uint32_t>(node, "tag_fail_streak_limit", cfg.tagFailStreakLimit);
     return cfg;
 }
 

@@ -69,9 +69,16 @@ class KeyManager {
     std::array<uint8_t, kAuditHmacKeySize> deriveAuditHmacKey() const;
 
     //! Returns the master key directly as an AEAD key (no derivation).
-    //! Used for P0 baseline profile where all readers share the same key.
+    //! Used when key_derivation_mode="direct" (all readers share the same key).
     //! @return Master key wrapped as AeadKey.
     crypto_lib::aead::AeadKey masterAsAeadKey() const;
+
+    //! Derives a key for deterministic nonce generation (R1/R2).
+    //! salt = reader_id(4B LE) || key_version(4B LE), info = "nonce-derivation-v1".
+    //! @param [in] readerId   Reader ID for domain separation.
+    //! @param [in] keyVersion Key version for rotation support.
+    //! @return 32-byte nonce key derived via HKDF.
+    crypto_lib::aead::AeadKey deriveNonceKey(uint32_t readerId, uint32_t keyVersion) const;
 
   private:
     //! Master secret used as input key material for HKDF.

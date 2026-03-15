@@ -1,6 +1,7 @@
 add_library(access_core
   src/frame_decryptor.cpp
   src/handle_frame.cpp
+  src/protocol_anomaly_detector.cpp
 )
 
 target_include_directories(access_core PUBLIC
