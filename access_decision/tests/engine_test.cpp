@@ -87,10 +87,10 @@ class InMemoryStore final : public access_decision::IAccessStore {
 };
 
 static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sender,
-                                             uint32_t reader_id,
-                                             uint32_t door_id,
-                                             uint64_t seq,
-                                             const std::string& json_payload) {
+    uint32_t reader_id,
+    uint32_t door_id,
+    uint64_t seq,
+    const std::string& json_payload) {
     protocol::packet::Header h;
     h.reader_id = reader_id;
     h.door_id = door_id;
@@ -103,8 +103,8 @@ static std::vector<uint8_t> make_frame_bytes(crypto_lib::aead::SecureAead& sende
     const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
 
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(json_payload.data()),
-                                 json_payload.size()),
+        std::span<const uint8_t>(
+            reinterpret_cast<const uint8_t*>(json_payload.data()), json_payload.size()),
         aad,
         h.seq);
 

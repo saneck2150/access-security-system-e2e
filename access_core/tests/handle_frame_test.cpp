@@ -82,8 +82,8 @@ TEST(FrameHandler, ReplayRejectedBeforeDecrypt) {
     auto r1 = handler.handle(bytesOk);
     ASSERT_TRUE(r1.allow);
     ASSERT_EQ(r1.reason, "ok");
-    EXPECT_EQ(std::string(reinterpret_cast<const char*>(r1.plaintext.data()), r1.plaintext.size()),
-              msg);
+    EXPECT_EQ(
+        std::string(reinterpret_cast<const char*>(r1.plaintext.data()), r1.plaintext.size()), msg);
 
     auto bytesBad = bytesOk;
     bytesBad.back() ^= 0xFF;

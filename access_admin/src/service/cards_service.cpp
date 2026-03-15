@@ -22,9 +22,9 @@ ServiceResult listCards(AppState& app, size_t limit, size_t offset) {
 }
 
 ServiceResult upsertCard(AppState& app,
-                         const std::string& card_id,
-                         const std::string& role,
-                         std::optional<uint32_t> key_version) {
+    const std::string& card_id,
+    const std::string& role,
+    std::optional<uint32_t> key_version) {
     const uint32_t kv = key_version.value_or(app.cfg.keyManagement.currentKeyVersion);
 
     const auto pepper = app.keyManager.deriveCardPepper(kv);

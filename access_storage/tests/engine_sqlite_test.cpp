@@ -20,11 +20,11 @@ static uint64_t nowUnixMs() {
 }
 
 static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
-                                           uint32_t readerId,
-                                           uint32_t doorId,
-                                           uint64_t seq,
-                                           uint32_t keyVersion,
-                                           const std::string& jsonPayload) {
+    uint32_t readerId,
+    uint32_t doorId,
+    uint64_t seq,
+    uint32_t keyVersion,
+    const std::string& jsonPayload) {
     protocol::packet::Header h;
     h.reader_id = readerId;
     h.door_id = doorId;
@@ -37,8 +37,8 @@ static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
     const std::span<const uint8_t> aad(aadVec.data(), aadVec.size());
 
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(jsonPayload.data()),
-                                 jsonPayload.size()),
+        std::span<const uint8_t>(
+            reinterpret_cast<const uint8_t*>(jsonPayload.data()), jsonPayload.size()),
         aad,
         h.seq);
 

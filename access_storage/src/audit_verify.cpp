@@ -21,15 +21,15 @@ using detail::StmtGuard;
 namespace {
 
 Hash32 computeEntryHash(const Hash32& key,
-                        const Hash32& prev,
-                        uint64_t ts,
-                        uint32_t reader_id,
-                        uint32_t door_id,
-                        uint64_t seq,
-                        bool allow,
-                        std::string_view reason,
-                        std::string_view card_hmac,
-                        std::string_view action) {
+    const Hash32& prev,
+    uint64_t ts,
+    uint32_t reader_id,
+    uint32_t door_id,
+    uint64_t seq,
+    bool allow,
+    std::string_view reason,
+    std::string_view card_hmac,
+    std::string_view action) {
     std::vector<uint8_t> fields;
     fields.reserve(64 + reason.size() + card_hmac.size() + action.size());
 
@@ -49,8 +49,8 @@ Hash32 computeEntryHash(const Hash32& key,
 
     unsigned char out[kVerifyHashSize]{};
     crypto_lib::utils::hmac_sha256(std::span<const uint8_t>(key.data(), key.size()),
-                                   std::span<const uint8_t>(data.data(), data.size()),
-                                   out);
+        std::span<const uint8_t>(data.data(), data.size()),
+        out);
 
     Hash32 h{};
     std::memcpy(h.data(), out, kVerifyHashSize);
@@ -102,9 +102,8 @@ bool extractRow(sqlite3_stmt* st, AuditRow& row) {
     return true;
 }
 
-AuditVerifyResult verifyRow(const Hash32& hmacKey,
-                            const AuditRow& row,
-                            const Hash32& expectedPrev) {
+AuditVerifyResult verifyRow(
+    const Hash32& hmacKey, const AuditRow& row, const Hash32& expectedPrev) {
     AuditVerifyResult res;
 
     if (sodium_memcmp(row.storedPrev.data(), expectedPrev.data(), kVerifyHashSize) != 0) {
@@ -115,15 +114,15 @@ AuditVerifyResult verifyRow(const Hash32& hmacKey,
     }
 
     const auto expectedEntry = computeEntryHash(hmacKey,
-                                                expectedPrev,
-                                                row.ts,
-                                                row.reader_id,
-                                                row.door_id,
-                                                row.seq,
-                                                row.allow,
-                                                row.reason,
-                                                row.card_hmac,
-                                                row.action);
+        expectedPrev,
+        row.ts,
+        row.reader_id,
+        row.door_id,
+        row.seq,
+        row.allow,
+        row.reason,
+        row.card_hmac,
+        row.action);
 
     if (sodium_memcmp(row.storedEntry.data(), expectedEntry.data(), kVerifyHashSize) != 0) {
         res.ok = false;

@@ -4,32 +4,10 @@
 #include <HTTPClient.h>
 #include <Preferences.h>
 #include "mbedtls/md.h"
+#include "hw_config.h"
 
-// ---- Configuration ----
-static const char* WIFI_SSID = "TestHost";
-static const char* WIFI_PASS = "11111111";
-
-static const char* SERVER_URL = "http://10.124.3.72:8080/api/hw/uid";
-
-// HMAC secret (64 hex chars = 32 bytes). Same as server's hw_shared_secret_hex.
-static const char* HW_SECRET_HEX = "a7aa5de55ad5ccd6b9d155ded41751cb06276819e8188c062e64350b5966fae3";
-
-// Reader/door IDs for this device
-static const uint32_t READER_ID = 2;
-static const uint32_t DOOR_ID   = 6;
-
-// ---- Hardware pins ----
-constexpr uint8_t RST_PIN = 22;
-constexpr uint8_t SS_PIN  = 21;
-MFRC522 rfid(SS_PIN, RST_PIN);
-
-constexpr uint8_t LED_GREEN = 2;
-constexpr uint8_t BUZZER    = 15;
-
-// ---- LEDC PWM for buzzer ----
-constexpr uint8_t LEDC_CHANNEL = 0;
-constexpr uint32_t LEDC_FREQ = 2000;
-constexpr uint8_t LEDC_RESOLUTION = 8;  // 8-bit resolution
+// ---- Hardware objects ----
+MFRC522 rfid(HW_PIN_SS, HW_PIN_RST);
 
 // ---- Persistent storage ----
 Preferences prefs;
@@ -37,7 +15,6 @@ uint64_t hwSeq = 0;
 
 String lastUid;
 unsigned long lastSendMs = 0;
-const unsigned long RESEND_DELAY_MS = 1500;
 
 // ---- HMAC helpers ----
 
@@ -76,16 +53,16 @@ static String hmacSha256Hex(const uint8_t key[32], const String& msg) {
 
 // ---- LED/Buzzer signals ----
 
-static void ledsOff() { digitalWrite(LED_GREEN, LOW); }
+static void ledsOff() { digitalWrite(HW_PIN_LED_GREEN, LOW); }
 
 //! Starts LEDC tone at given frequency.
 static void ledcToneStart(uint32_t freq) {
-  ledcWriteTone(BUZZER, freq);
+  ledcWriteTone(HW_PIN_BUZZER, freq);
 }
 
 //! Stops LEDC tone.
 static void ledcToneStop() {
-  ledcWriteTone(BUZZER, 0);
+  ledcWriteTone(HW_PIN_BUZZER, 0);
 }
 
 //! Plays a beep using LEDC PWM.
@@ -97,20 +74,20 @@ static void beep(uint32_t freq, uint32_t duration_ms) {
 
 static void signalAllow() {
   ledsOff();
-  digitalWrite(LED_GREEN, HIGH);
-  beep(2000, 120);
-  delay(60);
-  digitalWrite(LED_GREEN, LOW);
+  digitalWrite(HW_PIN_LED_GREEN, HIGH);
+  beep(HW_ALLOW_FREQ_HZ, HW_ALLOW_BEEP_MS);
+  delay(HW_ALLOW_GAP_MS);
+  digitalWrite(HW_PIN_LED_GREEN, LOW);
 }
 
 static void signalDeny() {
   ledsOff();
   for (int i = 0; i < 2; ++i) {
-    digitalWrite(LED_GREEN, HIGH);
-    beep(500, 140);
-    delay(60);
-    digitalWrite(LED_GREEN, LOW);
-    delay(80);
+    digitalWrite(HW_PIN_LED_GREEN, HIGH);
+    beep(HW_DENY_FREQ_HZ, HW_DENY_BEEP_MS);
+    delay(HW_DENY_GAP_MS);
+    digitalWrite(HW_PIN_LED_GREEN, LOW);
+    delay(HW_DENY_PAUSE_MS);
   }
 }
 
@@ -128,19 +105,17 @@ static void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
 
   Serial.print("Connecting to WiFi ");
-  Serial.print(WIFI_SSID);
+  Serial.print(HW_WIFI_SSID);
   Serial.println("...");
 
   WiFi.mode(WIFI_STA);
   WiFi.disconnect(true);
   delay(100);
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.begin(HW_WIFI_SSID, HW_WIFI_PASS);
 
   const unsigned long start = millis();
-  const unsigned long timeout_ms = 20000;
-
-  while (WiFi.status() != WL_CONNECTED && (millis() - start) < timeout_ms) {
+  while (WiFi.status() != WL_CONNECTED && (millis() - start) < HW_WIFI_TIMEOUT_MS) {
     delay(500);
     Serial.print(".");
   }
@@ -183,8 +158,8 @@ static bool postUidToServer(const String& uid, bool& allowOut) {
   // Build JSON body with hw_seq
   String body =
     String("{\"uid\":\"") + uid +
-    String("\",\"reader_id\":") + String(READER_ID) +
-    String(",\"door_id\":") + String(DOOR_ID) +
+    String("\",\"reader_id\":") + String(HW_READER_ID) +
+    String(",\"door_id\":") + String(HW_DOOR_ID) +
     String(",\"hw_seq\":") + String((unsigned long long)hwSeq) +
     String("}");
 
@@ -192,15 +167,15 @@ static bool postUidToServer(const String& uid, bool& allowOut) {
   WiFiClient client;
 
   Serial.print("POST ");
-  Serial.println(SERVER_URL);
+  Serial.println(HW_SERVER_URL);
   Serial.print("Body: ");
   Serial.println(body);
 
-  http.begin(client, SERVER_URL);
+  http.begin(client, HW_SERVER_URL);
   http.addHeader("Content-Type", "application/json");
 
   // Compute and add HMAC signature if secret is configured
-  if (HW_SECRET_HEX && HW_SECRET_HEX[0] != '\0' && strlen(HW_SECRET_HEX) == 64) {
+  if (HW_SECRET_HEX[0] != '\0' && strlen(HW_SECRET_HEX) == 64) {
     uint8_t key[32];
     hexToBytes32(HW_SECRET_HEX, key);
     String signMsg = String("POST /api/hw/uid\n") + body;
@@ -236,11 +211,11 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  pinMode(LED_GREEN, OUTPUT);
+  pinMode(HW_PIN_LED_GREEN, OUTPUT);
   ledsOff();
 
   // Setup LEDC for buzzer (ESP32 Arduino Core 3.x API)
-  ledcAttach(BUZZER, LEDC_FREQ, LEDC_RESOLUTION);
+  ledcAttach(HW_PIN_BUZZER, HW_LEDC_FREQ, HW_LEDC_RESOLUTION);
 
   // Load persistent hw_seq from NVS
   prefs.begin("access", false);
@@ -249,7 +224,7 @@ void setup() {
   Serial.println((unsigned long long)hwSeq);
 
   SPI.begin();
-  rfid.PCD_Init(SS_PIN, RST_PIN);
+  rfid.PCD_Init(HW_PIN_SS, HW_PIN_RST);
 
   Serial.println();
   Serial.println("RC522 ready (WiFi + HMAC mode).");
@@ -260,7 +235,7 @@ void setup() {
 
 void loop() {
   if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) {
-    delay(30);
+    delay(HW_LOOP_DELAY_MS);
     return;
   }
 
@@ -269,7 +244,7 @@ void loop() {
   Serial.println(uid);
 
   unsigned long now = millis();
-  if (uid == lastUid && (now - lastSendMs) < RESEND_DELAY_MS) {
+  if (uid == lastUid && (now - lastSendMs) < HW_RESEND_DELAY_MS) {
     Serial.println("Skip (too soon)");
     rfid.PICC_HaltA();
     rfid.PCD_StopCrypto1();

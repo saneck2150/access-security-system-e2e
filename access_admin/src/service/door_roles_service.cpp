@@ -25,9 +25,9 @@ ServiceResult allowRole(AppState& app, uint32_t door_id, const std::string& role
 
     app.store->allowRole(door_id, role);
     app.events.push({.ts_unix_ms = nowUnixMs(),
-                     .kind = "admin",
-                     .message = "allowRole: " + role,
-                     .door_id = door_id});
+        .kind = "admin",
+        .message = "allowRole: " + role,
+        .door_id = door_id});
 
     return okResult({{"ok", true}});
 }
@@ -37,9 +37,9 @@ ServiceResult revokeRole(AppState& app, uint32_t door_id, const std::string& rol
 
     app.store->revokeRole(door_id, role);
     app.events.push({.ts_unix_ms = nowUnixMs(),
-                     .kind = "admin",
-                     .message = "revokeRole: " + role,
-                     .door_id = door_id});
+        .kind = "admin",
+        .message = "revokeRole: " + role,
+        .door_id = door_id});
 
     return okResult({{"ok", true}});
 }

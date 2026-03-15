@@ -79,8 +79,8 @@ TEST(AeadRoundtrip, TamperDoorIdFails) {
     const auto aad2_vec = h2.to_bytes();
     const std::span<const uint8_t> aad2(aad2_vec.data(), aad2_vec.size());
 
-    EXPECT_THROW((void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce),
-                 std::runtime_error);
+    EXPECT_THROW(
+        (void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce), std::runtime_error);
 }
 
 TEST(AeadRoundtrip, SameNonceDifferentAadFails) {
@@ -116,8 +116,8 @@ TEST(AeadRoundtrip, SameNonceDifferentAadFails) {
     const auto aad2_vec = h2.to_bytes();
     const std::span<const uint8_t> aad2(aad2_vec.data(), aad2_vec.size());
 
-    EXPECT_THROW((void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce),
-                 std::runtime_error);
+    EXPECT_THROW(
+        (void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce), std::runtime_error);
 }
 
 TEST(AeadRoundtrip, TamperKeyVersionFails) {
@@ -153,6 +153,6 @@ TEST(AeadRoundtrip, TamperKeyVersionFails) {
     const auto aad2_vec = h2.to_bytes();
     const std::span<const uint8_t> aad2(aad2_vec.data(), aad2_vec.size());
 
-    EXPECT_THROW((void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce),
-                 std::runtime_error);
+    EXPECT_THROW(
+        (void)receiver.openWithNonce(cipher.ct, cipher.tag, aad2, h2.nonce), std::runtime_error);
 }

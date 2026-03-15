@@ -10,9 +10,9 @@ namespace crypto_lib::hkdf {
 using crypto_lib::utils::hmac_sha256;
 
 Hkdf::Hkdf(std::span<const uint8_t> ikm,
-           std::span<const uint8_t> salt,
-           std::string_view info,
-           size_t outputLen)
+    std::span<const uint8_t> salt,
+    std::string_view info,
+    size_t outputLen)
     : _ikm(ikm), _salt(salt), _info(info), _outputLen(outputLen) {
     _okm.reserve(outputLen);
     _prevBlock.reserve(_hashLen);

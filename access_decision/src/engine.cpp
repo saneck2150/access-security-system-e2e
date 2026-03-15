@@ -14,11 +14,11 @@ uint64_t nowUnixMs() {
 }
 
 DecisionEngine::DecisionEngine(const IAccessStore* store,
-                               CardIdHasher hasher,
-                               IAuditLog* audit,
-                               const key_manager::KeyManager& keyManager,
-                               access_core::FrameHandlerConfig frameHandlerCfg,
-                               runtime_events::EventBus* events)
+    CardIdHasher hasher,
+    IAuditLog* audit,
+    const key_manager::KeyManager& keyManager,
+    access_core::FrameHandlerConfig frameHandlerCfg,
+    runtime_events::EventBus* events)
     : _store(store),
       _hasher(std::move(hasher)),
       _audit(audit),
@@ -27,10 +27,10 @@ DecisionEngine::DecisionEngine(const IAccessStore* store,
       _events(events) {}
 
 void DecisionEngine::logAuditEvent(const protocol::packet::Header& header,
-                                   bool allow,
-                                   const std::string& reason,
-                                   const std::string& cardId,
-                                   const std::string& action) {
+    bool allow,
+    const std::string& reason,
+    const std::string& cardId,
+    const std::string& action) {
     if (!_audit) {
         return;
     }
@@ -96,9 +96,18 @@ void DecisionEngine::publishDecisionEvent(const access_core::HandleResult& frame
     _events->push(std::move(ev));
 }
 
-std::string DecisionEngine::resolveCardHmac(const std::string& cardId,
-                                            uint32_t currentKv,
-                                            std::optional<std::string>& roleOut) {
+std::string DecisionEngine::resolveCardHmac(
+    const std::string& cardId, uint32_t currentKv, std::optional<std::string>& roleOut) {
+    // P0 baseline: static pepper — always use key version 1, no rotation.
+    if (_frameHandlerCfg.pepperMode == "static") {
+        const auto pepper = _keyManager.deriveCardPepper(1);
+        CardIdHasher hasher(pepper);
+        const std::string cardHmac = hasher.hmacHex(cardId);
+        roleOut = _store->roleForCardHmac(cardHmac);
+        return cardHmac;
+    }
+
+    // Default versioned mode with optional rotation support.
     const auto pepperCur = _keyManager.deriveCardPepper(currentKv);
     CardIdHasher hasherCur(pepperCur);
     std::string cardHmac = hasherCur.hmacHex(cardId);
@@ -131,8 +140,8 @@ DecisionResult DecisionEngine::checkRoleAccess(uint32_t doorId, const std::strin
     return result;
 }
 
-DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult& frameResult,
-                                                 const AccessRequest& request) {
+DecisionResult DecisionEngine::checkAccessPolicy(
+    const access_core::HandleResult& frameResult, const AccessRequest& request) {
     if (request.action != "open") {
         const auto res = createDeniedResult("bad_action");
         logAuditEvent(frameResult.header, false, res.reason);
@@ -166,8 +175,7 @@ DecisionResult DecisionEngine::checkAccessPolicy(const access_core::HandleResult
     return result;
 }
 
-DecisionResult DecisionEngine::handleFrameBytes(
-    std::span<const uint8_t> frameBytes,
+DecisionResult DecisionEngine::handleFrameBytes(std::span<const uint8_t> frameBytes,
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replayByReader) {
     access_core::FrameHandler handler(_keyManager, replayByReader, _store, _frameHandlerCfg);
     const auto frameResult = handler.handle(frameBytes);
@@ -180,8 +188,8 @@ DecisionResult DecisionEngine::handleFrameBytes(
         return createDeniedResult(frameResult.reason);
     }
 
-    std::string_view plaintext(reinterpret_cast<const char*>(frameResult.plaintext.data()),
-                               frameResult.plaintext.size());
+    std::string_view plaintext(
+        reinterpret_cast<const char*>(frameResult.plaintext.data()), frameResult.plaintext.size());
 
     AccessRequest request;
     try {

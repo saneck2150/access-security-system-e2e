@@ -19,9 +19,8 @@ access_storage::SqliteAuditLog::Hash32 deriveAuditHash(const key_manager::KeyMan
 }
 
 //! Verifies audit chain integrity of uploaded database.
-bool verifyUploadedAuditChain(const std::string& path,
-                              const key_manager::KeyManager& km,
-                              std::string& error) {
+bool verifyUploadedAuditChain(
+    const std::string& path, const key_manager::KeyManager& km, std::string& error) {
     sqlite3* db = nullptr;
     if (sqlite3_open(path.c_str(), &db) != SQLITE_OK) {
         error = "sqlite_open(uploaded) failed";
@@ -75,14 +74,20 @@ void AppState::openOrCreate() {
     store = std::make_unique<access_storage::SqliteAccessStore>(dbPath);
     store->initSchema();
 
-    audit = std::make_unique<access_storage::SqliteAuditLog>(store->dbHandle(),
-                                                             deriveAuditHash(keyManager));
+    audit = std::make_unique<access_storage::SqliteAuditLog>(
+        store->dbHandle(), deriveAuditHash(keyManager), cfg.experiment.auditChainEnabled);
 
     access_decision::CardIdHasher hasher(
         keyManager.deriveCardPepper(cfg.keyManagement.currentKeyVersion));
 
+    access_core::FrameHandlerConfig fhCfg = cfg.frameHandler;
+    fhCfg.keyDerivationMode = cfg.experiment.keyDerivationMode;
+    fhCfg.aadMode = cfg.experiment.aadMode;
+    fhCfg.pepperMode = cfg.experiment.pepperMode;
+    fhCfg.cipherMode = cfg.experiment.cipherMode;
+
     engine = std::make_unique<access_decision::DecisionEngine>(
-        store.get(), std::move(hasher), audit.get(), keyManager, cfg.frameHandler, &events);
+        store.get(), std::move(hasher), audit.get(), keyManager, fhCfg, &events);
 
     events.push(
         {.ts_unix_ms = nowUnixMs(), .kind = "admin", .message = "storage opened: " + dbPath});

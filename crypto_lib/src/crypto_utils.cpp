@@ -6,9 +6,8 @@
 
 namespace crypto_lib::utils {
 
-void hmac_sha256(std::span<const uint8_t> key,
-                 std::span<const uint8_t> data,
-                 unsigned char out[32]) {
+void hmac_sha256(
+    std::span<const uint8_t> key, std::span<const uint8_t> data, unsigned char out[32]) {
     crypto_auth_hmacsha256_state st;
     crypto_auth_hmacsha256_init(&st, key.data(), key.size());
     crypto_auth_hmacsha256_update(&st, data.data(), data.size());

@@ -68,6 +68,11 @@ class KeyManager {
     //! @return 32-byte HMAC key derived via HKDF.
     std::array<uint8_t, kAuditHmacKeySize> deriveAuditHmacKey() const;
 
+    //! Returns the master key directly as an AEAD key (no derivation).
+    //! Used for P0 baseline profile where all readers share the same key.
+    //! @return Master key wrapped as AeadKey.
+    crypto_lib::aead::AeadKey masterAsAeadKey() const;
+
   private:
     //! Master secret used as input key material for HKDF.
     MasterKey _masterKey{};

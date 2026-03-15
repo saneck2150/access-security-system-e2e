@@ -29,9 +29,9 @@ ServiceResult listCards(AppState& app, size_t limit, size_t offset);
 //! @param [in] key_version Optional key version override.
 //! @return ServiceResult with ok and card_hmac.
 ServiceResult upsertCard(AppState& app,
-                         const std::string& card_id,
-                         const std::string& role,
-                         std::optional<uint32_t> key_version);
+    const std::string& card_id,
+    const std::string& role,
+    std::optional<uint32_t> key_version);
 
 //! Deletes a card by its HMAC.
 //! @param [in,out] app Application state.

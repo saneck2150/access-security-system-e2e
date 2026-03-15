@@ -22,10 +22,11 @@ class SqliteAuditLog final : public access_decision::IAuditLog {
     using Hash32 = std::array<uint8_t, kHashSize>;
 
     //! Constructs audit log with database and HMAC key.
-    //! @param [in] db      SQLite database handle (non-owning).
-    //! @param [in] hmacKey 32-byte key for HMAC chain.
+    //! @param [in] db           SQLite database handle (non-owning).
+    //! @param [in] hmacKey      32-byte key for HMAC chain.
+    //! @param [in] chainEnabled If false, entries are stored without HMAC chaining.
     //! @throws std::invalid_argument If db is null.
-    SqliteAuditLog(sqlite3* db, Hash32 hmacKey);
+    SqliteAuditLog(sqlite3* db, Hash32 hmacKey, bool chainEnabled = true);
 
     //! Appends an event to the audit log with chain hash.
     //! @param [in] e Event to log.
@@ -37,6 +38,8 @@ class SqliteAuditLog final : public access_decision::IAuditLog {
     sqlite3* _db = nullptr;
     //! HMAC key for chain integrity.
     Hash32 _key{};
+    //! If false, entries are logged without HMAC chaining (P0 baseline mode).
+    bool _chainEnabled = true;
 
     //! Creates audit_log and audit_anchor tables if not exist.
     void initSchema();
@@ -55,9 +58,8 @@ class SqliteAuditLog final : public access_decision::IAuditLog {
     //! @param [in] e          Event to insert.
     //! @param [in] prevHash   Previous entry hash.
     //! @param [in] entryHash  Computed hash for this entry.
-    void insertAuditEntry(const access_decision::AuditEvent& e,
-                          const Hash32& prevHash,
-                          const Hash32& entryHash);
+    void insertAuditEntry(
+        const access_decision::AuditEvent& e, const Hash32& prevHash, const Hash32& entryHash);
 
     //! Updates audit_anchor with the latest hash.
     //! @param [in] entryHash New last hash.

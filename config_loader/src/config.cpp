@@ -58,6 +58,17 @@ KeyManagementYaml loadKeyManagement(const YAML::Node& node) {
     return cfg;
 }
 
+ExperimentConfig loadExperiment(const YAML::Node& node) {
+    ExperimentConfig cfg;
+    cfg.cipherMode = readValue<std::string>(node, "cipher_mode", cfg.cipherMode);
+    cfg.keyDerivationMode =
+        readValue<std::string>(node, "key_derivation_mode", cfg.keyDerivationMode);
+    cfg.aadMode = readValue<std::string>(node, "aad_mode", cfg.aadMode);
+    cfg.pepperMode = readValue<std::string>(node, "pepper_mode", cfg.pepperMode);
+    cfg.auditChainEnabled = readValue<bool>(node, "audit_chain_enabled", cfg.auditChainEnabled);
+    return cfg;
+}
+
 }  // namespace
 
 Config loadFromYaml(const std::string& path) {
@@ -73,6 +84,7 @@ Config loadFromYaml(const std::string& path) {
     cfg.storage = loadStorage(root["storage"]);
     cfg.admin = loadAdmin(root["admin"]);
     cfg.keyManagement = loadKeyManagement(root["key_management"]);
+    cfg.experiment = loadExperiment(root["experiment"]);
     return cfg;
 }
 

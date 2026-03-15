@@ -32,6 +32,19 @@ struct FrameHandlerConfig {
     uint64_t maxSkewMs = 0;                //!< Max timestamp skew (0 = disabled).
     bool allowPreviousKeyVersion = true;   //!< Accept previous key version.
     bool enforceReaderDoorBinding = true;  //!< Verify reader-door authorization.
+
+    //! Key derivation mode: "hkdf" (per-reader HKDF) or "direct" (master key as AEAD key).
+    //! Populated at runtime from ExperimentConfig, not loaded directly from YAML.
+    std::string keyDerivationMode = "hkdf";
+    //! AAD binding mode: "full" (header bytes as AAD) or "none" (empty AAD).
+    //! Populated at runtime from ExperimentConfig, not loaded directly from YAML.
+    std::string aadMode = "full";
+    //! Pepper mode: "versioned" (HKDF per key version) or "static" (fixed version 1).
+    //! Populated at runtime from ExperimentConfig, not loaded directly from YAML.
+    std::string pepperMode = "versioned";
+    //! AEAD cipher: "xchacha20" (XChaCha20-Poly1305) or "chacha20" (ChaCha20-Poly1305 IETF).
+    //! Populated at runtime from ExperimentConfig, not loaded directly from YAML.
+    std::string cipherMode = "xchacha20";
 };
 
 //! Result of frame handling operation.
@@ -55,9 +68,9 @@ class FrameHandler {
     //! @param [in]     store         Access store for reader/door validation.
     //! @param [in]     config        Handler configuration.
     FrameHandler(const key_manager::KeyManager& keyManager,
-                 ReplayWindowMap& replayWindows,
-                 const access_decision::IAccessStore* store,
-                 FrameHandlerConfig config = {});
+        ReplayWindowMap& replayWindows,
+        const access_decision::IAccessStore* store,
+        FrameHandlerConfig config = {});
 
     //! Processes a frame and returns validation result with decrypted payload.
     //! @param [in] frameBytes Raw frame bytes from reader.
@@ -71,24 +84,24 @@ class FrameHandler {
     FrameHandlerConfig _config;
 
     //! Creates an error result with given reason.
-    HandleResult makeError(const std::string& reason,
-                           const protocol::packet::Header& header = {}) const;
+    HandleResult makeError(
+        const std::string& reason, const protocol::packet::Header& header = {}) const;
 
     //! Parses frame bytes into Frame structure.
     std::variant<protocol::frame::Frame, HandleResult> parseFrame(
         std::span<const uint8_t> frameBytes);
 
     //! Validates reader registration and door binding.
-    std::optional<HandleResult> validateReader(const protocol::frame::Frame& frame,
-                                               uint32_t& outKeyVersion);
+    std::optional<HandleResult> validateReader(
+        const protocol::frame::Frame& frame, uint32_t& outKeyVersion);
 
     //! Validates frame key version against current/previous.
-    std::optional<HandleResult> validateKeyVersion(const protocol::frame::Frame& frame,
-                                                   uint32_t currentKv);
+    std::optional<HandleResult> validateKeyVersion(
+        const protocol::frame::Frame& frame, uint32_t currentKv);
 
     //! Checks for replay attacks using sliding window.
-    std::optional<HandleResult> checkReplay(const protocol::frame::Frame& frame,
-                                            protocol::replay::ReplayWindow*& outWindow);
+    std::optional<HandleResult> checkReplay(
+        const protocol::frame::Frame& frame, protocol::replay::ReplayWindow*& outWindow);
 
     //! Gets or creates replay window for a reader.
     protocol::replay::ReplayWindow* getOrCreateWindow(uint32_t readerId);
@@ -104,7 +117,7 @@ class FrameHandler {
     std::string decryptExceptionToCode(const std::exception& e) const;
 
     //! Attempts decryption with derived AEAD key.
-    HandleResult tryDecrypt(const protocol::frame::Frame& frame,
-                            protocol::replay::ReplayWindow* window);
+    HandleResult tryDecrypt(
+        const protocol::frame::Frame& frame, protocol::replay::ReplayWindow* window);
 };
 }  // namespace access_core

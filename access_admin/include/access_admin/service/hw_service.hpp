@@ -38,9 +38,9 @@ bool parseHwUidRequest(const json& j, HwUidRequest& req);
 //! @param [out] err Error message on failure ("misconfigured" if secret empty).
 //! @return True if signature is valid, false otherwise.
 bool verifyHwSignature(const std::string& signature_hex,
-                       const std::string& body,
-                       const std::string& hw_secret_hex,
-                       std::string& err);
+    const std::string& body,
+    const std::string& hw_secret_hex,
+    std::string& err);
 
 //! Processes a hardware UID scan request.
 //! Builds encrypted frame internally and runs through DecisionEngine.

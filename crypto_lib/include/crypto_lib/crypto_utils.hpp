@@ -13,8 +13,8 @@ namespace crypto_lib::utils {
 //! @param [in] data Input data to authenticate.
 //! @param [out] out Output buffer (must be 32 bytes).
 void hmac_sha256(std::span<const uint8_t> key,
-                 std::span<const uint8_t> data,
-                 unsigned char out[32]);  // crypto_auth_hmacsha256_BYTES = 32
+    std::span<const uint8_t> data,
+    unsigned char out[32]);  // crypto_auth_hmacsha256_BYTES = 32
 
 //! Encodes a 64-bit unsigned integer in little-endian format.
 //! @param [in] x   Value to encode.

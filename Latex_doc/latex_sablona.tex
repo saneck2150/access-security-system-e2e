@@ -1,0 +1,1444 @@
+\documentclass[journal,a4paper,onecolumn]{IEEEtran}
+
+% ===== Encoding & language (Slovak) =====
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[slovak]{babel}
+
+% *** GRAPHICS RELATED PACKAGES ***
+\ifCLASSINFOpdf
+   \usepackage[pdftex]{graphicx}
+   \graphicspath{{./pdf/}{./jpeg/}{./eps/}}
+   \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\else
+   \usepackage[dvips]{graphicx}
+   \graphicspath{{./eps/}}
+   \DeclareGraphicsExtensions{.eps}
+\fi
+
+% ===== Math, lists, tables =====
+\usepackage{amsmath}
+\usepackage{booktabs}
+\let\labelindent\relax
+\usepackage{enumitem}
+
+% ===== Links =====
+\usepackage{hyperref}
+\hypersetup{colorlinks, urlcolor=blue, citecolor=black}
+\usepackage{url}
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+\begin{document}
+\addtocounter{page}{1}
+
+\title{~\vskip -5mm Zvýšenie bezpečnosti vybraných šifrovacích algoritmov v prístupových systémoch\\}
+
+\author{\textit{\begin{Large}Oleksandr~Mykhailyshyn\end{Large}}\\
+\bigskip
+Technická univerzita v Košiciach, Fakulta elektrotechniky a informatiky, Slovenská republika}
+
+\maketitle
+
+\begin{abstract}
+\textit{Abstrakt}~\textendash~
+Práca sa zaoberá bezpečnostnými mechanizmami, ktoré sú relevantné pre moderné systémy kontroly prístupu využívajúce bezkontaktné identifikátory RFID/NFC. Teoretická časť nevystupuje iba ako všeobecný prehľad, ale priamo nadväzuje na vytvorený prototyp: čítačku založenú na ESP32 a RC522, serverovú aplikáciu v jazyku C++ a lokálne úložisko SQLite s auditnou stopou. Jadrom návrhu je otázka, ako zvýšiť dôveryhodnosť celého toku udalosti od načítania UID až po rozhodnutie o prístupe a neskoršie overenie auditu.
+
+V texte preto rozoberám autentifikáciu hardvérových požiadaviek pomocou HMAC-SHA-256, ochranu proti opakovaniu správ cez monotónne \texttt{hw\_seq}, vnútorný frame chránený mechanizmom AEAD XChaCha20-Poly1305 a auditný log navrhnutý tak, aby bolo možné odhaliť dodatočnú manipuláciu. Súčasne otvorene pomenúvam aj hranice prototypu: UID karty je v tomto riešení identifikátor, nie kryptografický dôkaz identity, databáza je uložená lokálne a základný experimentálny režim nevyžaduje povinné TLS. Tieto obmedzenia nie sú obchádzané, ale slúžia ako súčasť realistického hodnotenia toho, čo prototyp chráni dobre a kde zostáva priestor na ďalšie rozšírenie.
+\end{abstract}
+
+\begin{IEEEkeywords}
+\textit{Kľúčové slová}~\textendash~
+kontrola prístupu, RFID, NFC, kryptografia, AEAD, XChaCha20-Poly1305, HMAC, HKDF, anti-replay, audit log.
+\end{IEEEkeywords}
+
+\section{Úvod}
+
+Systémy kontroly prístupu (\emph{Access Control Systems}) sú jedným z tých prvkov infraštruktúry, pri ktorých sa fyzická a informačná bezpečnosť stretávajú priamo v jednom bode. Na prvý pohľad ide iba o rozhodnutie, či sa dvere otvoria alebo nie. V skutočnosti sa za tým skrýva identifikácia používateľa, vyhodnotenie pravidiel, práca s tajomstvami, komunikácia po sieti a napokon aj audit, ktorý má po incidente vysvetliť, čo sa stalo.
+
+Práve pri jednoduchších riešeniach býva rozdiel medzi funkčným a bezpečným systémom najvýraznejší. V praxi nie je problém zostaviť čítačku, ktorá po načítaní UID pošle hodnotu na server a čaká na odpoveď. Takýto návrh je však zraniteľný takmer okamžite: stačí zachytiť požiadavku, zopakovať ju v inom čase, podvrhnúť vlastný identifikátor alebo upraviť dáta v úložisku. Ak systém ukladá surové UID a pritom nemá dôveryhodný audit, po incidente zostáva iba veľmi slabá stopa.
+
+Táto diplomová práca vychádza práve z takéhoto praktického pozorovania. Cieľom nebolo navrhnúť teoreticky maximálne silný systém bez ohľadu na cenu a zložitosť, ale postaviť prototyp, na ktorom sa dá ukázať, ktoré bezpečnostné mechanizmy majú v prístupových systémoch skutočný prínos. Výsledkom je kombinácia hardvéru (ESP32 + RC522), serverovej aplikácie v jazyku C++ a webového rozhrania, v ktorom sa spravujú čítačky, dvere, roly, karty aj auditné záznamy.
+
+Bezpečnosť riešenia stojí na niekoľkých navzájom previazaných vrstvách:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item autentifikácia hardvérových požiadaviek pomocou HMAC-SHA-256\cite{FIPS1981},
+  \item šifrovanie a integrita interného payloadu pomocou AEAD XChaCha20-Poly1305\cite{RFC8439,XChaChaDraft,LibsodiumXChaChaDoc},
+  \item ochrana proti replay útokom cez monotónne sekvencie a \emph{ReplayWindow},
+  \item ochrana súkromia identifikátorov kariet pomocou HMAC hashovania s \emph{pepper},
+  \item auditná stopa navrhnutá tak, aby bolo možné odhaliť dodatočnú manipuláciu pomocou HMAC hash chain a anchor bodov\cite{SchneierKelsey1999}.
+\end{itemize}
+
+Dôležité je, že jednotlivé vrstvy v prototype neplnia tú istú úlohu. Hardvérová čítačka neposiela na server priamo AEAD šifrovaný payload; odosiela HTTP požiadavku autentifikovanú pomocou HMAC a monotónneho \texttt{hw\_seq}. Až server po overení tejto požiadavky vytvára interný kryptograficky chránený frame, ktorý vstupuje do rozhodovacej logiky. Táto hranica dôvery je v texte pomenovaná zámerne, pretože ovplyvňuje aj interpretáciu výsledkov: niečo iné znamená ochrana proti podvrhnutiu HTTP požiadavky a niečo iné ochrana interného frame alebo auditnej stopy.
+
+Teoretická časť preto nevystupuje ako izolovaný prehľad pojmov. Sleduje tie oblasti, ktoré sa v prototype naozaj objavili: model hrozieb, autentifikáciu zariadenia, anti-replay mechanizmy, návrh bezpečného protokolu, prácu s kľúčmi a auditovateľnosť. Praktická a analytická časť na to nadväzuje experimentmi, v ktorých sa porovnáva jednoduchší základný variant so zabezpečeným riešením.
+
+
+\begin{figure}[!ht]
+\centering
+\fbox{\parbox{0.93\linewidth}{\centering
+\textbf{Karta / UID} $\rightarrow$ \textbf{ESP32 + RC522} $\rightarrow$ \textbf{HTTP požiadavka}\\[2mm]
+\textbf{HMAC + \texttt{hw\_seq}} $\rightarrow$ \textbf{C++ server} $\rightarrow$ \textbf{interný frame (AEAD)}\\[2mm]
+\textbf{DecisionEngine} $\rightarrow$ \textbf{SQLite + audit chain} $\rightarrow$ \textbf{Web UI / live logs}
+}}
+\caption{Zjednodušená end-to-end schéma prototypu a hraníc dôvery medzi vrstvami.}
+\label{fig:e2e_overview}
+\end{figure}
+
+% ==============================================================
+\section{Motivácia, ciele a prínos práce}
+
+\subsection{Motivácia}
+
+Motivácia tejto práce nie je iba teoretická. Počas návrhu a skladania prototypu sa opakovane ukazovalo, že najjednoduchšia funkčná verzia systému by sa dala postaviť veľmi rýchlo: prečítať UID, poslať ho na server a podľa odpovede otvoriť dvere. Takýto návrh však rieši iba funkcionalitu, nie dôveryhodnosť. Hneď ako sa do úvahy vezme bežná lokálna sieť, databáza s kartami a potreba spätne vysvetliť incident, začnú byť zaujímavé celkom iné otázky.
+
+Reálne prostredie totiž zahŕňa:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item nepredvídateľnú sieť (Wi-Fi, zdieľané siete, kompromitované zariadenia),
+  \item úložisko v podobe databázy, ktorú je možné kopírovať a analyzovať,
+  \item insider scenáre (administrátor, ktorý môže zneužiť oprávnenia alebo zmeniť logy),
+  \item vstavané zariadenia s obmedzenými zdrojmi, ktoré často nemajú plnú podporu pre komplexné bezpečnostné protokoly.
+\end{itemize}
+
+Ak systém nepoužíva kryptograficky zabezpečené logovanie, útočník môže po incidente vymazať stopy. Ak systém neobsahuje anti-replay, je možné prístup opakovať bez karty. Ak systém ukladá surové UID, únik databázy priamo ohrozuje používateľov.
+
+\subsection{Ciele práce}
+
+Hlavné ciele práce sú:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item Navrhnúť bezpečnostné požiadavky a model hrozieb pre prototyp prístupového systému.
+  \item Zaviesť kryptografické mechanizmy na úrovni komunikácie a spracovania:
+  \begin{itemize}[leftmargin=*,itemsep=2pt]
+    \item AEAD (XChaCha20-Poly1305) pre dôvernosť a integritu dát\cite{RFC8439,XChaChaDraft},
+    \item HMAC-SHA-256 pre autentifikáciu požiadaviek hardvéru\cite{FIPS1981},
+    \item HKDF pre deriváciu kľúčov a oddelenie účelov\cite{RFC5869}.
+  \end{itemize}
+  \item Implementovať anti-replay mechanizmus založený na monotónnom \texttt{hw\_seq} (perzistentne uloženom na ESP32) a \emph{ReplayWindow} na serveri.
+  \item Navrhnúť a implementovať tamper-evident audit log s možnosťou verifikácie a detekcie truncation.
+  \item Stanoviť analytické ciele hodnotenia: simulovať vybrané útoky a prevádzkové chyby, zbierať metriky (úspech/neúspech útoku, dôvody zamietnutia, latenciu spracovania a záťaž) a porovnať základnú (baseline) implementáciu so zabezpečenou verziou s formulovaním záverov.
+\end{enumerate}
+
+\subsection{Prínos}
+
+Prínos práce je možné čítať v dvoch rovinách. Prvá je technická: vznikol funkčný prototyp, na ktorom sa dá ukázať, že aj pomerne malý prístupový systém môže mať jasne oddelené bezpečnostné vrstvy. Druhá rovina je metodická: práca nevychádza len z tvrdenia, že zvolený mechanizmus je „bezpečnejší“, ale pripravuje priestor na jeho meranie a porovnanie s jednoduchšou verziou riešenia.
+
+Konkrétne ide o:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item demonštrácia realistického návrhu bezpečnej komunikácie pre IoT/embedded zariadenia,
+  \item dôsledné oddelenie autentifikácie hardvéru od administrátorských oprávnení (HW nepoužíva admin token),
+  \item ochrana súkromia používateľov pomocou hashovania identifikátorov kariet,
+  \item auditovateľnosť a detekcia manipulácie logov pomocou kryptografických reťazcov,
+  \item modulárna architektúra C++ projektu (kryptografia, protokol, rozhodovanie, úložisko, UI).
+\end{itemize}
+
+\subsection{Rozsah riešenia a vedomé obmedzenia}
+
+V tejto práci nepovažujem za poctivé tváriť sa, že prototyp rieši všetky problémy produkčného prístupového systému. Niektoré voľby boli urobené zámerne, pretože cieľom bolo overiť konkrétne bezpečnostné mechanizmy a nie simulovať kompletné enterprise nasadenie.
+
+Použitá RFID karta pracuje v jednoduchom režime, takže UID vystupuje ako identifikátor, nie ako kryptografický dôkaz identity. Databázová vrstva je postavená na SQLite, čo je pre prototyp a experimenty praktické, ale neznamená to vysokú dostupnosť, centralizovanú správu tajomstiev ani pohodlné škálovanie. Komunikácia hardvéru so serverom je v základnom režime chránená autentifikáciou a integritou na aplikačnej vrstve (HMAC + \texttt{hw\_seq}), zatiaľ čo dôvernosť transportu cez TLS zostáva rozšírením pre ďalšie nasadenie.
+
+Tieto obmedzenia teda nie sú slabinou textu, ktorú by bolo potrebné zakryť. Naopak, vytvárajú presný rámec pre interpretáciu výsledkov. Ak sa v analytickej časti ukáže zlepšenie odolnosti voči podvrhnutiu, replay alebo manipulácii s auditom, bude zrejmé, že ide o prínos navrhnutých mechanizmov v rámci definovaného prototypu, nie o všeobecné tvrdenie o všetkých prístupových systémoch.
+
+
+\begin{table}[!ht]
+\centering
+\caption{Vedomé obmedzenia prototypu a ich význam pre interpretáciu výsledkov}
+\label{tab:prototype_limits}
+\small
+\begin{tabular}{p{0.24\linewidth} p{0.30\linewidth} p{0.36\linewidth}}
+\toprule
+\textbf{Oblasť} & \textbf{Aktuálne riešenie} & \textbf{Dôsledok pre prácu} \\
+\midrule
+Identita karty & UID slúži ako identifikátor, nie ako kryptografický dôkaz & Práca sa zameriava najmä na bezpečnosť komunikácie, serverovej logiky a auditu, nie na bezpečné smart karty. \\
+Úložisko & Lokálna SQLite databáza & Riešenie je vhodné pre prototyp a experimenty; vysoká dostupnosť a centralizovaná správa tajomstiev nie sú predmetom práce. \\
+Transport & Povinné TLS nie je v základnom režime nasadené & Dôvernosť prenosu UID nie je hlavnou demonštrovanou vlastnosťou; dôraz je na autentifikáciu zariadenia, anti-replay a auditovateľnosť. \\
+Správa tajomstiev & Tajomstvá sú spravované pragmaticky pre potreby prototypu & Výsledky treba interpretovať ako experimentálny návrh, nie ako plnohodnotné produkčné nasadenie. \\
+\bottomrule
+\end{tabular}
+\normalsize
+\end{table}
+
+\subsection{Metodika hodnotenia a analytické ciele}
+
+Pri podobných prototypoch sa často končí pri ukážke, že systém „funguje“. To však pre tému zameranú na bezpečnosť nestačí. Preto je hodnotenie od začiatku postavené tak, aby bolo možné overiť, či navrhnuté mechanizmy skutočne menia správanie systému pri útoku alebo chybe.
+
+V praktickej časti sa preto nebude sledovať iba to, či server vráti \texttt{allow} alebo \texttt{deny}. Dôležité bude aj to, prečo k rozhodnutiu došlo, aká je úspešnosť jednotlivých útokov, akú latenciu zavádzajú ochranné mechanizmy a ako sa riešenie správa pri opakovaných alebo chybných požiadavkách. Porovnanie základného a zabezpečeného variantu je zvolené práve preto, aby analytická časť prirodzene vyrástla z cieľov definovaných v teórii a nepôsobila ako neskôr doplnený experimentálny dodatok.
+
+
+\begin{table}[!ht]
+\centering
+\caption{Prepojenie analytických cieľov s meranými ukazovateľmi}
+\label{tab:analytics_goals}
+\small
+\begin{tabular}{p{0.27\linewidth} p{0.29\linewidth} p{0.30\linewidth}}
+\toprule
+\textbf{Scenár} & \textbf{Mechanizmus} & \textbf{Pozorovaný ukazovateľ} \\
+\midrule
+Podvrhnutie HW požiadavky & HMAC-SHA-256 & Miera zamietnutia, dôvod \texttt{bad\_signature}. \\
+Replay zachytenej požiadavky & \texttt{hw\_seq} + ReplayWindow & Miera zamietnutia, dôvod \texttt{replay} alebo \texttt{too\_old}. \\
+Manipulácia interného frame & AEAD + AAD & Neúspešné overenie integrity a zamietnutie správy. \\
+Zásah do auditnej stopy & HMAC hash chain + anchor & Úspešnosť detekcie pri verifikácii auditu. \\
+Prevádzková záťaž & Validácia vstupu + rozhodovanie & Latencia spracovania a správanie systému pri opakovaných požiadavkách. \\
+\bottomrule
+\end{tabular}
+\normalsize
+\end{table}
+
+% ==============================================================
+\section{Všeobecné bezpečnostné pojmy a terminológia}
+
+Táto kapitola predstavuje základné pojmy, ktoré sa používajú v ďalších častiach práce.
+
+\subsection{CIA triáda a rozšírené bezpečnostné ciele}
+
+CIA triáda (dôvernosť, integrita, dostupnosť) je základný rámec, od ktorého sa pri bezpečnostnom návrhu zvyčajne začína. V prístupovom systéme však sama osebe nestačí. Pri praktickej implementácii sa veľmi rýchlo ukáže, že rovnako podstatné je vedieť, kto správu vytvoril, či ju nemožno znovu použiť a či sa dá po incidente spätne overiť história udalostí. Preto je vhodné k CIA doplniť ešte niekoľko cieľov:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item autentickosť (\emph{authenticity}) -- schopnosť overiť pôvod správy alebo akcie,
+  \item auditovateľnosť (\emph{auditability}) -- schopnosť spätne preukázať rozhodnutia a udalosti,
+  \item odolnosť voči replay (\emph{replay resistance}) -- schopnosť odmietnuť opakovanie starej správy.
+\end{itemize}
+
+V prototype sa tieto ciele prejavujú veľmi konkrétne:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Dôvernosť: útočník nemá získať citlivé údaje (napr. identifikátory, tokeny, kľúče).
+  \item Integrita: útočník nemá zmeniť požiadavku alebo audit záznam bez detekcie.
+  \item Dostupnosť: systém musí zvládnuť prevádzku bez výpadkov; zároveň sa musí brániť proti DoS v rámci možností prototypu.
+\end{itemize}
+
+
+\begin{table}[!ht]
+\centering
+\caption{Mapovanie bezpečnostných cieľov na mechanizmy použité v prototype}
+\label{tab:security_mapping}
+\small
+\begin{tabular}{p{0.22\linewidth} p{0.33\linewidth} p{0.29\linewidth}}
+\toprule
+\textbf{Cieľ} & \textbf{Mechanizmus v prototype} & \textbf{Príklad narušenia} \\
+\midrule
+Dôvernosť & AEAD frame, neukladanie surového UID & Čítanie citlivých údajov z payloadu alebo databázy. \\
+Integrita & HMAC požiadavky, AEAD tag, hash chain auditu & Zmena \texttt{uid}, \texttt{door\_id} alebo auditnej udalosti bez detekcie. \\
+Dostupnosť & Limity vstupu, fail-closed, validácia & Pád parsera alebo vyčerpanie zdrojov pri chybných vstupoch. \\
+Autentickosť & HMAC-SHA-256 pre hardvér & Vydávanie sa za legitímnu čítačku. \\
+Odolnosť voči replay & \texttt{hw\_seq} + ReplayWindow & Opakované použitie starej platnej požiadavky. \\
+Auditovateľnosť & Tamper-evident audit log + verify nástroj & Dodatočné popretie udalosti alebo tichá úprava histórie. \\
+\bottomrule
+\end{tabular}
+\normalsize
+\end{table}
+
+\subsection{AAA model: Authentication, Authorization, Accounting}
+
+Model AAA je v literatúre známy a pomerne stručný, no v kontexte tejto práce je užitočný práve preto, že sa dá priamo premietnuť do implementácie. Namiesto abstraktného delenia sa dá pri prototype ukázať, kde sa ktorá časť naozaj nachádza:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Authentication (autentifikácia) -- overenie identity alebo pôvodu.
+  \item Authorization (autorizácia) -- rozhodnutie, či identita môže vykonať akciu.
+  \item Accounting (účtovanie/audit) -- záznam akcií a ich výsledkov.
+\end{itemize}
+
+V tomto prototype je autentifikácia rozdelená na dve vrstvy. Karta slúži predovšetkým ako identifikátor používateľa, zatiaľ čo samotné zariadenie sa voči serveru preukazuje podpisom HMAC. Autorizácia prebieha v \emph{DecisionEngine} na základe rolí a väzieb medzi čítačkou a dverami. Posledná časť modelu, teda accounting, nie je iba pomocný log pre administrátora; je to auditná stopa, z ktorej má byť možné spätne overiť, čo sa stalo a či s históriou nebolo manipulované. V tomto bode sa teoretický model AAA prirodzene prepája s odporúčaniami pre digitálnu identitu a správu logov.\cite{NIST80063B4,NIST80092}
+
+\subsection{Riziko, hrozba, zraniteľnosť}
+
+V ďalších kapitolách sa opakovane pracuje s pojmami hrozba, zraniteľnosť a riziko, preto má zmysel ich hneď na začiatku oddeliť. Bez tohto rozlíšenia by bolo ťažké vysvetliť, prečo sa niektoré mechanizmy zavádzajú priamo do protokolu a iné iba ako odporúčanie pre budúce nasadenie.
+
+Bezpečnostná analýza preto rozlišuje:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item hrozbu (threat) -- potenciálnu príčinu incidentu (napr. útočník schopný zachytiť sieťovú komunikáciu),
+  \item zraniteľnosť (vulnerability) -- slabinu systému (napr. absencia anti-replay),
+  \item riziko (risk) -- kombináciu pravdepodobnosti a dopadu.
+\end{itemize}
+
+V tejto práci nie je cieľom vytvoriť úplný korporátny register rizík. Dôležitejšie je ukázať, ktoré hrozby sú pre zvolený prototyp realistické a ktoré mechanizmy ich vedia znížiť na prijateľnú mieru.
+
+\subsection{Modelovanie hrozieb}
+
+Pri návrhu prototypu sa ukázalo, že hrozby sa dajú najlepšie udržať pod kontrolou vtedy, keď sú pomenované ešte pred implementáciou. Ako orientačný rámec je preto vhodný model STRIDE (Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege). Nie všetky jeho časti sú v tejto práci rovnako dôležité; najviac sa týkajú tých vrstiev, ktoré prototyp naozaj obsahuje:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Spoofing: podvrhnutie požiadavky (riešené HMAC),
+  \item Tampering: zmena dát alebo logov (riešené AEAD, audit hash chain),
+  \item Repudiation: popieranie udalostí (riešené auditom),
+  \item Information disclosure: únik identifikátorov (riešené hashovaním UID v DB a odporúčaním TLS),
+  \item DoS: zahltenie endpointu (čiastočne riešené limitmi a validáciou).
+\end{itemize}
+
+
+
+\subsection{Autentifikačné faktory a pojem identity}
+
+V prístupových systémoch sa často hovorí o tom, že používateľ sa \uv{identifikuje kartou}. Je dôležité rozlišovať dva pojmy: identifikácia (tvrdenie \uv{kto som}) a autentifikácia (dôkaz, že tvrdenie je pravdivé). V praxi sa autentifikácia realizuje pomocou \emph{faktorov}:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item niečo, čo mám (karta, token, zariadenie),
+  \item niečo, čo viem (PIN, heslo),
+  \item niečo, čím som (biometria).
+\end{itemize}
+
+RFID/NFC karta v jednoduchom režime (iba UID) je teda skôr identifikátor než plnohodnotný autentifikátor. V produkčných systémoch sa tento problém zvykne riešiť ďalším faktorom, napríklad PIN-om, alebo kartou s vlastným kryptografickým protokolom. V tejto práci sa tento rozdiel neskrýva; naopak, je súčasťou interpretácie výsledkov. Riziko sa kompenzuje inde -- najmä autentifikáciou zariadenia voči serveru, anti-replay mechanizmami a auditovateľnosťou. Z pohľadu odporúčaní pre digitálnu identitu ide teda o prototyp s jednoduchším poverením používateľa, ale so silnejšou ochranou komunikačnej a serverovej vrstvy.\cite{NIST80063B4,FIPS2013}
+
+\subsection{Zodpovednosť, nepopierateľnosť a forenzná pripravenosť}
+
+V praxi nestačí iba rozhodnúť \emph{ALLOW/DENY}. Organizácia potrebuje vedieť \emph{kedy}, \emph{kde} a \emph{prečo} k rozhodnutiu došlo. Tento aspekt sa často označuje ako accountability (zodpovednosť) a je úzko spojený s auditovateľnosťou.
+
+Pojem \emph{nepopierateľnosť} (non-repudiation) sa v kryptografii spája najmä s digitálnymi podpismi, ale v kontexte prístupových systémov má aj praktický význam: systém by mal vedieť preukázať konzistentný reťaz udalostí a minimalizovať možnosti spätnej manipulácie. To je motivácia pre tamper-evident logovanie a pre dôsledné zaznamenávanie kontextu (identifikátor čítačky, dverí, čas, výsledok, dôvod zamietnutia).
+
+\subsection{Bezpečnostné požiadavky ako merateľné tvrdenia}
+
+Pri návrhu bezpečnostného riešenia je užitočné formulovať požiadavky ako overiteľné tvrdenia. Napríklad:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \emph{Systém odmietne opakovanie tej istej požiadavky aj v prípade, že bola zachytená na sieti.}
+  \item \emph{Únik databázy nesmie priamo odhaliť surové identifikátory kariet.}
+  \item \emph{Po manipulácii s auditným záznamom je možné určiť prvé miesto nekonzistencie.}
+\end{itemize}
+
+Takto formulované požiadavky sa dajú priamo mapovať na mechanizmy (HMAC, anti-replay, HMAC hashovanie UID, hash chain) a v ďalších častiach práce poskytujú jasné kritériá, čo sa považuje za \uv{zvýšenie bezpečnosti}.
+% ==============================================================
+\section{Systémy kontroly prístupu a prístupové modely}
+
+\subsection{Fyzická vs. logická kontrola prístupu}
+
+Fyzická kontrola prístupu rieši vstupy do budov a zón. Logická kontrola prístupu rieši prístup k dátam a službám. V oboch prípadoch sa používa rovnaký princíp: subjekt (používateľ) vykoná akciu, systém overí identitu a rozhodne podľa politiky.\cite{NISTRBACModel}
+
+\subsection{Modely kontroly prístupu}
+
+Z teórie sú známe rôzne modely:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item DAC (Discretionary Access Control) -- vlastník objektu určuje prístup.
+  \item MAC (Mandatory Access Control) -- prístup riadi centrálna politika (napr. bezpečnostné úrovne).
+  \item RBAC (Role-Based Access Control) -- oprávnenia sú priradené rolám, používatelia majú roly.
+  \item ABAC (Attribute-Based Access Control) -- rozhodovanie podľa atribútov subjektu, objektu a kontextu.
+\end{itemize}
+
+V prototypovej implementácii je použitý RBAC prístup: karty majú roly (napr. \emph{admin}), dvere majú povolené roly a existuje väzba medzi \texttt{reader\_id} a \texttt{door\_id}. Tento model je dostatočne jednoduchý pre demo, ale zároveň realistický a dobre nadväzuje na klasické RBAC modely popísané v literatúre.\cite{NISTRBACModel,SandhuRBAC1996}
+
+\subsection{Bezpečnostné požiadavky na API a server}
+
+Keďže prototyp obsahuje webové API (administrátorské aj hardvérové), je vhodné reflektovať typické API riziká, napríklad podľa OWASP API Security Top 10 a širšieho rámca OWASP ASVS.\cite{OWASPAPI2023,OWASPASVS} V kontexte prístupového systému sú kritické najmä:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Broken Authentication: slabé overenie identity klienta,
+  \item Broken Object Level Authorization: nedostatočné overenie oprávnení pri práci s objektmi (dvere, čítačky, karty),
+  \item Security Misconfiguration: debug endpointy alebo slabé nastavenia.
+\end{itemize}
+
+Praktická implementácia preto oddeľuje admin token (iba pre UI) od HW autentifikácie (HMAC).
+
+\subsection{Zóny, kontext a väzby medzi komponentmi}
+
+Vo fyzickej kontrole prístupu sa často pracuje so zónami (napr. verejná zóna, kancelárska zóna, technická zóna). Politika prístupu potom vyjadruje, ktoré roly alebo skupiny používateľov môžu vstupovať do konkrétnych zón a v akom čase. Aj keď prototyp používa zjednodušený model \emph{dvere $\rightarrow$ povolené roly}, ide o rovnaký princíp: dvere reprezentujú hranicu zóny.
+
+Dôležitým bezpečnostným prvkom je väzba (binding) medzi čítačkou a dverami. Ak by útočník vedel poslať na server udalosť s ľubovoľným \texttt{door\_id}, mohol by zneužiť legitímnu čítačku na otvorenie iných dverí. Preto sa v prístupových systémoch používa:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item fyzické opatrenie (umiestnenie čítačky pri konkrétnych dverách),
+  \item konfiguračná väzba (server pozná, ku ktorým dverám čítačka patrí),
+  \item a v ideálnom prípade aj kryptografická identita zariadenia.
+\end{itemize}
+
+V prototypovej architektúre sa väzba realizuje databázovým pravidlom \texttt{reader\_id $\leftrightarrow$ door\_id}. Všeobecne ide o ukážku toho, ako sa \emph{kontext} stáva súčasťou autorizácie.
+
+\subsection{Princíp najmenej oprávnení a oddelenie právomocí}
+
+Princíp \emph{least privilege} hovorí, že každá komponenta má mať len také oprávnenia, ktoré nevyhnutne potrebuje. V prístupovom systéme to znamená, že:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item hardvérové zariadenie nemá mať administrátorské oprávnenia,
+  \item administrátorské rozhranie a jeho tokeny majú byť oddelené od mechanizmov zariadenia,
+  \item a databázové operácie majú byť obmedzené na minimum potrebné pre rozhodovanie a audit.
+\end{itemize}
+
+Oddelenie právomocí znižuje dopad kompromitácie jednej časti systému. Ak by napríklad útočník získal kontrolu nad čítačkou, stále by nemal automaticky získať možnosť meniť prístupové pravidlá alebo exportovať databázu.
+
+
+% ==============================================================
+
+% ==============================================================
+\section{Bezpečnostné hrozby a špecifiká RFID/NFC technológií}
+
+RFID a NFC pôsobia na prvý pohľad jednoducho: karta sa priloží, čítačka prečíta identifikátor a systém rozhodne. Práve táto jednoduchosť však zvádza k podceneniu hrozieb. V praxi nebýva problémom iba samotná karta, ale celý reťazec od rádiovej komunikácie až po serverové spracovanie. NIST SP 800-98 preto nepozerá na RFID ako na izolovaný prvok, ale ako na súčasť väčšieho bezpečnostného systému\cite{NIST80098}.
+
+Pre túto prácu je dôležité jedno rozlíšenie. Prototyp nepoužíva kryptograficky silnú kartu s mutual authentication; pracuje s UID ako s identifikátorom, nad ktorým sa až následne uplatnia serverové bezpečnostné mechanizmy. To je vedomé rozhodnutie a treba ho vnímať už pri čítaní celej kapitoly.
+
+\subsection{Typické útoky na RFID/NFC}
+
+Pri RFID/NFC sa často spomínajú tie isté triedy útokov, ale nie všetky majú v každom projekte rovnakú váhu. V našom prototype sú najdôležitejšie najmä tie, ktoré priamo súvisia s tým, že karta neposkytuje kryptografický dôkaz identity.
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Skimming a eavesdropping}: útočník sa snaží zachytiť komunikáciu medzi čítačkou a kartou. Krátky dosah NFC pomáha, ale s lepšou anténou alebo v rušnom prostredí sa nedá rátať s tým, že odpočúvanie je \uv{prakticky nemožné}.
+  \item \textbf{Cloning a emulácia}: ak systém stojí iba na UID, z klonovania sa stáva veľmi realistický problém. Útočník nepotrebuje poznať prístupovú politiku; stačí mu vedieť napodobniť identifikátor.
+  \item \textbf{Relay útoky}: tu nejde o kopírovanie karty, ale o predĺženie jej dosahu. Čítačka tak komunikuje s legitímnou kartou, ktorá je fyzicky inde.
+  \item \textbf{Manipulácia čítačky}: ak útočník nahradí čítačku vlastným zariadením alebo sa pripojí na jej výstup, problém sa presúva z rádiovej vrstvy na aplikačnú a sieťovú vrstvu.
+\end{itemize}
+
+
+\subsection{Mitigácie a odporúčané protiopatrenia}
+
+Nie je realistické tvrdiť, že jeden mechanizmus vyrieši celý problém RFID/NFC. Obrana sa preto skladá z viacerých vrstiev:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Kryptografická karta}: ak karta vie preukázať znalosť tajomstva, znižuje sa význam samotného UID.
+  \item \textbf{Druhý faktor}: PIN alebo biometria dávajú zmysel najmä tam, kde by jediné zneužitie karty malo vysoký dopad.
+  \item \textbf{Obrana proti relay}: distance bounding a prísnejšie časové limity sú technicky zaujímavé, ale v jednoduchom prototype by zbytočne zvyšovali zložitosť.
+  \item \textbf{Organizačné opatrenia}: fyzická kontrola vstupov, kamera alebo revízia oprávnení sú menej elegantné než kryptografia, no v reálnej prevádzke bývajú veľmi účinné.
+\end{itemize}
+
+V tejto práci sa preto nehrá na to, že samotná karta je \uv{silný autentifikátor}. Posilňuje sa až vyššia vrstva: čítačka sa musí serveru preukázať pomocou HMAC, požiadavka má monotónne \texttt{hw\_seq} a výsledok spracovania sa zapisuje do auditu tak, aby ho bolo možné dodatočne overiť.
+
+
+\begin{table}[!ht]
+\centering
+\caption{Vybrané hrozby a ich väzba na protiopatrenia v prototype}
+\label{tab:threats_countermeasures}
+\small
+\begin{tabular}{p{0.25\linewidth} p{0.31\linewidth} p{0.28\linewidth}}
+\toprule
+\textbf{Hrozba} & \textbf{Protiopatrenie} & \textbf{Poznámka} \\
+\midrule
+Spoofing čítačky & HMAC podpis požiadavky & Chráni pôvod a integritu HTTP požiadavky. \\
+Replay požiadavky & Monotónne \texttt{hw\_seq} + ReplayWindow & Účinné aj po reštarte zariadenia pri zachovaní perzistentného stavu. \\
+Manipulácia interných dát & AEAD XChaCha20-Poly1305 + AAD & Chráni payload a viaže hlavičku na šifrované dáta. \\
+Únik databázy & HMAC(card\_id) s pepper & Obmedzuje priamu použiteľnosť uniknutých identifikátorov. \\
+Mazanie alebo úprava logov & HMAC hash chain + anchor & Umožňuje neskoršiu detekciu nekonzistencie auditu. \\
+\bottomrule
+\end{tabular}
+\normalsize
+\end{table}
+
+\subsection{Príklad známych slabín: MIFARE Classic}
+
+Historicky boli široko nasadené karty typu MIFARE Classic, ktoré používajú proprietárny algoritmus CRYPTO1. Výskum ukázal vážne slabiny v tomto mechanizme a umožnil praktické útoky vedúce k získaniu kľúčov a klonovaniu kariet. Z toho vyplýva dôležitá poučka: spoliehanie sa na utajenie algoritmu alebo na UID ako jediný faktor je nedostatočné. Aj keď konkrétny prototyp v práci nepoužíva autentifikáciu na úrovni karty, návrh kompenzuje riziká na úrovni servera a protokolu (HMAC, anti-replay, audit).
+
+\subsection{Bezpečnostné dôsledky pre návrh prototypu}
+
+Z predchádzajúcich bodov pre prototyp vyplývajú štyri jednoduché pravidlá. Po prvé, UID sa používa len ako identifikátor vstupu do politiky. Po druhé, dôveru prenášame z karty na čítačku a serverové spracovanie. Po tretie, každá požiadavka musí niesť stopu čerstvosti, inak by ju bolo možné opakovať. A napokon, ani databáza nesmie obsahovať viac údajov, než je skutočne potrebné. Tento rámec sa potom priamo odráža v praktickej implementácii.
+
+
+\subsection{Hrozby na komunikačnej vrstve a v sieťovej infraštruktúre}
+
+Aj keď je fyzická technológia (RFID/NFC) často v centre pozornosti, v moderných riešeniach je rovnako kritická sieťová komunikácia medzi čítačkou a serverom. Medzi typické hrozby patria:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Man-in-the-Middle (MITM): útočník zmení alebo presmeruje komunikáciu (napr. kompromitovaný prístupový bod Wi-Fi).
+  \item Replay útoky: zachytená platná požiadavka sa opakuje s cieľom dosiahnuť rovnaký výsledok.
+  \item Podvrhnutie klienta: útočník sa vydáva za čítačku a posiela vlastné požiadavky.
+  \item Injekcia a deserializácia: nevalidovaný vstup môže viesť k pádom, obchádzaniu logiky alebo k zneužitiu parsera.
+\end{itemize}
+
+Práve tieto hrozby sú motiváciou pre použitie HMAC na autentifikáciu zariadenia a pre dôsledné limity a validáciu vstupov na serveri.
+
+\subsection{Hrozby na serverovej strane a v API}
+
+Server spracúva rozhodnutia a drží konfiguráciu (dvere, roly, väzby). To z neho robí najcennejší cieľ. Okrem klasických sieťových útokov (DoS) sú relevantné najmä:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item nesprávna autorizácia: chyby v kontrole oprávnení pri operáciách typu \emph{CRUD},
+  \item únik tajomstiev: logovanie kľúčov, nesprávne nastavené prístupové práva, nechcené debug endpointy,
+  \item privilege escalation: získanie administrátorských práv cez slabú autentifikáciu alebo zraniteľnosť v UI,
+  \item kompromitácia závislostí: použitie knižníc s bezpečnostnými chybami.
+\end{itemize}
+
+Z teoretického hľadiska je dôležité uplatniť \emph{defense-in-depth}: aj keď jedna vrstva zlyhá, ďalšie vrstvy majú minimalizovať dopad.
+
+\subsection{Útoky po incidente: manipulácia auditnej stopy}
+
+Po úspešnom preniknutí do systému sa útočník často snaží znížiť šancu na odhalenie. Najčastejšie to znamená upraviť logy alebo ich čiastočne odstrániť. Preto je auditovateľnosť a integrita logov dôležitou súčasťou bezpečnostného návrhu, nie iba \uv{doplnkom}. Mechanizmy ako hash chain a anchor umožňujú neskoršie overenie, či auditná stopa bola zachovaná v konzistentnom stave.
+
+\section{Kryptografické základy relevantné pre prístupové systémy}
+
+V tejto časti nejde o \uv{prehľad všetkej kryptografie}. Potrebné je skôr pochopiť, čo z použitých mechanizmov v prototype skutočne robí a čo od nich naopak očakávať nemožno. Práve zámena týchto rolí býva častým zdrojom chýb: hash sa zamieňa za autentifikáciu, TLS za autorizáciu a šifrovanie za celkovú bezpečnosť systému.
+
+\subsection{Hashovacie funkcie a integrita}
+
+Hashovacia funkcia je v bezpečnostnom návrhu užitočná, ale jej možnosti sú obmedzené. Vie vytvoriť pevne dlhý odtlačok vstupu a dobre odhalí náhodnú alebo úmyselnú zmenu dát. Nevyrieši však otázku pôvodu správy. Ak útočník zmení obsah, nič mu nebráni prepočítať aj nový hash. Preto samotný hash nestačí všade tam, kde chceme vedieť nielen to, že sa správa zmenila, ale aj to, kto ju vytvoril.
+
+\subsection{MAC a HMAC}
+
+MAC je mechanizmus, ktorý s využitím tajného kľúča zabezpečuje integritu a autentickosť správy. HMAC je konkrétna konštrukcia MAC nad hashovacou funkciou a je štandardizovaná vo FIPS 198-1; pôvodná všeobecná konštrukcia HMAC je popísaná aj v RFC 2104.\cite{FIPS1981,RFC2104} HMAC sa používa v prototypovej implementácii pre autentifikáciu požiadaviek hardvéru.
+
+Dôležité implementačné poznámky:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Kanonizácia vstupu: HMAC sa musí počítať nad jednoznačnou reprezentáciou správy. Ako príklad jednoznačnej kanonizácie sa môže použiť reťazec \texttt{"POST /api/hw/uid\textbackslash n" + raw JSON body}. Táto voľba zabezpečuje, že aj zmena whitespace alebo poradia polí (ak by JSON serializácia nebola stabilná) môže ovplyvniť podpis. Prakticky preto zariadenie posiela \emph{raw} telo a server podpisuje rovnaký reťazec.
+  \item Konštantnočasové porovnanie: výsledný HMAC sa musí porovnávať konštantným časom, aby sa minimalizovalo riziko timing útokov.
+  \item Oddelenie kľúčov: kľúč pre HW autentifikáciu nesmie byť zdieľaný s inými účelmi (napr. audit). HKDF umožňuje oddeliť podkľúče\cite{RFC5869}.
+\end{itemize}
+
+
+\subsection{Výber parametrov a bezpečnostná úroveň}
+
+Pri použití kryptografických primitív je vhodné uvažovať o bezpečnostnej úrovni (napr. 128-bitová bezpečnosť) a o tom, aké parametre to implikuje. V praxi to znamená:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item používať dostatočne dlhé kľúče (typicky 256 bitov pre symetrické primitíva),
+  \item nepoužívať zastarané hashovacie funkcie (napr. MD5, SHA-1) pre bezpečnostné účely,
+  \item a vyhnúť sa „zvláštnym“ vlastným formátom, ktoré môžu skryť chyby v spracovaní.
+\end{itemize}
+
+V prístupových systémoch je často kľúčová dlhodobá udržateľnosť: zariadenia môžu byť nasadené roky. Preto je vhodné mať v protokole priestor pre kryptografickú agilitu (verzovanie kľúčov, možnosť rotácie) a vyhnúť sa algoritmom, ktoré sú viazané na špecifický hardvér.
+
+\subsection{Bezpečná práca s pamäťou a citlivými údajmi}
+
+Kryptografické kľúče a medzi-výsledky (napr. HMAC tag, plaintext pred šifrovaním) predstavujú citlivé údaje aj v pamäti procesu. Z teoretického hľadiska sa odporúča:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item minimalizovať dobu, počas ktorej sú citlivé údaje v pamäti,
+  \item prepisovať buffre po použití, ak knižnica poskytuje bezpečné API,
+  \item a vyhýbať sa kopírovaniu citlivých údajov do logov alebo výnimiek.
+\end{itemize}
+
+Tieto zásady sú obzvlášť relevantné na serverovej strane, kde proces môže bežať dlhodobo a kde sa môžu objaviť \emph{core dumpy} alebo diagnostické výpisy.
+
+\subsection{Symetrické šifrovanie a AEAD}
+
+Symetrické šifrovanie je vhodné pre embedded zariadenia aj servery kvôli výkonu. Samotné šifrovanie však nerieši integritu. V praxi sa preto používa AEAD, ktoré spája dôvernosť a integritu do jednej operácie.
+
+\subsubsection{ChaCha20 a Poly1305}
+
+ChaCha20 je stream cipher navrhnutý tak, aby mal vysoký výkon v softvéri. Poly1305 je univerzálny autentifikátor (MAC) používaný v AEAD režime ChaCha20-Poly1305. Ich kombinácia je štandardizovaná v RFC 8439 a zapadá do širšieho modelu AEAD rozhraní popísaného v RFC 5116.\\cite{RFC8439,RFC5116}
+
+\subsubsection{XChaCha20-Poly1305 a nonce manažment}
+
+AEAD konštrukcie sú \uv{krehké} voči zneužitiu nonce: opakovanie nonce pod rovnakým kľúčom môže viesť k vážnym únikom informácií. XChaCha20-Poly1305 rozširuje nonce na 192 bitov, čo umožňuje bezpečnejšie používanie náhodných nonce pre dlhodobo žijúce kľúče\\cite{XChaChaDraft,LibsodiumXChaChaDoc}. V prototypovej implementácii nonce generuje server.
+
+\subsubsection{Associated Data (AAD)}
+
+AEAD podporuje \emph{Associated Authenticated Data} (AAD): dáta, ktoré sa nešifrujú, ale ich integrita je kryptograficky chránená. V prístupovom protokole je AAD použité pre hlavičku frame. Tým sa zabezpečí, že zmena \texttt{reader\_id}, \texttt{door\_id} alebo \texttt{seq} spôsobí zlyhanie overenia tagu.
+
+\subsection{Náhodnosť, nonce a praktické generovanie}
+
+Mnohé bezpečnostné protokoly stoja na predpoklade, že niektoré hodnoty sú nepredvídateľné (napr. nonce, kľúče). V embedded prostredí však môže byť generovanie kvalitnej náhodnosti problematické: zariadenie nemusí mať dostatok entropie a môže sa spoliehať na deterministické zdroje. Preto je v praxi vhodné:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item používať knižnice, ktoré riešia inicializáciu RNG a poskytujú správne API,
+  \item generovať nonce na serveri, ak zariadenie nevie garantovať kvalitu náhodnosti,
+  \item a zabezpečiť, aby sa nonce pod rovnakým kľúčom neopakovala.
+\end{itemize}
+
+Rozšírený nonce pri XChaCha20-Poly1305 znižuje riziko kolízie aj pri náhodných noncoch, čo je výhodné v systémoch s dlhšou životnosťou kľúčov.\cite{LibsodiumXChaChaDoc}
+
+\subsection{Domain separation a kontext v derivácii kľúčov}
+
+Aj keď je HKDF formálne jednoduchý, v praxi je kľúčové správne nastaviť \emph{context/label} (parameter \texttt{info}). Domain separation znamená, že z rovnakého master secret sa odvodia rôzne podkľúče tak, aby sa nedali zameniť. Typickým prístupom je použiť popis účelu, napríklad \texttt{"hw-auth"}, \texttt{"aead-frame"} alebo \texttt{"audit-chain"}. Takéto označovanie je jednoduché, ale výrazne znižuje riziko, že sa jeden kľúč \uv{nechtiac} použije inde.
+
+\subsection{Kryptografia vs. bezpečnosť implementácie}
+
+Bezpečnosť algoritmov môže byť oslabená implementáciou. Typické chyby sú porovnávanie MAC ne-konštantným časom, únik citlivých údajov do logov, neobmedzené spracovanie veľkých vstupov (vyčerpanie zdrojov) a nedostatočné ošetrenie chýb. Preto sa v bezpečnom návrhu uplatňuje zásada: primitíva sú nutné, ale nestačia. Rovnako dôležité je robustné spracovanie vstupov, limity a jednotné chybové správanie.
+
+
+% ==============================================================
+
+% ==============================================================
+\section{Zásady návrhu bezpečných protokolov}
+
+Pri čítaní bezpečnostnej literatúry je ľahké nadobudnúť dojem, že rozhoduje najmä výber algoritmu. Pri praktickom protokole to tak nebýva. O výsledku často rozhodne obyčajná vec: nejednoznačný formát, nevhodná chybová hláška alebo príliš dôverčivý parser. Preto má táto kapitola možno menej \uv{kryptografický} charakter, ale pre výslednú bezpečnosť je rovnako dôležitá.
+
+\subsection{Fail-closed správanie}
+
+Pri prístupovom systéme býva prirodzené pýtať sa, ako zabezpečiť, aby sa dvere otvorili vždy, keď majú. Bezpečnostný návrh si však musí rovnako tvrdo položiť opačnú otázku: čo sa stane, keď si systém nie je istý? V tejto práci je odpoveď jednoznačná. Ak zlyhá HMAC, validácia vstupu, anti-replay alebo interná konzistencia dát, výsledkom nie je \uv{skúsme to ešte nejako zachrániť}, ale zamietnutie. Takýto prístup je menej pohodlný pri ladení, no bezpečnejší v prevádzke.
+
+\subsection{Jednoznačná serializácia a kanonizácia}
+
+Pri podpisovaní alebo šifrovaní je kritické, aby všetky strany pracovali s rovnakou reprezentáciou dát. Ak by napríklad hardvér podpisoval JSON s iným poradím polí než server, mohlo by dôjsť k chybnému odmietnutiu. Naopak, ak by server akceptoval viacero reprezentácií, útočník môže hľadať \emph{gadgety} na bypass podpisu. Preto prototyp podpisuje \emph{raw body} a server používa rovnaký presný vstup do HMAC.
+
+\subsection{Verzovanie formátu a algoritmov}
+
+Bezpečné systémy musia počítať s evolúciou: zmeny formátu, rotácia kľúčov, prípadne migrácia algoritmov. Preto protokol obsahuje polia ako \texttt{key\_version} a interné limity (maximálne dĺžky polí, verzovanie), čo znižuje riziko \uv{tichých} nekompatibilít.
+
+
+\subsection{Bezpečné spracovanie chýb a jednotné odpovede}
+
+Chybové správy sú často podceňovaný komunikačný kanál. Ak systém vracia detailné dôvody zlyhania (napr. \uv{nesprávny podpis}, \uv{neznáma čítačka}, \uv{príliš staré seq}), útočník môže tieto informácie využiť na \emph{enumeráciu} a postupné zlepšovanie útoku. Zároveň však prevádzka potrebuje vedieť, čo sa deje. Rozumný kompromis je: jednotná odpoveď smerom k nedôveryhodnému klientovi a detailný dôvod iba v internom logu a administrácii.
+
+\subsection{Ochrana proti DoS a vyčerpaniu zdrojov}
+
+DoS (Denial of Service) je relevantný aj pre prístupové scenáre, pretože môže spôsobiť výpadok vstupov alebo núdzový režim. Na úrovni protokolu a servera je vhodné uplatniť limity veľkosti požiadaviek, rýchlu validáciu pred náročnými operáciami (napr. pred dešifrovaním), a jednoduché ochrany proti floodu (rate limiting). Takéto opatrenia nezrušia DoS úplne, ale zvyšujú odolnosť.
+
+\subsection{Bezpečnosť knižníc a závislostí}
+
+Kryptografické primitíva je vhodné realizovať cez overené knižnice. Z teoretického hľadiska to znamená minimalizovať \uv{vlastnú kryptografiu}, sledovať aktualizácie a mať testy, ktoré zachytia regresie. V prototypovej implementácii je kryptografická vrstva postavená na knižnici libsodium.\cite{LibsodiumXChaChaDoc}
+
+\subsection{Mapovanie bezpečnostných cieľov na mechanizmy}
+
+Tabuľka \ref{tab:security-mapping} sumarizuje, ktorý mechanizmus v prototypovom systéme poskytuje akú bezpečnostnú vlastnosť.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+Bezpečnostná vlastnosť & Mechanizmus v prototypu \\
+\midrule
+Autentickosť požiadavky od HW & HMAC-SHA-256 nad HTTP požiadavkou \\
+Integrita metadát (reader/door/seq) & AEAD AAD väzba hlavičky frame \\
+Dôvernosť interného payloadu & AEAD XChaCha20-Poly1305 \\
+Ochrana proti replay & hw\_seq + ReplayWindow (sliding window) \\
+Súkromie identifikátora v DB & HMAC(card\_id) s pepper \\
+Detekcia manipulácie auditu & HMAC hash chain + audit anchor \\
+\bottomrule
+\end{tabular}
+\caption{Mapovanie bezpečnostných cieľov na mechanizmy v prototypovom systéme}
+\label{tab:security-mapping}
+\end{table}
+
+\section{Správa kryptografických kľúčov}
+
+V prototypoch sa o kľúčoch často píše iba jednou vetou: \uv{uložia sa do konfigurácie}. To síce môže byť pravda, ale z bezpečnostného pohľadu to nič nevysvetľuje. Aj jednoduchý systém potrebuje vedieť, odkiaľ sa kľúče berú, na čo presne slúžia, kedy sa menia a čo sa stane po incidente. NIST SP 800-57 tento problém opisuje ako životný cyklus kľúča\cite{NIST80057}; v praxi je to skôr séria nepríjemných, ale nevyhnutných prevádzkových otázok.
+
+\subsection{Oddelenie kľúčov podľa účelu}
+
+Dobrá prax je používať odlišné kľúče pre odlišné účely:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item kľúč pre HW autentifikáciu (HMAC podpis HTTP),
+  \item kľúč pre AEAD šifrovanie payloadu,
+  \item kľúč pre audit hash chain,
+  \item \emph{pepper} pre hashovanie identifikátorov kariet.
+\end{itemize}
+
+Použitie jedného kľúča pre viac účelov môže viesť k \emph{cross-protocol} útokom alebo k nejasnostiam pri rotácii. Preto je vhodné odvodiť podkľúče z hlavného tajomstva pomocou HKDF\cite{RFC5869}.
+
+\subsection{Verzovanie a rotácia kľúčov}
+
+V prototypovej implementácii má čítačka priradenú \texttt{key\_version}. Pri rotácii sa v databáze nastaví nová verzia a server môže dočasne akceptovať aj predchádzajúcu verziu (\emph{allow-previous}), aby sa minimalizoval výpadok pri prechode.
+
+\subsection{Ukladanie kľúčov a bezpečnosť servera}
+
+Kľúče sú v prototypovej verzii uložené v konfiguračnom súbore servera (ako hex reťazce) a načítané pri štarte. Ide o pragmatické riešenie vhodné pre experimentálny prototyp, no z pohľadu produkčnej bezpečnosti predstavuje vedomý kompromis. V produkčnom nasadení by bolo vhodné použiť dedikované úložisko tajomstiev (napr. HSM, Vault), obmedziť prístupové práva procesu a oddeliť správu tajomstiev od aplikačného servera.
+
+\subsection{Provisioning a registrácia zariadení}
+
+V produkčnom systéme je dôležitá fáza provisioningu: ako sa čítačka prvýkrát dostane do systému a ako sa jej priradia tajomstvá. Teoreticky existujú dva prístupy: predzdieľané tajomstvo (PSK) vložené pri výrobe/inštalácii alebo bootstrap protokol (napr. na báze certifikátov). PSK je jednoduchšie, ale horšie škáluje a vyžaduje disciplinované nakladanie s tajomstvom počas celej životnosti zariadenia.
+
+\subsection{Kompromitácia kľúča a postup obnovy}
+
+Aj pri dobrej implementácii treba počítať s kompromitáciou zariadenia alebo únikom kľúča. Incident plán by mal riešiť, ako rýchlo vieme zablokovať kompromitované zariadenie, ako prebehne rotácia kľúčov a ako identifikujeme udalosti, ktoré mohli byť ovplyvnené kompromitáciou.
+
+\subsection{Evidencia verzií a migračné stratégie}
+
+Migrácia bezpečnostných mechanizmov je citlivá, pretože výpadok znamená praktický problém v prevádzke. Z teoretického hľadiska sa často používa fázovaný rollout, krátke obdobie dual-acceptance (prijíma sa stará aj nová verzia) a následná revokácia starších verzií.
+
+
+Pre digitálne identity a autentifikátory sú relevantné aj odporúčania NIST SP 800-63-4, ktoré zdôrazňujú riadenie autentifikátorov, životný cyklus a procesy obnovy.
+
+% ==============================================================
+\section{Návrh bezpečného komunikačného protokolu}
+
+\subsection{End-to-end tok udalosti}
+
+V tejto práci sa z bezpečnostného hľadiska oplatí sledovať udalosť od úplného začiatku. Čítačka prečíta UID, zariadenie zvýši \texttt{hw\_seq}, vytvorí krátku HTTP požiadavku a podpíše ju. Server po prijatí ešte stále \uv{nepovoľuje vstup}; najskôr overí pôvod a základnú konzistenciu správy. Až potom sa z požiadavky vytvorí interný secure frame, ktorý vstupuje do rozhodovacej logiky.
+
+Prakticky teda tok vyzerá takto:
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item RC522 načíta UID karty.
+  \item ESP32 inkrementuje perzistentné \texttt{hw\_seq}.
+  \item Do \texttt{/api/hw/uid} sa odošle JSON s \texttt{uid}, \texttt{reader\_id}, \texttt{door\_id} a \texttt{hw\_seq}.
+  \item Hlavička \texttt{X-HW-Signature} nesie HMAC nad presným telom požiadavky.
+  \item Server overí podpis a validuje vstup.
+  \item Zo správy vytvorí interný frame, kde sa \texttt{hw\_seq} použije ako \texttt{seq}.
+  \item \emph{DecisionEngine} vyhodnotí pravidlá a výsledok sa uloží do auditu.
+  \item EventBus sprístupní runtime udalosti pre administráciu.
+\end{enumerate}
+
+Takéto rozdelenie vrstiev je dôležité aj pri interpretácii výsledkov. HMAC medzi zariadením a serverom rieši autenticitu a integritu požiadavky. AEAD frame na serverovej strane potom rieši vnútorné spracovanie, väzbu metadát a auditovateľnosť ďalších krokov.
+
+\subsection{Formát správ, validácia vstupu a obrana pred parser útokmi}
+
+V prístupovom systéme predstavuje vstupná správa (napr. JSON požiadavka) hranicu medzi nedôveryhodným svetom a internou logikou servera. Aj keď je správa podpísaná, server musí počítať s tým, že útočník sa môže pokúsiť o:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item poslať extrémne veľké alebo špeciálne formátované vstupy (vyčerpanie pamäte),
+  \item využiť rozdiely v parsovaní (napr. rozdiel medzi \uv{číslo} a \uv{reťazec}),
+  \item obísť kontrolu pomocou duplicitných polí alebo neštandardných kódovaní.
+\end{itemize}
+
+Z teoretického hľadiska sa odporúča spracovať vstup v dvoch krokoch:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item syntaktická validácia (správny JSON, maximálna veľkosť, povolené znaky),
+  \item semantická validácia (povinné polia, rozsahy hodnôt, typy, konzistentnosť).
+\end{enumerate}
+
+Až po úspešnej validácii má zmysel vykonávať ďalšie operácie (napr. dešifrovanie, databázové dotazy). Tento postup znižuje riziko DoS a zlepšuje robustnosť.
+
+\subsection{Hranice dôvery a spracovanie metadát}
+
+Nie všetky polia v správe majú rovnaký význam. Napríklad \texttt{uid} je identifikátor karty, no nie je dôkazom autenticity. Naopak \texttt{reader\_id} a \texttt{door\_id} sú metadáta, ktoré určujú kontext autorizácie a musia byť chránené proti manipulácii. V návrhu je dôležité definovať, ktoré polia sa:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item považujú za nedôveryhodné a slúžia iba ako vstup do politiky,
+  \item musia byť kryptograficky viazané (napr. cez HMAC alebo AEAD AAD),
+  \item musia byť odvodené na serveri (napr. časová pečiatka).
+\end{itemize}
+
+Takéto rozdelenie znižuje riziko, že server začne dôverovať údajom, ktoré útočník vie ovplyvniť.
+
+\subsection{Škálovanie anti-replay pri viacerých zariadeniach}
+
+Anti-replay mechanizmus musí byť v praxi navrhnutý tak, aby fungoval pre viac zariadení súčasne. To znamená, že \texttt{ReplayWindow} sa typicky udržiava per identitu zariadenia (napr. per \texttt{reader\_id}). Pri návrhu je potrebné rozhodnúť:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item aká je veľkosť okna (koľko hodnôt tolerujeme),
+  \item či tolerujeme out-of-order doručenie (napr. pri výpadkoch siete),
+  \item a ako riešime reštart zariadenia alebo stratu stavu.
+\end{itemize}
+
+Z teoretického hľadiska je vhodné, aby server odmietol nečakaný pokles sekvencie, ale zároveň poskytol administrátorovi diagnostiku (napr. zariadenie bolo resetované). Vtedy je možné zvoliť bezpečný proces obnovy (napr. re-provisioning alebo manuálne potvrdenie resetu).
+
+\subsection{Časové okná, oneskorenie a \uv{freshness}}
+
+Ak sa používa časová pečiatka, treba počítať s oneskorením siete a s tým, že klient nemusí mať presný čas. Praktický prístup je, že server generuje čas pre interné správy a pri príjme požiadavky používa čas iba pre audit a pre detekciu anomálií (napr. nezvyčajne dlhé oneskorenie). Ak sa predsa používa klientsky čas, musí existovať tolerancia (maximálny \emph{skew}) a fail-closed správanie mimo tolerancie.
+
+\subsection{Autentifikácia hardvéru cez HMAC}
+
+HMAC podpis požiadavky zabezpečuje, že iba zariadenie s tajným kľúčom vie vytvoriť platnú požiadavku. To bráni podvrhnutiu (spoofing). V prototypovej architektúre je dôležité, že zariadenie nepoužíva administrátorský token (ten je určený iba pre UI), čo znižuje riziko zneužitia v prípade kompromitácie zariadenia.
+
+\subsection{Anti-replay: sekvencie a \emph{ReplayWindow}}
+
+\subsubsection{Prečo je replay útok nebezpečný}
+
+Replay útok je praktický najmä tam, kde je výsledok udalosti deterministický (napr. \emph{ALLOW}) a útočník vie zachytiť komunikáciu. Bez anti-replay by stačilo raz zachytiť platnú požiadavku a opakovať ju.
+
+\subsubsection{Monotónne \texttt{hw\_seq}}
+
+Zariadenie používa monotónne sekvenčné číslo \texttt{hw\_seq}, ktoré sa inkrementuje pri každom skene a perzistentne ukladá do NVS. V prípade reštartu zariadenia sa hodnota obnoví. Monotónnosť je dôležitá: ak by sa \texttt{hw\_seq} resetoval, útočník by mohol znovu použiť staré hodnoty.
+
+\subsubsection{Sliding window na serveri}
+
+Server používa mechanizmus \emph{sliding window} (ReplayWindow). Udržiava:\
+(1) \texttt{maxSeen} a\
+(2) bitset použitia hodnôt v rozsahu \texttt{[maxSeen - window, maxSeen]}.
+
+Ak príde \texttt{seq} príliš staré, server ho odmietne ako \emph{too old}. Ak spadá do okna, ale už bolo použité, odmietne ho ako \emph{replay}. Tento model je bežný v protokoloch, ktoré musia tolerovať out-of-order doručenie, ale zároveň odmietnuť duplicitné správy.
+
+\subsection{Freshness a časová pečiatka}
+
+V embedded zariadení nie je zaručená presnosť času. Preto server generuje \texttt{ts\_unix\_ms} a používa ho v hlavičke frame. Čas slúži pre audit, pre detekciu anomálií a pre \emph{freshness} logiky (napr. maximálne povolené oneskorenie správy).
+
+\subsection{Poznámka k dôvernosti komunikácie}
+
+V prototypovej implementácii je HW požiadavka autentifikovaná (integrita a pôvod), ale dôvernosť prenosu UID na úrovni HTTP nie je v základnom režime kryptograficky chránená. V praxi je vhodné použiť TLS (HTTPS) alebo posielať už šifrovaný payload z hardvéru. V tejto práci sa dôvernosť posilňuje najmä na úrovni úložiska (neukladanie surového UID) a na úrovni interného protokolu (AEAD frame), pričom absencia povinného TLS je vedomé zjednodušenie prototypu a nie deklarovaná bezpečnostná vlastnosť.
+
+
+% ==============================================================
+\section{Bezpečnosť vstavaného zariadenia a spracovanie tajomstiev}
+
+Čítačka je z hľadiska bezpečnosti nepohodlný prvok. Nie je pod takou kontrolou ako server, býva fyzicky dostupná a zároveň nemá veľa výkonu ani priestoru na zložitejšie protiopatrenia. Pri návrhu preto nepomáha tváriť sa, že ide o plnohodnotne dôveryhodný uzol. Užitočnejšie je počítať s tým, že zariadenie môže byť slabším článkom a že server musí jeho správy vždy znovu overiť.
+
+Model hrozieb preto zahŕňa situácie, v ktorých útočník získa:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item krátkodobý fyzický prístup (napr. otvorenie krytu, pripojenie k rozhraniam),
+  \item možnosť resetovať napájanie alebo opakovane reštartovať zariadenie,
+  \item možnosť odoberať firmware z pamäte (v závislosti od ochrany),
+  \item možnosť ovplyvniť prostredie (Wi-Fi, rušenie, pokusy o MITM).
+\end{itemize}
+
+V praxi to znamená, že zariadenie sa nemá považovať za \uv{dôveryhodné} v rovnakom zmysle ako server. Zariadenie je skôr klient, ktorého správy sa musia overiť a limitovať.
+
+\subsection{Ukladanie tajomstiev na zariadení}
+
+Najväčším problémom pri jednoduchých schémach je dlhodobo uložené tajomstvo (napr. PSK pre HMAC). Ak útočník tajomstvo získa, vie zariadenie plnohodnotne emulovať. Preto sa v teórii odporúča:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item používať per-device tajomstvá (každé zariadenie má vlastný kľúč),
+  \item oddeliť tajomstvá podľa účelu (autentifikácia, šifrovanie, audit),
+  \item a uvažovať o hardvérových mechanizmoch (secure element, flash encryption).
+\end{itemize}
+
+V prostredí ESP32 existujú mechanizmy ako \emph{Secure Boot} a \emph{Flash Encryption}, ktoré dokážu sťažiť extrakciu firmware a tajomstiev. Pre prototyp nie je cieľom implementovať kompletný hardening, ale v teoretickej rovine je dôležité tieto možnosti poznať a zvážiť ich v produkčnom návrhu.
+
+\subsection{Monotónne počítadlá a trvácnosť stavu}
+
+Anti-replay mechanizmy často pracujú so sekvenčným číslom alebo časom. Aby mali význam, musia byť trvácne aj po reštarte. Z toho vyplývajú dve praktické otázky:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Ako ukladať stav tak, aby sa pri výpadku napájania nestratil?
+  \item Ako zabrániť rollbacku stavu (útočník obnoví starú hodnotu)?
+\end{itemize}
+
+Jednoduché perzistentné ukladanie (napr. NVS) rieši prvú otázku. Druhá otázka je zložitejšia a v produkcii sa rieši napríklad cez secure storage, monotónne čítače v hardvéri alebo serverové pravidlá, ktoré odmietnu nečakaný pokles sekvencie.
+
+\subsection{Bezpečnosť firmware a aktualizácie}
+
+Pri mikrokontroléri býva firmware zároveň funkciou aj bezpečnostnou hranicou. Keď sa v ňom objaví chyba, nestačí povedať, že ju \uv{niekedy opravíme}; bez rozumného mechanizmu aktualizácie zostane slabé miesto v zariadení prakticky po celý jeho životný cyklus. Na druhej strane, ak sa aktualizácie navrhnú zle, stanú sa najkratšou cestou k prevzatiu zariadenia.
+
+Preto sa v odbornej literatúre opakuje niekoľko rovnakých zásad: nový firmware má byť podpísaný, zariadenie má vedieť odmietnuť staršiu zraniteľnú verziu a vývojové rozhrania nemajú zostať otvorené v nasadení. V tejto práci nie je implementovaný plnohodnotný secure boot ani OTA aktualizácia; bolo by nepresné tvrdiť opak. Z pohľadu témy je však dôležité pomenovať, že práve firmware rozhoduje o tom, či sa zachová správne počítadlo \texttt{hw\_seq}, či sa tajomstvo použije iba na podpis a či zariadenie neposiela na sieť viac údajov, než má.
+
+\subsection{Fyzické útoky a praktický hardening}
+
+Keď je čítačka pri dverách fyzicky dostupná, model hrozieb sa mení. Útočník už nemusí útočiť cez sieť; môže skúšať debug port, napájanie, vnútornú zbernicu alebo jednoducho vymeniť modul za vlastný. V laboratórnom prototype sa proti takémuto súperovi nedá dosiahnuť rovnaká odolnosť ako v komerčnom kontroléri so secure elementom a chráneným krytom. Dáva preto zmysel hovoriť o primeranom hardeningu, nie o úplnej fyzickej odolnosti.
+
+Prakticky to znamená aspoň tri veci. Po prvé, vypnúť alebo obmedziť rozhrania, ktoré boli užitočné pri vývoji, ale v prevádzke by iba rozširovali útočnú plochu. Po druhé, premýšľať nad tým, čo sa stane po kompromitácii jednej čítačky; v dobre navrhnutom systéme to nesmie automaticky znamenať kompromitáciu celej serverovej časti. A po tretie, pri interpretácii výsledkov práce otvorene priznať, že fyzická ochrana zariadenia tu nie je hlavným predmetom riešenia.
+
+\subsection{Bezpečnosť Wi-Fi konfigurácie a lokálnej siete}
+
+Wi-Fi býva v prototypoch často najpraktickejšia voľba, ale zároveň prináša typický problém: zariadenie sa ocitne v sieti, kde nie je samo. Vedľa neho môžu byť telefóny, notebooky aj iné IoT prvky, ktoré nemusia byť dôveryhodné. Práve preto nestačí pozerať sa iba na obsah správy; dôležité je aj to, z akej siete zariadenie komunikuje a s kým vôbec smie hovoriť.
+
+Pre tento typ riešenia je rozumné oddeliť zariadenia aspoň do samostatnej siete alebo VLAN, zúžiť komunikáciu na nevyhnutné endpointy a nenechať otvorené všeobecné služby, ktoré prototyp nepotrebuje. Silné Wi-Fi zabezpečenie a monitorovanie neúspešných spojení sú už skôr prevádzkové disciplíny, ale v praxi často rozhodnú o tom, či incident zostane lokálny, alebo sa rozšíri ďalej. Sieťová segmentácia sama osebe kryptografiu nenahrádza; iba kupuje čas a znižuje dosah problému.
+
+\subsection{Bezpečnosť logovania na zariadení}
+
+Pri embedded zariadení je lákavé logovať všetko, najmä počas ladenia. Presne tu však vzniká bežná chyba: do konzoly sa dostanú informácie, ktoré tam po nasadení nemajú čo robiť. V tomto prototype majú logy slúžiť hlavne na diagnostiku čítačky a komunikácie, nie na prenos citlivých údajov. Záznamy preto nemajú obsahovať tajomstvá, celé podpisy ani zbytočne detailné vnútorné stavy.
+
+Rovnako dôležité je, aby sa zo servisného logovania nestal trvalý režim prevádzky. To, čo pomáha pri vývoji, môže po nasadení fungovať ako jednoduchý únikový kanál. Aj pri tak malej súčasti systému sa teda ukazuje rovnaký princíp ako inde: diagnostika je potrebná, ale musí byť podriadená bezpečnostnému cieľu, nie naopak.
+
+
+% ==============================================================
+\section{Bezpečnosť transportnej vrstvy a použitie TLS}
+
+Pri komunikácii medzi čítačkou a serverom sa ľahko zmiešajú dve odlišné vrstvy ochrany. Jedna otázka znie, či je dôveryhodná samotná požiadavka --- teda či server vie, kto ju vytvoril a či ju nikto po ceste neupravil. Druhá otázka sa týka celého prenosu po sieti: či niekto nevie čítať alebo meniť komunikáciu na transportnej vrstve. HMAC a AEAD riešia prvý problém na úrovni správy; TLS rieši druhý na úrovni spojenia. Obe vrstvy sú užitočné, ale ich úloha nie je zameniteľná.\cite{RFC8446,RFC9325}
+
+\subsection{Prečo nestačí iba TLS}
+
+Samotné TLS neodpovie na všetko. Ak je zariadenie kompromitované, vie stále vytvárať úplne korektné HTTPS požiadavky. Ak je chyba v serverovej autorizácii, TLS ju nezakryje. A ak je v architektúre prítomná proxy alebo reverzný front-end, transportná ochrana sa môže ukončiť ešte pred aplikáciou, ktorá rozhoduje o prístupe.
+
+Preto dáva zmysel ponechať si aj aplikačnú autentifikáciu. V tomto prototype túto úlohu plní HMAC nad telom požiadavky a väzba na \texttt{hw\_seq}. Aj keby sa transportná vrstva neskôr zmenila, server stále vie overiť, že prijatá udalosť zodpovedá tomu, čo odoslalo konkrétne zariadenie.
+
+\subsection{mTLS vs. symetrické tajomstvá}
+
+Pri autentifikácii zariadení sa v praxi stretávajú dve cesty. Prvá je postavená na symetrickom tajomstve, z ktorého sa počíta HMAC; druhá používa certifikáty a mutual TLS. mTLS sa lepšie hodí do väčších infraštruktúr, kde treba riešiť životný cyklus identity zariadenia, revokáciu a správu certifikátov. Má však aj cenu: PKI, distribúcia dôvery a komplikovanejšie nasadenie na strane klienta.
+
+Pre tento prototyp bol zvolený jednoduchší model so zdieľaným tajomstvom. Nie preto, že by mTLS nebolo bezpečné, ale preto, že cieľom práce nebolo stavať certifikačnú infraštruktúru. HMAC stačí na demonštráciu autenticity zariadenia, integrity požiadavky a ochrany proti replay na aplikačnej vrstve.
+
+\subsection{Validácia certifikátu a \emph{certificate pinning}}
+
+Ak sa TLS použije, najslabším miestom býva paradoxne klient. V embedded praxi sa stále objavujú implementácie, ktoré certifikát servera neoverujú dôsledne, alebo validáciu vypnú úplne, lebo je \uv{jednoduchšie rozbehať spojenie}. V takom prípade ostane z TLS iba šifrovaný tunel bez skutočnej identity servera.
+
+Pre stabilné prostredia prichádza do úvahy aj \emph{certificate pinning}, teda uloženie očakávaného verejného kľúča alebo fingerprintu. Tým sa znižuje závislosť od všeobecného trust store, ale zároveň sa komplikuje rotácia certifikátu. Je to typický príklad mechanizmu, ktorý vyzerá čisto bezpečnostne, no v praxi sa rýchlo zmení na prevádzkový problém, ak sa zle naplánuje.\cite{RFC9325}
+
+\subsection{Praktické nasadenie TLS v IoT}
+
+V teórii sa TLS často spomína ako samozrejmá voľba. V malom IoT zariadení však za tým nasledujú konkrétne otázky: kde bude uložený CA certifikát, ako sa vyrieši jeho obmena, čo sa stane po expirácii a kto zabezpečí aktualizáciu zariadenia bez výpadku. Práve tu sa ukazuje rozdiel medzi \uv{bezpečným mechanizmom} a \uv{udržateľným nasadením}.
+
+Z tohto dôvodu ostáva v prototype základná komunikácia hardvéru riešená ako HTTP + HMAC. Neznamená to, že TLS nie je dôležité; znamená to iba to, že ťažisko práce je inde. Produkčné riešenie by malo pridať TLS alebo mTLS aj kvôli dôvernosti prenášaného identifikátora.
+
+\subsection{Kombinácia vrstiev: kedy dáva zmysel HMAC aj pri TLS}
+
+Otázka \uv{prečo HMAC, keď už mám TLS?} sa objavuje prirodzene. Odpoveď závisí od toho, čo presne chceme overiť. TLS chráni spojenie medzi dvoma bodmi. HMAC v tomto návrhu viaže konkrétnu požiadavku na zariadenie a na jej obsah. To je užitočné napríklad vtedy, keď sa transportná vrstva v budúcnosti presunie na proxy, load balancer alebo iný medzičlánok.
+
+Inými slovami: TLS by vylepšilo dôvernosť a transportnú integritu, no HMAC zostáva nositeľom aplikačnej identity zariadenia. Tieto vrstvy sa preto nevylučujú; každá rieši inú časť problému.
+
+
+% ==============================================================
+\section{Bezpečnosť úložiska, exportov a životný cyklus dát}
+
+Úložisko prístupového systému má dve hlavné úlohy: udržiava konfiguráciu (karty, roly, väzby) a uchováva audit udalostí. Z toho vyplýva, že únik alebo manipulácia s úložiskom má vysoký dopad.
+
+\subsection{Minimizácia dát a pseudonymizácia}
+
+Princíp minimalizácie hovorí, že systém má ukladať iba to, čo potrebuje. Ukladanie HMAC(card\_id) namiesto surového UID je príkladom pseudonymizácie: záznamy nie sú priamo čitateľné bez tajomstva (pepper). To znižuje dopad úniku databázy a zároveň umožňuje systém používať (vyhľadávanie karty podľa UID prebehne tak, že sa UID prepočíta na hash).
+
+\subsection{Export/import a integritné kontroly}
+
+Pri administrácii sa často objaví potreba exportovať databázu alebo migrovať konfiguráciu. Export/import je však rizikový: môže obísť bežné API kontroly a v prípade neovereného importu viesť k injekcii neplatných pravidiel. Z teoretického hľadiska je preto vhodné:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item vykonať integrity check databázy po importe,
+  \item verifikovať auditnú reťaz, ak je súčasťou exportu,
+  \item a auditovať samotné administrátorské operácie export/import.
+\end{itemize}
+
+\subsection{Prístupové práva k databáze a zálohovanie}
+
+Databáza je často obyčajný súbor (pri SQLite). Z bezpečnostného hľadiska to znamená, že prístupové práva na úrovni operačného systému sú kritické: proces servera má mať práva iba na čítanie/zápis, ktoré potrebuje, a administrátorské exporty majú byť auditované. Pri zálohovaní treba myslieť na to, že záloha obsahuje rovnaké citlivé dáta ako primárna databáza.
+
+V produkcii je vhodné uvažovať aj o šifrovaní úložiska alebo o databáze s podporou šifrovania. Šifrovanie v pokoji (at-rest) však nenahrádza auditnú integritu: útočník s právami procesu môže stále dáta meniť, preto je tamper-evident logovanie doplnkovým mechanizmom.
+
+
+\subsection{Retencia a ochrana súkromia v audite}
+
+Audit záznamy sú z pohľadu bezpečnosti užitočné, ale môžu obsahovať citlivé informácie o pohybe používateľov. V produkcii je preto potrebné definovať:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item obdobie uchovávania (retenciu),
+  \item prístupové práva k auditu,
+  \item a prípadné anonymizačné alebo agregované reporty.
+\end{itemize}
+
+Tieto aspekty sú najmä procesné, ale priamo súvisia s dôveryhodnosťou systému a s právnymi požiadavkami.
+
+% ==============================================================
+\section{Ochrana súkromia identifikátorov a bezpečnosť úložiska}
+
+\subsection{Prečo neukladať surový UID}
+
+UID je identifikátor, ktorý môže byť v čase stabilný a unikátny. Pri úniku databázy by bolo možné:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item získať zoznam platných identifikátorov,
+  \item korelovať pohyb používateľov podľa auditných záznamov,
+  \item v niektorých prípadoch použiť UID na emuláciu/klonovanie.
+\end{itemize}
+
+Preto prototyp ukladá iba odvodenú hodnotu (HMAC hash).
+
+\subsection{HMAC(card\_id) s \emph{pepper}}
+
+Systém ukladá do databázy hodnotu:
+
+\begin{equation}
+\texttt{card\_hash} = \mathrm{HMAC}(\texttt{pepper}, \texttt{card\_id})
+\end{equation}
+
+kde \texttt{pepper} je tajomstvo uložené mimo databázy. Ak útočník získa SQLite súbor, bez pepper nevie efektívne zistiť pôvodné \texttt{card\_id}. Tento prístup je analogický s odporúčaním \uv{oddeliť tajomstvo od databázy}.
+
+\subsection{Pepper vs. salt a odolnosť voči slovníkovým útokom}
+
+Pri ochrane identifikátorov sa často spomína \emph{salt}. Salt je náhodná hodnota, ktorá sa ukladá spolu s hashom a bráni tomu, aby rovnaký vstup mal rovnaký hash. V prístupových systémoch však často chceme, aby systém vedel vyhľadávať kartu podľa UID (t. j. aby rovnaký UID viedol na rovnaký \texttt{card\_hash}). Preto sa v tejto práci používa pepper — tajomstvo, ktoré sa do databázy neukladá.
+
+Pepper chráni proti tomu, aby útočník po úniku databázy spustil efektívny slovníkový útok nad priestorom UID. Pri niektorých typoch kariet môže byť priestor UID relatívne malý alebo štruktúrovaný; práve preto je dôležité, aby útočník nemal prístup k tajomstvu, ktoré hashovanie \uv{posilňuje}. Tento prístup je analogický k bezpečnému ukladaniu hesiel, s tým rozdielom, že tu nejde o heslo používateľa, ale o identifikátor.
+
+\subsection{Minimalizácia údajov v audite a súkromnostné riziká}
+
+Aj keď sa surové UID do databázy neukladá, audit môže stále obsahovať informácie, ktoré umožňujú \emph{korelovať} správanie používateľov (čas, miesto, frekvencia prístupov). Z toho vyplýva, že prístup k auditu má byť obmedzený a v produkcii je vhodné zaviesť role-based prístup k auditným záznamom, pravidlá retencie a v reportoch preferovať agregované údaje pred detailnými trasami.
+
+\subsection{Poznámka k právnym aspektom (GDPR)}
+
+V európskom prostredí sa pri spracovaní identifikátorov a auditných záznamov často uplatňuje GDPR. Aj keď prototyp nie je produkčný systém, teoreticky je dôležité, aby návrh rešpektoval princípy minimalizácie, účelového viazania a primeranej doby uchovávania. Hashovanie UID s pepper znižuje riziko pri úniku databázy, ale auditné záznamy stále môžu predstavovať osobné údaje v závislosti od kontextu organizácie. Preto je vhodné v praxi doplniť interné pravidlá, kto má prístup k auditu a na aký účel.
+
+
+\subsection{Integrita databázy a hranice SQLite}
+
+SQLite poskytuje transakcie, obmedzenia a \emph{integrity check}, ale nepodpisuje obsah databázy a sama osebe nerieši ani distribuovanú dostupnosť či správu prístupov vo väčšej infraštruktúre. Preto pri lokálnej manipulácii súboru nie je možné zaručiť integritu bez dodatočných mechanizmov. V prototype je táto slabina čiastočne kompenzovaná tamper-evident audit logom, pričom v práci sa otvorene uvádza, že ide o lokálne úložisko vhodné pre experimentálnu a validačnú fázu.
+
+% ==============================================================
+\section{Tamper-evident audit log}
+
+Audit v prístupovom systéme nemá slúžiť iba na to, aby si administrátor vedel spätne pozrieť, kto prišiel ku dverám. Má byť aj zdrojom dôkazu po incidente. To mení požiadavky na jeho návrh. Nestačí, že sa udalosti zapisujú; dôležité je, aby sa dalo neskôr rozpoznať, či niekto históriu nemenil alebo neorezal. Výskum v oblasti bezpečného logovania preto zdôrazňuje detekciu manipulácie a, pri silnejších schémach, aj \emph{forward integrity}\cite{SchneierKelsey1999,NIST80092}.
+
+\subsection{Základné typy útokov na logy}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Modifikácia záznamu: zmena výsledku ALLOW/DENY alebo času.
+  \item Vloženie záznamu: pridanie falošnej udalosti.
+  \item Vymazanie (truncation): odstránenie časti logu, typicky konca.
+  \item Reorder: zmena poradia udalostí.
+\end{itemize}
+
+\subsection{Hash chain s HMAC}
+
+Prototyp používa jednoduchú, ale účinnú konštrukciu: každý záznam obsahuje HMAC hash predošlého záznamu. Zjednodušene:
+
+\begin{equation}
+H_i = \mathrm{HMAC}(K_{audit}, \mathrm{encode}(record_i) \parallel H_{i-1})
+\end{equation}
+
+kde \(K_{audit}\) je tajný auditný kľúč. Vďaka tomu zmena ktoréhokoľvek záznamu spôsobí nekonzistenciu v následných hodnotách.
+
+\subsection{Audit anchor a ochrana proti truncation}
+
+Hash chain sama o sebe nezabráni útoku, pri ktorom útočník odstráni posledných \(n\) záznamov a ponechá konzistentný prefix. Preto prototyp používa audit anchor: periodicky sa ukladá hodnota \(H_i\) a index \(i\) do samostatnej štruktúry. Pri verifikácii sa kontroluje, že audit log obsahuje všetky záznamy minimálne po posledný anchor.
+
+\subsection{Forward integrity a správa auditného kľúča}
+
+Výskum bezpečného logovania používa pojem \emph{forward integrity}: aj keď útočník v čase $t$ získa aktuálny kľúč, nemal by byť schopný spätne upraviť staršie záznamy bez detekcie. Jednoduchý hash chain s fixným kľúčom poskytuje detekciu modifikácie, ale pri kompromitácii kľúča útočník môže vytvoriť alternatívnu históriu od miesta kompromitácie. Silnejšie konštrukcie preto používajú evolúciu kľúča (kľúč sa po každom zázname alebo po epochách aktualizuje jednosmerným spôsobom).\cite{SchneierKelsey1999}
+
+V prototypovej práci je cieľom demonštrovať tamper-evident vlastnosti a detekciu manipulačných útokov. Pre produkčný systém by bolo vhodné zvážiť aj forward-integrity varianty a pravidlá rotácie auditného kľúča.
+
+\subsection{Uloženie anchorov a dôveryhodný referenčný bod}
+
+Anchor zvyšuje odolnosť proti truncation, ale vytvára otázku: \emph{kde anchor uložiť tak, aby ho útočník nevedel jednoducho prepisovať?} Teoreticky existujú možnosti: uložiť anchor mimo hlavnej databázy, replikovať anchor do externého systému alebo periodicky exportovať anchor ako \uv{checkpoint} mimo dosahu bežného procesu.
+
+\subsection{Limity a alternatívy: Merkle stromy a verifikovateľné výňatky}
+
+Hash chain je jednoduchý a efektívny, ale verifikácia typicky vyžaduje prejsť celý log (alebo aspoň od anchoru). Pre veľké objemy dát sa používajú aj Merkle stromy, ktoré umožňujú verifikovať vybrané výňatky bez nutnosti spracovať celé dáta. Tieto prístupy sú zložitejšie na implementáciu, ale môžu byť vhodné, ak audit rastie do veľkých rozmerov alebo ak sa vyžaduje časté overovanie.
+
+
+\subsection{Verifikácia a nástroj \texttt{audit\_verify}}
+
+Verifikácia prebieha offline alebo cez admin panel:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item načítanie záznamov a rekonštrukcia reťaze,
+  \item kontrola konzistencie \(H_i\),
+  \item kontrola anchor proti truncation,
+  \item reportovanie prvého indexu, kde reťaz zlyhá.
+\end{itemize}
+
+% ==============================================================
+
+
+
+
+
+% ==============================================================
+\section{Odporúčania a štandardy relevantné pre návrh}
+
+Pri návrhu bezpečnostných mechanizmov je dôležité opierať sa o etablované odporúčania a štandardy. V tejto práci sú relevantné najmä odporúčania pre manažment kľúčov (NIST SP 800-57),\cite{NIST80057} odporúčania pre zabezpečenie RFID systémov (NIST SP 800-98),\cite{NIST80098} odporúčania pre digitálnu identitu a autentifikátory (NIST SP 800-63B-4),\cite{NIST80063B4} zásady správy bezpečnostných logov (NIST SP 800-92)\cite{NIST80092} a štandardizované kryptografické primitíva HMAC, HKDF a ChaCha20-Poly1305.\cite{FIPS1981,RFC2104,RFC5869,RFC8439,RFC5116}
+
+Cieľom nie je „odcitovať“ štandardy, ale použiť ich ako rámec: oddelenie kľúčov podľa účelu, rotácia kľúčov, dôsledná validácia vstupov a minimalizácia dôvery v klienta.
+
+% ==============================================================
+\section{Riadenie rizika a návrh protiopatrení}
+
+Pri hodnotení navrhnutého systému nie je užitočné tváriť sa, že všetky hrozby majú rovnakú váhu. V malej laboratórnej zostave je realistickejšie riešiť replay, podvrhnutie požiadavky alebo úpravu auditu než napríklad veľmi sofistikované fyzické útoky na kartu. Táto kapitola preto neponúka univerzálny katalóg rizík, ale skôr vysvetľuje, prečo boli vybrané práve tie protiopatrenia, ktoré dávajú zmysel pre tento prototyp.
+
+\subsection{Pravdepodobnosť a dopad}
+
+Pri hodnotení rizika sa používa matica pravdepodobnosť$\times$dopad. Napríklad replay útok je často pravdepodobný (stačí odpočúvanie siete) a jeho dopad môže byť vysoký (neoprávnený vstup). Naopak, niektoré fyzické útoky na RFID môžu mať nižšiu pravdepodobnosť v kontrolovanom prostredí, ale stále sa oplatí ich zvážiť.
+
+\subsection{Vrstvené zabezpečenie (defense-in-depth)}
+
+Vrstvené zabezpečenie znamená, že systém nestojí na jednom mechanizme. V návrhu sa to prejavuje tak, že HMAC chráni pôvod požiadavky,\cite{FIPS1981} anti-replay chráni pred opakovaním, AEAD chráni interné správy a integritu metadát\cite{RFC8439,LibsodiumXChaChaDoc} a tamper-evident audit log chráni dôveryhodnosť histórie.\cite{SchneierKelsey1999}
+
+\subsection{Bezpečnosť ako proces}
+
+Bezpečnosť nie je jednorazová vlastnosť, ale proces: zahŕňa aktualizácie, rotáciu kľúčov, revíziu pravidiel, monitoring a reakciu na incidenty. Teoretická časť preto zdôrazňuje aj prevádzkové aspekty, nielen kryptografické primitíva.
+
+\subsection{Predpoklady a zvyškové riziko}
+
+Každý návrh implicitne stojí na predpokladoch. V tejto práci sa typicky predpokladá, že server je lepšie chránený než čítačka a že administrátorské rozhranie je prístupné iba autorizovaným osobám. Aj pri splnení predpokladov však ostáva zvyškové riziko (residual risk), napríklad kompromitácia jednej čítačky alebo dlhodobý DoS. Dôležité je, aby systém v takom prípade zlyhal bezpečne (fail-closed) a poskytol auditné stopy pre analýzu.
+
+\subsection{Komunikačné kompromisy a použiteľnosť}
+
+Prístupové systémy musia byť použiteľné: rýchla odozva, nízky počet falošných zamietnutí a jednoduchá správa oprávnení. To vytvára kompromisy. Napríklad príliš úzka anti-replay \emph{window} môže spôsobovať zamietnutia pri nestabilnej sieti; príliš široká window zas znižuje bezpečnosť. Teoreticky je vhodné tieto parametre odvíjať od prostredia a mať možnosť ich meniť bez zásahu do protokolu (konfigurácia na serveri).
+
+% ==============================================================
+\section{Bezpečnosť administrátorského rozhrania a prevádzkové aspekty}
+
+Okrem samotného protokolu je v prístupových systémoch kritické aj administrátorské rozhranie a prevádzkové procesy. Administrácia spravuje roly, väzby, karty a často umožňuje export alebo diagnostiku. Z toho vyplýva, že musí byť chránená silnejšie než bežné klienty.
+
+\subsection{Typické webové hrozby: XSS, CSRF a spracovanie vstupu}
+
+Administrátorské rozhranie je webová aplikácia a dedí typické webové hrozby. Aj keď ide o interné UI, zraniteľnosti ako \emph{XSS} (Cross-Site Scripting) alebo \emph{CSRF} (Cross-Site Request Forgery) môžu viesť k tomu, že útočník vykoná administrátorské operácie bez vedomia používateľa. Z teoretického hľadiska je preto vhodné:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item sanitizovať a escapovať výstupy v UI,
+  \item používať CSRF tokeny pri stavových operáciách,
+  \item validovať vstupy aj v administrátorských endpointoch (nie iba na HW endpointoch).
+\end{itemize}
+
+Pri vývoji je bežné zobrazovať logy a audit v reálnom čase. Práve tu sa často objavia XSS riziká, ak sa zobrazujú nesanitizované reťazce pochádzajúce z vonkajších vstupov.
+
+
+\subsection{Autentifikácia administrátora a správa relácií}
+
+Administrátorské rozhranie by malo používať silnú autentifikáciu (ideálne viacfaktorovú), obmedzenú platnosť tokenov a bezpečné ukladanie relácií. Pri citlivých operáciách je vhodné vyžadovať opätovné overenie alebo rotáciu relácie.
+
+\subsection{Autorizácia operácií a audit administrácie}
+
+Operácie typu \emph{pridať kartu}, \emph{zmeniť rolu} alebo \emph{zmeniť väzbu čítačka$\rightarrow$dvere} majú priamy dopad na bezpečnosť. Preto je vhodné mať oddelené administrátorské roly a logovať administrátorské zmeny do auditnej stopy.
+
+\subsection{Bezpečnostná konfigurácia a minimalizácia \uv{debug} rozhraní}
+
+Debug endpointy a vývojové nastavenia sú častým zdrojom incidentov. Z teoretického hľadiska platí, že musia byť v produkcii vypnuté alebo striktne obmedzené. OWASP API Security Top 10 upozorňuje najmä na \emph{Security Misconfiguration}.\cite{OWASPAPI2023}
+
+\subsection{Monitoring a detekcia anomálií}
+
+Monitorovanie je doplnkom ku kryptografii: nárast \emph{HMAC fail}, \emph{replay} udalostí alebo zlyhaní verifikácie auditu môže indikovať útok alebo chybu konfigurácie. Dobre navrhnutý systém umožní nielen odmietnuť podozrivú požiadavku, ale aj poskytnúť podklady pre analýzu a zlepšenie politiky.
+
+
+% ==============================================================
+\section{Súvisiace prístupy a typické architektúry systémov kontroly prístupu}
+
+Nie všetky prístupové systémy vyzerajú rovnako a nebolo by správne predstavovať navrhnutý prototyp ako jediný rozumný model. Táto kapitola preto slúži skôr na zasadenie riešenia do kontextu. Ukazuje, kde sa náš prototyp podobá bežným architektúram a kde je naopak zjednodušený práve preto, že ide o akademický a experimentálny systém.
+
+\subsection{Centralizované vs. distribuované rozhodovanie}
+
+Pri porovnávaní architektúr je najpraktickejšie položiť si jednoduchú otázku: kde sa prijíma rozhodnutie o otvorení dverí? V centralizovanom modeli sa udalosť pošle na server, ktorý pozná pravidlá, stav systému aj auditný kontext. To zjednodušuje správu oprávnení a revokácií, ale systém sa stáva citlivejší na výpadok siete alebo servera.
+
+Distribuované riešenie posúva časť logiky bližšie k dverám. Výhodou je vyššia autonómia pri výpadku konektivity. Cena za to je menej pohodlná správa politiky, viac lokálnych tajomstiev a väčšia dôležitosť fyzickej bezpečnosti edge zariadenia. V praxi preto mnohé systémy skončia niekde medzi týmito pólmi: rozhodovanie je čiastočne lokálne, ale audit, konfigurácia a správa identít zostávajú centralizované.
+
+\subsection{Online vs. offline režim a bezpečnostné kompromisy}
+
+Offline režim pôsobí na prvý pohľad lákavo, pretože dvere \uv{fungujú aj bez siete}. Lenže práve vtedy sa ukáže, čo všetko musí vedieť samotné zariadenie: uchovávať lokálne kópie oprávnení, riešiť ich zastaranie a po obnovení spojenia korektne zlúčiť audit. To nie je detail, ale zásadný bezpečnostný a prevádzkový problém.
+
+Online model je prísnejší na dostupnosť infraštruktúry, no zjednodušuje zmeny oprávnení a robí audit okamžitejší a konzistentnejší. Preto je v tejto práci zvolená práve online, centralizovaná cesta. Neznamená to, že offline režim je nesprávny; iba posúva ťažisko problému zo servera na zariadenie a na lokálnu správu dôvery.
+
+\subsection{Integrácia s identitnými systémami}
+
+V reálnych organizáciách býva prístupový systém iba jednou časťou širšieho identity ekosystému. Oprávnenia často nevznikajú priamo v ňom, ale prichádzajú z HR alebo z centrálneho IAM riešenia. Z bezpečnostného pohľadu je potom rozhodujúce určiť, ktorý systém je \uv{zdroj pravdy}, ako rýchlo sa prenášajú zmeny a kto nesie zodpovednosť za revokáciu práv.
+
+Pre prototyp takáto integrácia nie je kľúčová, ale je dobré ju pomenovať už v teórii. Bez tohto kontextu by sa mohlo zdať, že správa kariet a rolí je izolovaný problém, hoci v praxi je úzko previazaná s personálnymi a prevádzkovými procesmi.
+
+\subsection{Audit a forenzná pripravenosť v bežných riešeniach}
+
+Audit býva v marketingových materiáloch takmer samozrejmosťou. Keď sa však objaví incident, ukáže sa rozdiel medzi bežným logovaním a auditom, ktorému sa dá veriť. Na to nestačí, aby systém iba \uv{niečo zapisoval}. Záznamy musia mať jasný pôvod, časový kontext, konzistentný formát a ochranu proti neskoršej úprave.
+
+Práve preto má v tomto prototype význam tamper-evident prístup. Nie je to náhrada kompletnej forenznej platformy, ale je to praktický krok od obyčajného logovania k auditu, ktorý sa dá dodatočne verifikovať. V akademickom prototype je to primeraná hranica: zvyšuje dôveryhodnosť výsledkov bez toho, aby bolo potrebné budovať veľkú SIEM infraštruktúru.
+
+\subsection{Komunikačné protokoly medzi čítačkou a kontrolérom}
+
+Nie každá čítačka komunikuje priamo po IP. V mnohých nasadeniach je medzi ňou a serverom ešte kontrolér pri dverách a samotná čítačka používa jednoduchý lokálny protokol. Historicky boli takéto rozhrania navrhnuté najmä na prenos identifikátora, nie na kryptografickú ochranu. Dobrým príkladom je Wiegand, kde problém nevzniká až na úrovni backendu, ale už na samotnom vedení medzi zariadeniami.
+
+Modernejšie protokoly, napríklad OSDP Secure Channel, ukazujú ten istý princíp v bezpečnejšej forme: aj na krátkej lokálnej trase má zmysel riešiť autenticitu, integritu a ochranu proti replay. V tomto zmysle sa komunikácia \uv{čítačka $\rightarrow$ kontrolér} veľmi nelíši od komunikácie \uv{zariadenie $\rightarrow$ server}; mení sa skôr médium a prevádzkový kontext než samotná bezpečnostná logika.
+
+\subsection{Topológie: inteligentná čítačka vs. kontrolér pri dverách}
+
+Rozdiel medzi inteligentnou čítačkou a jednoduchou čítačkou s externým kontrolérom je dôležitý hlavne z pohľadu miesta, kde sa nachádzajú citlivé rozhodnutia a tajomstvá. Inteligentná čítačka je architektonicky čistejšia na kabeláž a často aj jednoduchšia na prototypovanie. Zároveň však znamená, že väčšia časť dôvery sa presúva do fyzicky dostupného zariadenia.
+
+Model s kontrolérom pri dverách presúva rozhodovanie do chránenejšej zóny, ale zase vytvára potrebu zabezpečiť ďalší komunikačný úsek. Ani jedna z možností nie je automaticky \uv{správna}; vhodnosť závisí od prostredia, ceny a od toho, aký silný fyzický útok považujeme za realistický.
+
+\subsection{Cloud vs. on-premise a dôvera v infraštruktúru}
+
+Aj pri prístupových systémoch sa dnes stretávajú dva prevádzkové svety. Cloud zjednodušuje centralizovanú správu a dostupnosť z viacerých lokalít, no zároveň presúva časť dôvery mimo organizáciu. On-premise dáva väčšiu kontrolu nad auditom a databázou, ale vyžaduje disciplinovanú správu infraštruktúry, záloh a aktualizácií.
+
+Z pohľadu tejto práce je podstatné skôr niečo iné: aby bezpečnostné mechanizmy neboli úplne závislé od konkrétneho umiestnenia servera. Message-level HMAC, vnútorný AEAD frame a tamper-evident audit majú zmysel v oboch modeloch. Rozdiel je hlavne v tom, komu a do akej miery organizácia dôveruje na úrovni prevádzky.
+\subsection{Postavenie prototypu v tomto kontexte}
+
+Navrhnutý prototyp je najbližší centralizovanému online systému. Čítačka posiela udalosť na server, server rozhoduje a zároveň vytvára auditnú stopu. Pre potreby diplomovej práce je to výhodné, lebo bezpečnostné mechanizmy zostávajú dobre pozorovateľné: dá sa ukázať podpis požiadavky, anti-replay logika, interné spracovanie frame aj verifikácia auditu.
+
+Ak by sa riešenie posúvalo ďalej, prirodzenými smermi by boli napríklad mTLS, opatrne navrhnutý offline režim alebo silnejšia ochrana fyzického zariadenia. Základná idea by sa však nemenila: oddeliť identitu zariadenia, rozhodovanie o prístupe a dôveryhodný záznam o udalosti.
+
+
+% ==============================================================
+\section{Kontrolný zoznam bezpečného návrhu prístupového systému}
+
+Na konci teoretickej časti sa oplatí zhrnúť pravidlá do praktickejšej podoby. Nie ako normu, ktorú treba slepo odškrtávať, ale ako stručný filter pre návrh. Ak by sa mal podobný systém robiť znovu alebo rozširovať do produkcie, práve tieto body by bolo rozumné skontrolovať ako prvé.
+
+\subsection{Autentifikácia a autorizácia}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Klient (čítačka) musí byť autentifikovaný kryptograficky; identifikátor zariadenia nesmie byť iba \uv{číslo v požiadavke}.
+  \item Politika prístupu má byť oddelená od mechanizmov autentifikácie (nepliesť si \uv{kto poslal správu} s \uv{či má vstúpiť}).
+  \item Pre administráciu platia prísnejšie pravidlá: silná autentifikácia, oddelené roly, audit zmien.
+\end{itemize}
+
+\subsection{Validácia vstupu a robustnosť}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Vstupy validovať syntakticky aj semanticky; mať pevné limity veľkosti.
+  \item Uprednostniť fail-closed správanie a jednotné chybové odpovede smerom k nedôveryhodným klientom.
+  \item Minimalizovať riziká DoS: rýchla validácia pred náročnými operáciami, rate limiting.
+\end{itemize}
+
+\subsection{Kryptografia a manažment kľúčov}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Používať overené primitíva (HMAC, AEAD, HKDF) a vyhnúť sa vlastným konštrukciám.
+  \item Oddeliť kľúče podľa účelu a mať plán rotácie a revokácie.
+  \item Správne pracovať s noncomi a zabrániť ich opakovaniu pod rovnakým kľúčom.
+\end{itemize}
+
+\subsection{Anti-replay a časové údaje}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Anti-replay riešiť explicitne: monotónne sekvencie a serverové okno.
+  \item Minimalizovať dôveru v klientsky čas; časové údaje generovať alebo verifikovať na serveri.
+\end{itemize}
+
+\subsection{Úložisko, súkromie a audit}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Neukladať surové identifikátory, ak to nie je nutné; preferovať pseudonymizáciu (HMAC s pepper).
+  \item Audit považovať za dôkazný artefakt: chrániť ho proti manipulácii (hash chain, anchor).
+  \item Definovať retenciu a prístupové práva k auditným záznamom.
+\end{itemize}
+
+\subsection{Prevádzka a monitoring}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Monitorovať anomálie (HMAC fail, replay, zmeny konfigurácie, zlyhanie verifikácie auditu).
+  \item Mať procesy pre incident: blokovanie zariadenia, rotácia kľúčov, analýza auditu.
+\end{itemize}
+
+Takýto kontrolný zoznam pomáha previesť teóriu do konzistentného návrhu. V praxi sa jednotlivé body prispôsobujú prostrediu a dostupným zdrojom, no princíp vrstveného zabezpečenia ostáva rovnaký.
+
+\section{Zhrnutie teoretických východísk}
+
+Teoretická časť mala pripraviť pôdu pre praktický prototyp, nie vytvoriť dojem \uv{učebnicovo ideálneho} systému. Preto boli popísané nielen ciele a odporúčané mechanizmy, ale aj hranice zvoleného riešenia. V centre pozornosti stoja tie hrozby, ktoré majú pre prototyp reálny význam: podvrhnutie požiadavky zariadenia, replay, manipulácia s internými metadátami a zásahy do auditnej stopy. Odpoveďou na ne sú HMAC, monotónne sekvencie, AEAD spracovanie interného frame a tamper-evident audit.
+
+Zároveň sa ukázalo, že bezpečnosť prístupového systému nevzniká jedným rozhodnutím alebo jedným algoritmom. Je výsledkom viacerých menších, ale navzájom previazaných voľieb: čo sa považuje za dôveryhodné, ktoré údaje sa generujú na serveri, ako sa spravujú kľúče, čo sa zapisuje do databázy a ako sa neskôr overuje história udalostí. Práve takto pripravený teoretický rámec umožňuje, aby v ďalšej časti práce nadväzovali experimenty a analytické vyhodnotenie prirodzene, nie ako dodatočne prilepená kapitola.
+
+
+
+
+\section{Praktická implementácia navrhnutého systému}
+
+V tejto časti už nevychádzam iba z teoretického modelu, ale z konkrétnej implementácie projektu \texttt{access-security}. Kódová báza je rozdelená do samostatných modulov, ktoré riešia kryptografiu, formát správ, rozhodovaciu logiku, úložisko, audit a administrátorské rozhranie. Aby neskoršie experimenty a analytické vyhodnotenie nevznikli \uv{odtrhnuté} od implementácie, považujem za potrebné najprv presne popísať, čo je v prototype skutočne implementované, kde prebieha rozhodovanie a ktoré časti systému nesú bezpečnostnú zodpovednosť.
+
+Praktickú časť preto rozdeľujem na dve vrstvy. Prvá vrstva opisuje samotnú implementáciu, teda štruktúru projektu, tok spracovania udalosti a hlavné mechanizmy použité v kóde. Druhá vrstva bude mať analytický charakter: tam sa budem venovať testom, meraniam a vyhodnoteniu toho, či implementované opatrenia naozaj zvyšujú odolnosť systému voči zvoleným hrozbám.
+
+\subsection{Architektúra implementácie}
+
+Implementácia je koncipovaná ako modulárny serverovo-riadený prototyp. Na strane zariadenia sa nachádza čítačka postavená na platforme ESP32 s modulom RC522. Jej úloha je úmyselne obmedzená: načíta UID karty, pripojí identifikátor čítačky a dverí, doplní monotónne počítadlo \texttt{hw\_seq} a takto vytvorenú požiadavku autentifikuje pomocou HMAC-SHA256. Samotné rozhodovanie o prístupe neprebieha na zariadení, ale na serveri.
+
+Serverová časť je implementovaná v jazyku C++ a pozostáva z HTTP rozhrania, rozhodovacej logiky, perzistentného úložiska a auditnej vrstvy. Dôležité je, že hardvérová požiadavka sa po prijatí na serveri nespracuje \uv{skratkou}. Najprv sa overí jej HMAC podpis, potom sa z nej vytvorí interný bezpečný frame a až ten vstupuje do rovnakého validačného a rozhodovacieho reťazca, aký používa jadro systému. Vďaka tomu nie je hardvérový vstup samostatnou výnimkou, ale súčasťou jednotnej spracovateľskej cesty.
+
+\begin{table}[h]
+\centering
+\caption{Hlavné vrstvy implementácie a ich úloha v prototype}
+\begin{tabular}{|p{3.0cm}|p{9.0cm}|}
+\hline
+\textbf{Vrstva} & \textbf{Úloha} \\
+\hline
+Hardvérová vrstva & ESP32 + RC522 načíta UID karty, vytvorí JSON požiadavku, zvýši lokálne počítadlo \texttt{hw\_seq} a vypočíta HMAC podpis zasielaný v hlavičke \texttt{X-HW-Signature}. \\
+\hline
+HTTP a aplikačná vrstva & Modul \texttt{access\_admin} poskytuje endpoint \texttt{/api/hw/uid}, administračné API a webové rozhranie. Vstupy z HTTP vrstvy sú pred ďalším spracovaním validované a mapované na interné služby. \\
+\hline
+Rozhodovacie jadro & Moduly \texttt{access\_core} a \texttt{access\_decision} zabezpečujú parsovanie frame, kontrolu replay, verziu kľúča, dešifrovanie payloadu a finálne rozhodnutie \uv{allow/deny}. \\
+\hline
+Úložisko a audit & Modul \texttt{access\_storage} uchováva konfiguráciu čítačiek, rolí a kariet v SQLite a súčasne vedie tamper-evident auditný log s HMAC reťazením a anchor bodom. \\
+\hline
+Pozorovanie systému & Modul \texttt{runtime\_events} zbiera prevádzkové udalosti, ktoré sú zobrazované v administrátorskom rozhraní ako live log. \\
+\hline
+\end{tabular}
+\end{table}
+
+Z hľadiska implementácie je praktické, že server nepracuje iba s jednotlivými triedami izolovane. V module \texttt{access\_admin} je vytvorený objekt \texttt{AppState}, ktorý drží konfiguračný stav, inštanciu \texttt{KeyManager}, prístup do SQLite, auditný log, rozhodovací engine a kruhový buffer udalostí. Toto rozhodnutie zjednodušuje väzby medzi route handlermi, službami a rozhodovacím jadrom, pretože všetky potrebné komponenty sú zviazané na jednom mieste.
+
+\subsection{Modulárne členenie projektu}
+
+Pri čítaní kódu sa ukazuje, že projekt nie je organizovaný podľa typu súborov, ale podľa zodpovedností. Toto členenie je dôležité aj pre text práce, pretože neskoršia analytická časť bude testovať nie \uv{celý program naraz}, ale konkrétne mechanizmy, ktoré sú viazané na jednotlivé moduly.
+
+\begin{table}[h]
+\centering
+\caption{Moduly projektu \texttt{access-security} a ich hlavná zodpovednosť}
+\begin{tabular}{|p{3.2cm}|p{8.8cm}|}
+\hline
+\textbf{Modul} & \textbf{Zodpovednosť v implementácii} \\
+\hline
+\texttt{crypto\_lib} & Implementácia kryptografických primitív, najmä XChaCha20-Poly1305, HKDF a pomocných kryptografických funkcií. \\
+\hline
+\texttt{key\_manager} & Načítanie master kľúča a deterministická derivácia podkľúčov pre AEAD, pepper identifikátorov kariet a auditný HMAC. \\
+\hline
+\texttt{protocol\_lib} & Definícia hlavičky a frame formátu, serializácia a parsovanie správ, plus implementácia \texttt{ReplayWindow}. \\
+\hline
+\texttt{access\_core} & Nízkoúrovňové spracovanie frame: validácia čítačky, väzby reader--door, kontroly replay, verzie kľúča, dešifrovanie a časová kontrola. \\
+\hline
+\texttt{access\_decision} & Rozhodovacia logika po úspešnom dešifrovaní: interpretácia payloadu, hľadanie karty, kontrola role a vytvorenie rozhodnutia. \\
+\hline
+\texttt{access\_storage} & SQLite perzistencia a auditný log s HMAC reťazou; zahŕňa aj nástroj na verifikáciu integrity auditu. \\
+\hline
+\texttt{runtime\_events} & Jednoduchý interný event bus pre live log v administrátorskom rozhraní. \\
+\hline
+\texttt{access\_admin} & HTTP server, REST API, import/export databázy, obsluha hardvérového endpointu a webové rozhranie. \\
+\hline
+\texttt{hw\_layer} & Firmware pre ESP32/RC522, Wi-Fi komunikácia so serverom, HMAC podpis požiadavky a lokálne akustické/svetelné signalizovanie výsledku. \\
+\hline
+\end{tabular}
+\end{table}
+
+Takéto rozdelenie má pre prácu dve výhody. Po prvé, pri opise implementácie sa dá presne ukázať, v ktorom module sa realizuje konkrétny mechanizmus. Po druhé, v analytickej časti sa dajú testy naviazať na konkrétnu vrstvu: napríklad replay na \texttt{protocol\_lib} a \texttt{access\_core}, HMAC autentifikácia na \texttt{hw\_layer} a \texttt{access\_admin}, auditná integrita na \texttt{access\_storage}.
+
+\subsection{Tok spracovania prístupovej udalosti}
+
+Z pohľadu celého systému je najdôležitejší tok jednej prístupovej udalosti. V implementácii má tento tok niekoľko jasne oddelených krokov:
+
+\begin{enumerate}[leftmargin=*,itemsep=3pt]
+  \item Čítačka ESP32 načíta UID karty a prevedie ho na textový hexadecimálny tvar.
+  \item Firmware pripojí \texttt{reader\_id}, \texttt{door\_id} a monotónny čítač \texttt{hw\_seq}, ktorý je uložený v \texttt{Preferences}, aby prežil reštart zariadenia.
+  \item Zo surového JSON tela sa vytvorí podpis HMAC-SHA256 a požiadavka sa odošle na endpoint \texttt{/api/hw/uid}.
+  \item Server v module \texttt{access\_admin} overí podpis \texttt{X-HW-Signature}. Ak podpis nesedí, požiadavka je zamietnutá ešte pred spracovaním biznis logiky.
+  \item Po úspešnom overení sa požiadavka prevedie na interný payload \texttt{\{"card\_id": ..., "action": "open"\}} a pomocou \texttt{KeyManager} sa získa AEAD kľúč podľa \texttt{reader\_id} a aktuálnej verzie kľúča.
+  \item Server vytvorí interný frame: zostaví hlavičku \texttt{reader\_id}, \texttt{door\_id}, \texttt{ts\_unix\_ms}, \texttt{seq}, \texttt{key\_version} a \texttt{nonce}; payload následne zašifruje algoritmom XChaCha20-Poly1305.
+  \item \texttt{DecisionEngine} odovzdá frame do \texttt{FrameHandler}, ktorý vykoná parsovanie, kontrolu väzby reader--door, kontrolu verzie kľúča, anti-replay kontrolu a dešifrovanie payloadu.
+  \item Po úspešnom dešifrovaní sa payload interpretuje ako žiadosť o otvorenie dverí. Server dopočíta HMAC identifikátora karty, nájde zodpovedajúcu rolu a overí, či má táto rola oprávnenie pre konkrétne dvere.
+  \item Výsledok sa uloží do auditnej stopy, odošle sa do \texttt{runtime\_events} a v jednoduchej JSON podobe sa vráti späť zariadeniu.
+\end{enumerate}
+
+Dôležitý je najmä krok medzi prijatím HTTP požiadavky a volaním \texttt{DecisionEngine}. V tejto implementácii zariadenie neposiela hotový šifrovaný frame priamo po sieti. Namiesto toho posiela autentifikovanú požiadavku s UID a \texttt{hw\_seq}; až server z nej vytvorí interný frame, ktorý ďalej spracúva rovnakou cestou ako zvyšok jadra. Z hľadiska práce je to dôležité, pretože sa tým jasne oddeľuje ochrana vstupu zariadenia (HMAC + sekvencia) od ochrany interného spracovania (AEAD + kontrola frame + audit).
+
+\subsection{Poznámka k implementačným rozhodnutiam a k ďalšiemu spracovaniu textu}
+
+Pri podrobnejšom čítaní kódu sa ukazuje, že nie všetky bezpečnostné mechanizmy sú koncentrované na jednom mieste. Napríklad anti-replay nie je iba vlastnosťou hardvéru, ale vzniká kombináciou \texttt{hw\_seq} vo firmvéri, serverovej validácie HMAC požiadavky a následnej kontroly v \texttt{ReplayWindow}. Podobne audit nie je len databázová tabuľka, ale súčasť rozhodovacieho toku, pretože \texttt{DecisionEngine} zapisuje auditné udalosti priamo pri spracovaní výsledku.
+
+Z tohto dôvodu v ďalšom texte rozoberám praktickú časť podľa mechanizmov: autentifikácia hardvérového zariadenia, interné AEAD spracovanie, derivácia kľúčov, anti-replay, ochrana identifikátorov a auditná integrita. Takto rozdelený opis implementácie vytvára pevnú oporu pre neskoršie testy odolnosti, výkonnosti a detekcie manipulácie.
+
+\subsection{Autentifikácia hardvérovej požiadavky}
+
+Prvý kontrolný bod v celom toku spracovania je overenie, či HTTP požiadavka skutočne pochádza z registrovaného zariadenia. Zariadenie posiela na server JSON telo s poľami \texttt{uid}, \texttt{reader\_id}, \texttt{door\_id} a \texttt{hw\_seq}. Ako vstup do HMAC-SHA-256 slúži kanonický reťazec zložený z metódy, cesty a surového tela požiadavky:
+
+\begin{equation}
+\texttt{msg} = \texttt{"POST /api/hw/uid\textbackslash n"} \parallel \texttt{raw\_body}
+\end{equation}
+
+Výsledný podpis sa prenáša v HTTP hlavičke \texttt{X-HW-Signature} ako hexadecimálny reťazec. Na strane servera sa HMAC prepočíta nad rovnakým kanonickým vstupom a porovná s hodnotou z hlavičky. Porovnanie prebieha konštantným časom cez funkciu \texttt{sodium\_memcmp} z knižnice libsodium, čo eliminuje riziko timing útoku, pri ktorom by útočník mohol postupne odhadovať správny podpis podľa dĺžky odpovede\cite{FIPS1981,RFC2104}.
+
+Kanonizácia je v tomto prípade dôležitý detail. Zariadenie aj server musia pracovať s identickým blokom bajtov, pretože aj jediný rozdiel v poradí polí, whitespace alebo kódovaní spôsobí nesúlad podpisu. V prototypovej implementácii je to riešené tak, že sa podpisuje surové telo požiadavky (\emph{raw body}), nie jeho štruktúrovaná JSON reprezentácia. Zariadenie vždy generuje JSON s pevne definovaným poradím polí, takže riziko nesúladu je minimálne.
+
+Táto konštrukcia zabezpečuje dve vlastnosti. Overuje pôvod požiadavky: útočník, ktorý nedisponuje zdieľaným tajomstvom, nevie vyrobiť platný podpis. A overuje integritu obsahu: zmena ľubovoľného poľa v JSON tele (napríklad podvrhnutie iného \texttt{uid} alebo \texttt{door\_id}) spôsobí zlyhanie verifikácie.
+
+Zariadenie pri tom nepoužíva administrátorský token \texttt{X-Admin-Token}, ktorý je určený výhradne pre správcovské rozhranie. Oddelenie kanálov autentifikácie vychádza z princípu najmenších oprávnení: aj keby útočník kompromitoval čítačku a získal jej HMAC tajomstvo, nezískal by tým prístup na zmenu rolí, kariet ani väzieb medzi čítačkou a dverami\cite{OWASPAPI2023}.
+
+\subsection{AEAD šifrovanie interného frame}
+
+Po úspešnom overení hardvérovej požiadavky server nevyhodnocuje prístup priamo z prijatých dát. Namiesto toho z nich vytvára interný bezpečný frame: binárnu štruktúru, v ktorej je payload zašifrovaný algoritmom AEAD a hlavička je kryptograficky previazaná cez mechanizmus Associated Authenticated Data.
+
+\subsubsection{Voľba algoritmu}
+
+V implementácii sa používajú dva AEAD algoritmy z rodiny ChaCha20-Poly1305, oba postavené na rovnakom kryptografickom jadre (ChaCha20 stream cipher + Poly1305 MAC) a oba so 256-bitovou kľúčovou bezpečnosťou:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{XChaCha20-Poly1305} s 192-bitovým noncom (24 bajtov). Rozšírený nonce je konštruovaný pomocou medzikroku HChaCha20, vďaka čomu je bezpečné používať náhodne generované nonce aj pod dlhodobo žijúcim kľúčom: pravdepodobnosť kolízie pri $2^{96}$ správach je zanedbateľná\cite{XChaChaDraft,LibsodiumXChaChaDoc}.
+  \item \textbf{ChaCha20-Poly1305 IETF} s 96-bitovým noncom (12 bajtov). Štandardizovaný v RFC 8439 a široko nasadzovaný v TLS 1.3 aj v ďalších protokoloch\cite{RFC8439}. Kratší nonce znižuje bezpečný limit pre náhodne generované nonce na približne $2^{48}$ správ.
+\end{itemize}
+
+V tomto prototype nonce nie je náhodný, ale deterministicky odvodený zo sekvenčného čísla. Pri takejto konštrukcii je riziko kolízie pre oba algoritmy identické: nonce sa zopakuje iba vtedy, keď sa zopakuje \texttt{seq}, čomu bráni anti-replay mechanizmus. Oba algoritmy sú preto zahrnuté v implementácii nie kvôli rozdielnej bezpečnosti, ale kvôli možnosti porovnať ich výkon v experimentálnych profiloch.
+
+Kryptografické operácie sú realizované výhradne cez knižnicu libsodium, konkrétne cez funkcie \texttt{crypto\_aead\_xchacha20poly1305\_ietf\_*} a \texttt{crypto\_aead\_chacha20poly1305\_ietf\_*}. Rozhodnutie neimplementovať cipher suites vlastnou cestou je zámerné: libsodium je auditovaná knižnica s konštantnočasovou implementáciou, čo eliminuje celú triedu implementačných chýb\cite{LibsodiumXChaChaDoc}.
+
+\subsubsection{Konštrukcia nonce}
+
+Nonce sa v prototype odvodzuje deterministicky z náhodného prefixu (vygenerovaného pri vytvorení AEAD inštancie pomocou \texttt{randombytes\_buf}) a sekvenčného čísla požiadavky v little-endian formáte:
+
+\begin{equation}
+\text{nonce}_{\text{XChaCha20}} = \text{prefix}_{16\text{B}} \parallel \text{seq\_le}_{8\text{B}} \quad (= 24\;\text{bajtov})
+\end{equation}
+\begin{equation}
+\text{nonce}_{\text{ChaCha20}} = \text{prefix}_{4\text{B}} \parallel \text{seq\_le}_{8\text{B}} \quad (= 12\;\text{bajtov})
+\end{equation}
+
+Na drôtovom formáte frame zaberá nonce vždy 24 bajtov; pri ChaCha20 sa využíva prvých 12 a zvyšok je nulový. Deterministická konštrukcia eliminuje závislosť na kvalite generátora náhodných čísiel pri opakovanom šifrovaní a garantuje, že pri rôznych hodnotách \texttt{seq} sa nonce nikdy nezopakuje pod rovnakým kľúčom. Podmienkou je, aby sa sekvenčné číslo nikdy nepoužilo dvakrát pre rovnaký kľúč, čo zabezpečuje kombinácia monotónneho \texttt{hw\_seq} na zariadení a serverovej anti-replay kontroly.
+
+\subsubsection{AAD väzba hlavičky}
+
+Hlavička frame obsahuje polia \texttt{reader\_id}, \texttt{door\_id}, \texttt{ts\_unix\_ms}, \texttt{seq}, \texttt{key\_version} a \texttt{nonce}. Tieto metadáta sa nešifrujú, ale vstupujú do AEAD operácie ako AAD. Výsledkom je, že zmena ktoréhokoľvek z nich spôsobí zlyhanie overenia autentifikačného tagu, aj keď šifrovaný payload zostane neporušený\cite{RFC5116}.
+
+Praktický význam tejto väzby sa ukáže pri konkrétnom útoku. Bez AAD by útočník mohol zachytiť platný frame a podvrhnúť hodnotu \texttt{door\_id}: payload by bol stále korektne dešifrovaný, no systém by vyhodnotil prístup pre iné dvere. AAD toto znemožňuje, pretože kryptograficky viaže šifrovaný obsah na presný kontext metadát. Ide o realizáciu princípu, že kontext autorizácie musí byť nedeliteľnou súčasťou správy.
+
+Implementácia podporuje aj konfigurovateľný režim \texttt{aad\_mode: "none"}, v ktorom sa AAD nepoužíva a hlavička nie je kryptograficky chránená. Tento režim existuje výhradne pre experimentálne porovnanie (profil P0) a umožňuje v analytickej časti demonštrovať presný dopad absencie AAD väzby.
+
+\subsection{Derivácia kľúčov a domain separation}
+
+Celý kryptografický materiál v prototype pochádza z jedného 256-bitového master secret, uloženého v súbore \texttt{secrets/master\_key.hex} mimo repozitára. Manuálne spravovaný tajný súbor je pragmatický kompromis vhodný pre prototyp; v produkčnom nasadení by jeho úlohu plnil HSM alebo vault\cite{NIST80057}. Z tohto tajomstva sa pomocou HKDF-SHA-256\cite{RFC5869} deterministicky odvodia tri nezávislé skupiny podkľúčov:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item \textbf{AEAD kľúče} pre šifrovanie interného frame. Salt je zložený z \texttt{reader\_id} (4 bajty, little-endian) a \texttt{key\_version} (4 bajty), info reťazec je \texttt{"access-aead-v1"}.
+  \item \textbf{Pepper} pre hashovanie identifikátorov kariet. Salt obsahuje iba \texttt{key\_version}, info reťazec je \texttt{"card-pepper-v1"}.
+  \item \textbf{Auditný HMAC kľúč} pre hash chain. Salt je \texttt{"audit-chain-salt-v1"}, info reťazec \texttt{"audit-hmac-v1"}.
+\end{enumerate}
+
+Info reťazce zabezpečujú domain separation: z rovnakého master kľúča nikdy nevznikne rovnaký podkľúč pre dva rôzne účely, ani keby sa hodnoty \texttt{reader\_id} a \texttt{key\_version} náhodne prekrývali. Súčasne umožňujú neskoršiu zmenu verzie schémy (napríklad z \texttt{access-aead-v1} na \texttt{access-aead-v2}) bez spätnej kompatibility so starými kľúčmi, čo je dôležité pri migračných scenároch.
+
+Z bezpečnostného hľadiska je podstatné, že AEAD kľúč sa odvodzuje per-reader. Kompromitácia jedného zariadenia a extrakcia jeho odvoditeľného kľúča neodhaľuje kľúče iných čítačiek, pretože salt HKDF obsahuje unikátnu hodnotu \texttt{reader\_id}. Izolácia je priamym dôsledkom správnej konštrukcie derivácie a nevyžaduje distribúciu samostatných tajomstiev.
+
+Verzovanie kľúčov v salt zabezpečuje, že pri rotácii (zmene \texttt{key\_version}) sa odvodí úplne nový AEAD kľúč bez nutnosti meniť master secret. Server v konfigurácii umožňuje režim \texttt{allow\_previous\_key\_version}, v ktorom dočasne akceptuje aj bezprostredne predchádzajúcu verziu. Cieľom je hladký prechod pri rotácii: zariadenie nemusí byť aktualizované presne v rovnakom okamihu ako server, čo znižuje riziko krátkodobého výpadku\cite{NIST80057}.
+
+Implementácia podporuje aj režim \texttt{key\_derivation\_mode: "direct"}, v ktorom sa HKDF nepoužíva a master kľúč slúži priamo ako AEAD kľúč pre všetky čítačky. Tento režim je určený iba pre baseline profil (P0), kde slúži na demonštráciu dôsledkov absencie per-reader izolácie.
+
+\subsection{Anti-replay mechanizmus}
+
+Anti-replay ochrana funguje na dvoch úrovniach. Na strane zariadenia firmvér udržiava monotónne počítadlo \texttt{hw\_seq}, uložené v NVS pamäti ESP32, ktoré sa inkrementuje pri každom skene karty a prežíva reštart zariadenia. Každá požiadavka tak nesie unikátnu sekvenčnú hodnotu.
+
+Na strane servera modul \texttt{protocol\_lib} implementuje štruktúru \texttt{ReplayWindow}, ktorá udržiava záznam o naposledy videných sekvenciách pre každú čítačku zvlášť. Mechanizmus rozlišuje tri stavy:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item ak je \texttt{seq} menšie než \texttt{maxSeen $-$ windowSize}, požiadavka sa odmietne ako príliš stará,
+  \item ak \texttt{seq} spadá do okna, ale už bolo zaznamenané, odmietne sa ako \emph{replay},
+  \item inak sa \texttt{seq} akceptuje, zaznamená do množiny videných hodnôt a posunie sa horná hranica okna.
+\end{itemize}
+
+Prečo nestačí jednoduchá podmienka \texttt{seq > lastSeen}? V prostredí Wi-Fi nie je zaručené, že dve po sebe nasledujúce požiadavky dorazia na server v rovnakom poradí. Bez okna by druhá požiadavka bola nesprávne odmietnutá, aj keď by bola legitímna. Sliding window toleruje krátke zmeny poradia, pokiaľ správa ešte nebola videná, a tým znižuje podiel falošných odmietnutí pri zachovaní replay ochrany.
+
+Veľkosť okna (\texttt{replay\_window\_size}) je konfigurovateľná a priamo ovplyvňuje kompromis medzi bezpečnosťou a praktickou použiteľnosťou: príliš malé okno zvyšuje falošné odmietnutia, príliš veľké predlžuje čas, počas ktorého je zachytená stará požiadavka potenciálne zopakovateľná. Implementácia udržiava okno pomocou fronty (\texttt{std::deque}) a množiny (\texttt{std::unordered\_set}), pričom pri prekročení kapacity sa najstaršia hodnota automaticky evikvuje.
+
+\subsection{Ochrana identifikátorov kariet}
+
+Databáza neukladá surové UID kariet. Pri registrácii aj pri vyhľadávaní sa UID prepočíta na HMAC hash s tajomstvom, ktoré v databáze uložené nie je:
+
+\begin{equation}
+\texttt{card\_hmac} = \mathrm{HMAC\text{-}SHA\text{-}256}(\texttt{pepper},\; \texttt{uid})
+\end{equation}
+
+Pri úniku databázy útočník získa iba výsledné HMAC hodnoty. Bez znalosti pepperu z nich nevie efektívne odvodiť pôvodné UID, a to ani pri relatívne malom priestore identifikátorov (napríklad 4-bajtové UID majú $2^{32}$ možností, čo by pri slabom hashovaní umožňovalo hrubú silu)\cite{FIPS1981}. Pepper sa odvodzuje cez HKDF z master kľúča a verzuje podľa \texttt{key\_version}. Pri rotácii pepperu sa musia existujúce karty prehashovať pod novým tajomstvom.
+
+Rozdiel oproti klasickému salt-based hashov je zámerný. Salt sa ukladá vedľa hashu a jeho účelom je zabrániť predpočítaným tabuľkám (\emph{rainbow tables}); pepper sa naopak nachádza mimo úložiska a chráni aj proti slovníkovému útoku s priamym prístupom k databáze. Na druhej strane, ak útočník kompromituje server a získa pepper, ochrana sa stráca. Pepper preto nie je náhrada za kryptograficky silnú kartu, ale primeraná vrstva ochrany v rámci prototypu.
+
+\subsection{Tamper-evident auditná stopa}
+
+Auditný log v prototype nie je obyčajný záznam udalostí. Každý záznam obsahuje HMAC hash, ktorý kryptograficky viaže jeho obsah na celú predchádzajúcu históriu:
+
+\begin{equation}
+H_i = \mathrm{HMAC}(K_{\text{audit}},\; H_{i-1} \parallel \mathrm{encode}(\text{record}_i))
+\end{equation}
+
+kde $K_{\text{audit}}$ je auditný kľúč odvodený cez HKDF z master secret a $H_{i-1}$ je hash predchádzajúceho záznamu. Pre prvý záznam sa používa $H_0 = 0^{32}$. Kanonikalizácia záznamu je deterministická: polia sa serializujú v pevne definovanom poradí (\texttt{ts\_unix\_ms}, \texttt{reader\_id}, \texttt{door\_id}, \texttt{seq}, \texttt{allow}, \texttt{reason}, \texttt{card\_hmac}, \texttt{action}) v little-endian formáte s explicitnými dĺžkami textových reťazcov\cite{SchneierKelsey1999}.
+
+Reťazec hash hodnôt znamená, že zmena ľubovoľného záznamu spôsobí nekonzistenciu vo všetkých nasledujúcich hodnotách. Útočník, ktorý nemá auditný kľúč, nevie prepočítať $H_i$ od miesta zásahu tak, aby reťazec zostal konzistentný.
+
+\subsubsection{Anchor a ochrana proti truncation}
+
+Hash chain sám o sebe nezabráni útoku, pri ktorom útočník odstráni posledných $n$ záznamov a ponechá konzistentný prefix. Preto prototyp udržiava \emph{audit anchor}: po každom zápise sa aktuálna hodnota $H_i$ a timestamp uložia do samostatnej jednoriadkovej tabuľky \texttt{audit\_anchor}. Pri verifikácii sa kontroluje, že log obsahuje záznamy minimálne po poslednú hodnotu anchor. Ak záznamy chýbajú, ide o detekovateľný truncation\cite{SchneierKelsey1999,NIST80092}.
+
+Anchor nie je úplná ochrana v prípade, že útočník má plný zápis do databázy --- v takom prípade vie prepísať aj anchor. Silnejšie riešenie by vyžadovalo uloženie anchor mimo databázy (napríklad na vzdialenom serveri alebo v hardvérovom module). V kontexte prototypu je cieľom demonštrovať princíp detekcie manipulácie, nie dosiahnuť odolnosť voči útočníkovi s neobmedzeným prístupom.
+
+Implementácia navyše rozlišuje medzi reťazeným a nereťazeným režimom auditu. V baseline profile (P0) sa záznamy ukladajú s nulovými hodnotami \texttt{prev\_hash} a \texttt{entry\_hash}, čo zodpovedá jednoduchému logu bez kryptografickej ochrany. V hardened profiloch sa reťazenie aktivuje a umožňuje porovnanie oboch režimov v analytickej časti.
+
+\subsection{Rozhodovacia logika a model RBAC}
+
+Na konci spracovateľského reťazca stojí \texttt{DecisionEngine}, ktorý po úspešnom dešifrovaní payloadu vyhodnocuje, či má byť prístup povolený. Rozhodovanie prebieha v niekoľkých krokoch. Server prepočíta HMAC identifikátora karty s aktuálnym pepperom. V tabuľke \texttt{cards} vyhľadá kartu podľa výsledného \texttt{card\_hmac}. Ak ju nájde, prečíta jej rolu; ak nie, výsledok je \texttt{deny} s dôvodom \texttt{unknown\_card}. Nakoniec v tabuľke \texttt{door\_roles} overí, či rola karty je povolená pre dvere z hlavičky frame\cite{NISTRBACModel,SandhuRBAC1996}.
+
+Model RBAC v prototype znamená, že karty nemajú priame oprávnenia na dvere. Sú im priradené roly (napríklad \emph{employee}, \emph{admin}) a dvere majú povolené zoznamy rolí. Pridanie alebo odobratie oprávnenia sa robí na úrovni väzby rola--dvere, nie na úrovni jednotlivých kariet. To zjednodušuje správu pri veľkom počte používateľov a umožňuje rýchlu revokáciu: zrušenie roly v tabuľke \texttt{door\_roles} okamžite odmietne všetky karty s touto rolou pre dané dvere.
+
+Výsledok rozhodnutia (\texttt{allow} alebo \texttt{deny}) sa spolu s identifikátorom čítačky, dverí, sekvenčným číslom a dôvodom zapíše do tamper-evident auditnej stopy. Dôvod zamietnutia (\texttt{reason}) je interný diagnostický kód (napríklad \texttt{replay}, \texttt{unknown\_card}, \texttt{mac\_verification\_failed}), ktorý sa nezverejňuje nedôveryhodnému klientovi, ale ukladá sa do auditu a zobrazuje v administrátorskom rozhraní. Tým sa zabezpečuje, že diagnostika je k dispozícii prevádzke, no útočník z odpovede nezíska informácie užitočné pre iteráciu útoku.
+
+\subsection{Prepojenie mechanizmov: prečo vrstvy nestoja samostatne}
+
+Popísané mechanizmy nie sú navzájom nezávislé bezpečnostné funkcie, ale navrhnuté tak, aby sa dopĺňali. HMAC autentifikácia zariadenia by bola neúčinná bez anti-replay, pretože by stačilo zachytiť jednu platnú požiadavku a opakovať ju. Anti-replay bez HMAC by bol zbytočný, pretože útočník by mohol vyrobiť ľubovoľnú novú požiadavku s nepoužitým \texttt{seq}. AEAD bez AAD by chránilo dôvernosť payloadu, ale nie kontext autorizácie. A audit bez hash chain by bol dôveryhodný iba do momentu, kým by sa útočník nedostal k databáze.
+
+Práve toto vzájomné prepojenie je jedným z hlavných predmetov analytickej časti. Experimenty s profilmi P0, P1 a P2 budú ukazovať, čo sa stane, keď sa jednotlivé mechanizmy vypnú alebo oslavia: demonštrujú nie iba to, že zabezpečená verzia je \uv{lepšia}, ale aj to, ktorá konkrétna vrstva chráni proti ktorému konkrétnemu útoku.
+
+
+\begin{thebibliography}{99}
+
+\bibitem{RFC8439}
+Y.~Nir, ``RFC 8439: ChaCha20 and Poly1305 for IETF Protocols,'' RFC Editor, 2018. [Online]. Available: \url{https://www.rfc-editor.org/rfc/rfc8439.html}
+
+\bibitem{XChaChaDraft}
+A.~Arciszewski, ``draft-irtf-cfrg-xchacha-01: XChaCha: eXtended-nonce ChaCha and AEAD\_XChaCha20\_Poly1305,'' IETF Internet-Draft, 2019. [Online]. Available: \url{https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-xchacha-01}
+
+\bibitem{LibsodiumXChaChaDoc}
+libsodium contributors, ``XChaCha20-Poly1305 construction --- libsodium documentation,'' 2025. [Online]. Available: \url{https://libsodium.gitbook.io/doc/secret-key_cryptography/aead/chacha20-poly1305/xchacha20-poly1305_construction}
+
+\bibitem{RFC5869}
+H.~Krawczyk and P.~Eronen, ``RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF),'' IETF, 2010. [Online]. Available: \url{https://datatracker.ietf.org/doc/html/rfc5869}
+
+\bibitem{FIPS1981}
+National Institute of Standards and Technology, ``FIPS 198-1: The Keyed-Hash Message Authentication Code (HMAC),'' 2008. [Online]. Available: \url{https://csrc.nist.gov/pubs/fips/198-1/final}
+
+\bibitem{NIST80057}
+E.~Barker, ``NIST SP 800-57 Part 1 Rev. 5: Recommendation for Key Management --- Part 1: General,'' NIST, 2020. [Online]. Available: \url{https://csrc.nist.gov/pubs/sp/800/57/pt1/r5/final}
+
+\bibitem{NIST80098}
+T.~Karygiannis, B.~Eydt, G.~Barber, L.~Bunn, and T.~Phillips, ``NIST SP 800-98: Guidelines for Securing Radio Frequency Identification (RFID) Systems,'' NIST, 2007. [Online]. Available: \url{https://csrc.nist.gov/pubs/sp/800/98/final}
+
+\bibitem{OWASPAPI2023}
+OWASP Foundation, ``OWASP Top 10 API Security Risks --- 2023,'' 2023. [Online]. Available: \url{https://owasp.org/API-Security/editions/2023/en/0x11-t10/}
+
+\bibitem{SchneierKelsey1999}
+B.~Schneier and J.~Kelsey, ``Secure Audit Logs to Support Computer Forensics,'' \emph{ACM Transactions on Information and System Security}, vol.~2, no.~2, pp.~159--176, 1999.
+
+\bibitem{RFC2104}
+H.~Krawczyk, M.~Bellare, and R.~Canetti, ``RFC 2104: HMAC: Keyed-Hashing for Message Authentication,'' RFC Editor, 1997. [Online]. Available: \url{https://www.rfc-editor.org/rfc/rfc2104.html}
+
+\bibitem{RFC5116}
+D.~McGrew, ``RFC 5116: An Interface and Algorithms for Authenticated Encryption,'' RFC Editor, 2008. [Online]. Available: \url{https://www.rfc-editor.org/rfc/rfc5116.html}
+
+\bibitem{NIST80063B4}
+D.~Temoshok \emph{et al.}, ``NIST SP 800-63B-4: Digital Identity Guidelines --- Authentication and Authenticator Management,'' NIST, 2025. [Online]. Available: \url{https://csrc.nist.gov/pubs/sp/800/63/b/4/final}
+
+\bibitem{NIST80092}
+K.~Kent and M.~Souppaya, ``NIST SP 800-92: Guide to Computer Security Log Management,'' NIST, 2006. [Online]. Available: \url{https://csrc.nist.gov/pubs/sp/800/92/final}
+
+\bibitem{RFC8446}
+E.~Rescorla, ``RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3,'' RFC Editor, 2018. [Online]. Available: \url{https://www.rfc-editor.org/rfc/rfc8446.html}
+
+\bibitem{RFC9325}
+Y.~Sheffer, D.~Benjamin, M.~Thomson, and others, ``RFC 9325: Recommendations for Secure Use of Transport Layer Security (TLS) and Datagram Transport Layer Security (DTLS),'' RFC Editor, 2022. [Online]. Available: \url{https://www.rfc-editor.org/rfc/rfc9325.html}
+
+\bibitem{OWASPASVS}
+OWASP Foundation, ``OWASP Application Security Verification Standard (ASVS),'' [Online]. Available: \url{https://owasp.org/www-project-application-security-verification-standard/}
+
+\bibitem{NISTRBACModel}
+R.~Sandhu, D.~Ferraiolo, and D.~Kuhn, ``The NIST Model for Role-Based Access Control,'' in \emph{Proceedings of the 5th ACM Workshop on Role-Based Access Control}, 2000, pp.~47--63.
+
+\bibitem{SandhuRBAC1996}
+R.~S.~Sandhu, E.~J.~Coyne, H.~L.~Feinstein, and C.~E.~Youman, ``Role-Based Access Control Models,'' \emph{IEEE Computer}, vol.~29, no.~2, pp.~38--47, 1996.
+
+\bibitem{FIPS2013}
+National Institute of Standards and Technology, ``FIPS 201-3: Personal Identity Verification (PIV) of Federal Employees and Contractors,'' 2022. [Online]. Available: \url{https://csrc.nist.gov/pubs/fips/201-3/final}
+
+
+\end{thebibliography}
+\end{document}
