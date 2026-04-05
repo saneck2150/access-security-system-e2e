@@ -2,7 +2,7 @@ BasedOnStyle: Chromium
 Language: Cpp
 
 # Chromium defaults with minor adjustments
-ColumnLimit: 100
+ColumnLimit: 130
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
@@ -22,22 +22,18 @@ SortIncludes: CaseSensitive
 IncludeBlocks: Regroup
 
 IncludeCategories:
-  # C system headers
   - Regex: '^<[a-z_]+>$'
     Priority: 1
     SortPriority: 0
     CaseSensitive: false
-  # C++ system headers with .h/.hpp
   - Regex: '^<.+\.h(pp)?>$'
     Priority: 2
     SortPriority: 0
     CaseSensitive: false
-  # Other system headers
   - Regex: '^<.*>$'
     Priority: 3
     SortPriority: 0
     CaseSensitive: false
-  # Project headers
   - Regex: '.*'
     Priority: 4
     SortPriority: 0
@@ -67,6 +63,8 @@ BinPackParameters: false
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 PackConstructorInitializers: NextLine
+AlignAfterOpenBracket: DontAlign
+ContinuationIndentWidth: 4
 
 # Misc
 FixNamespaceComments: true

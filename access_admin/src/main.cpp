@@ -17,10 +17,9 @@ int main(int argc, char** argv) {
     auto cfg = config_loader::loadFromYaml(cfgPath);
 
     auto master = key_manager::loadMasterKeyHexFile(cfg.keyManagement.masterKeyPath);
-    key_manager::KeyManager km(
-        master,
+    key_manager::KeyManager km(master,
         {.currentKeyVersion = cfg.keyManagement.currentKeyVersion,
-         .allowPreviousKeyVersion = cfg.keyManagement.allowPreviousKeyVersion});
+            .allowPreviousKeyVersion = cfg.keyManagement.allowPreviousKeyVersion});
 
     admin::AppState app(cfg, cfg.storage.sqlitePath, std::move(km));
     app.openOrCreate();

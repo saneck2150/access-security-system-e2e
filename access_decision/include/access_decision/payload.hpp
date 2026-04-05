@@ -10,8 +10,10 @@ namespace access_decision {
 
 //! Parsed access request from the frame payload.
 struct AccessRequest {
-    std::string cardId;  //!< Raw card UID.
-    std::string action;  //!< Requested action (e.g., "open").
+    //! Raw card UID.
+    std::string cardId;
+    //! Requested action (e.g., "open").
+    std::string action;
 };
 
 //! Parses a JSON access request payload.

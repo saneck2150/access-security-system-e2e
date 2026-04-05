@@ -5,8 +5,10 @@ using namespace protocol::replay;
 ReplayWindow::ReplayWindow(size_t window) : _window(window) {}
 
 bool ReplayWindow::isTooOld(uint64_t seq) const {
-    if (_maxSeen == 0) return false;
-    if (_maxSeen < _window) return false;
+    if (_maxSeen == 0)
+        return false;
+    if (_maxSeen < _window)
+        return false;
     return seq <= (_maxSeen - _window);
 }
 

@@ -29,8 +29,12 @@ DecryptResult FrameDecryptor::decrypt(const protocol::frame::Frame& frame) {
 }
 
 std::vector<uint8_t> FrameDecryptor::decryptFrame(const protocol::frame::Frame& frame) {
-    const auto aadVec = frame.header.to_bytes();
-    const std::span<const uint8_t> aad(aadVec.data(), aadVec.size());
+    std::vector<uint8_t> aadVec;
+    std::span<const uint8_t> aad{};
+    if (_config.aadMode != "none") {
+        aadVec = frame.header.to_bytes();
+        aad = std::span<const uint8_t>(aadVec.data(), aadVec.size());
+    }
 
     crypto_lib::aead::Tag tag{};
     tag.v = frame.tag.v;

@@ -48,10 +48,13 @@ Central application state container. Thread-safe via mutex.
 | `cfg` | Server configuration from YAML |
 | `dbPath` | SQLite database path |
 | `keyManager` | Cryptographic key derivation |
+| `anomalyDetector` | ProtocolAnomalyDetector (R2 profiles) |
 | `store` | Access policy storage |
 | `audit` | Audit log with hash chain |
-| `engine` | Decision engine for simulation |
+| `engine` | Decision engine for frame processing |
 | `events` | Real-time event bus |
+| `replayByReader` | Per-reader replay windows (anti-replay) |
+| `lastSeqByReader` | Last hw_seq per reader (hardware scanner) |
 
 ### HTTP Utilities (`http_utils.hpp`)
 

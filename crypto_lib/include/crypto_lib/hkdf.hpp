@@ -20,9 +20,9 @@ class Hkdf {
     //! @param [in] info      Context/application-specific info string.
     //! @param [in] outputLen Desired output key length in bytes.
     Hkdf(std::span<const uint8_t> ikm,
-         std::span<const uint8_t> salt,
-         std::string_view info,
-         size_t outputLen);
+        std::span<const uint8_t> salt,
+        std::string_view info,
+        size_t outputLen);
 
     //! Performs the expand phase and returns the derived key.
     //! @return Derived key material of the requested length.

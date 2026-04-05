@@ -14,16 +14,16 @@
 static uint64_t now_unix_ms() {
     using namespace std::chrono;
     return static_cast<uint64_t>(duration_cast<std::chrono::milliseconds>(
-                                     std::chrono::system_clock::now().time_since_epoch())
+        std::chrono::system_clock::now().time_since_epoch())
                                      .count());
 }
 
 static std::vector<uint8_t> make_frame_bytes(const key_manager::KeyManager& km,
-                                             uint32_t reader_id,
-                                             uint32_t door_id,
-                                             uint64_t seq,
-                                             uint32_t key_version,
-                                             const std::string& json_payload) {
+    uint32_t reader_id,
+    uint32_t door_id,
+    uint64_t seq,
+    uint32_t key_version,
+    const std::string& json_payload) {
     protocol::packet::Header h;
     h.reader_id = reader_id;
     h.door_id = door_id;
@@ -38,8 +38,8 @@ static std::vector<uint8_t> make_frame_bytes(const key_manager::KeyManager& km,
     const std::span<const uint8_t> aad(aad_vec.data(), aad_vec.size());
 
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(json_payload.data()),
-                                 json_payload.size()),
+        std::span<const uint8_t>(
+            reinterpret_cast<const uint8_t*>(json_payload.data()), json_payload.size()),
         aad,
         h.seq);
 
@@ -149,11 +149,11 @@ TEST(PepperRotation, FindsCardWithPreviousPepper) {
 
     // Frame encrypted with key_version=2 (current)
     const auto bytes = make_frame_bytes(km,
-                                        readerId,
-                                        doorId,
-                                        /*seq*/ 1,
-                                        /*key_version*/ 2,
-                                        R"({"card_id":"CARD1","action":"open"})");
+        readerId,
+        doorId,
+        /*seq*/ 1,
+        /*key_version*/ 2,
+        R"({"card_id":"CARD1","action":"open"})");
 
     const auto res = engine.handleFrameBytes(bytes, windows);
     EXPECT_TRUE(res.allow);

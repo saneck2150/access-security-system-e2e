@@ -41,6 +41,32 @@ struct KeyManagementYaml {
     std::string masterKeyPath = "secrets/master_key.hex";
 };
 
+//! Security profile configuration for experiments.
+//! Controls which hardening mechanisms are active.
+//! Loaded from the "experiment:" YAML section.
+struct ExperimentConfig {
+    //! AEAD cipher: "xchacha20" = XChaCha20-Poly1305 (192-bit nonce); "chacha20" =
+    //! ChaCha20-Poly1305 (96-bit nonce).
+    std::string cipherMode = "xchacha20";
+    //! Nonce strategy: "deterministic" = HMAC(K_nonce, context) (R1/R2);
+    //! "random" = randombytes_buf (R0).
+    std::string nonceMode = "deterministic";
+    //! Key derivation: "hkdf" = per-reader HKDF key; "direct" = master key for all readers.
+    std::string keyDerivationMode = "hkdf";
+    //! AAD binding: "full" = header bytes as AAD; "none" = empty AAD (no context binding).
+    std::string aadMode = "full";
+    //! Card pepper: "versioned" = HKDF per key version; "static" = fixed version-1 pepper.
+    std::string pepperMode = "versioned";
+    //! Audit chain: true = HMAC-chained tamper-evident log; false = plain log.
+    bool auditChainEnabled = true;
+    //! R2 misuse detection: true = ProtocolAnomalyDetector active with quarantine.
+    bool misuseDetectionEnabled = false;
+    //! Sequence rollback threshold for anomaly detection.
+    uint64_t rollbackThreshold = 100;
+    //! Consecutive AEAD failures before reader quarantine.
+    uint32_t tagFailStreakLimit = 5;
+};
+
 //! Complete application configuration.
 struct Config {
     //! Frame handler settings (anti-replay, timing, etc.).
@@ -51,6 +77,8 @@ struct Config {
     AdminConfig admin{};
     //! Key management settings.
     KeyManagementYaml keyManagement{};
+    //! Experiment/security profile settings.
+    ExperimentConfig experiment{};
 };
 
 //! Loads configuration from a YAML file.

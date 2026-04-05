@@ -12,7 +12,7 @@
 namespace access_decision {
 
 //! HMAC-SHA256 output size in bytes.
-inline constexpr uint8_t outputSize = 32;
+inline constexpr size_t kHmacOutputSize = 32;
 //! Hex encoding alphabet.
 inline constexpr const char* kHexChars = "0123456789abcdef";
 
@@ -22,7 +22,7 @@ class CardIdHasher {
   public:
     //! Constructs a hasher with the given pepper key.
     //! @param [in] pepperKey 32-byte HMAC key derived from master key.
-    explicit CardIdHasher(std::array<uint8_t, outputSize> pepperKey);
+    explicit CardIdHasher(std::array<uint8_t, kHmacOutputSize> pepperKey);
 
     //! Computes HMAC-SHA256 of a card ID and returns it as hex.
     //! @param [in] cardId The raw card UID string.
@@ -30,8 +30,13 @@ class CardIdHasher {
     std::string hmacHex(std::string_view cardId) const;
 
   private:
-    std::array<uint8_t, outputSize> _pepper{};
+    //! HMAC pepper key derived from master key via HKDF.
+    std::array<uint8_t, kHmacOutputSize> _pepper{};
 
+    //! Converts raw bytes to lowercase hex string.
+    //! @param [in] data   Pointer to byte array.
+    //! @param [in] length Number of bytes to convert.
+    //! @return Hex-encoded string (2 * length characters).
     std::string toHex(const uint8_t* data, size_t length) const;
 };
 

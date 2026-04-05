@@ -22,8 +22,8 @@ ServiceResult listReaders(AppState& app) {
     out["readers"] = json::array();
     for (const auto& r : readers) {
         out["readers"].push_back({{"reader_id", r.reader_id},
-                                  {"current_key_version", r.current_key_version},
-                                  {"doors", byReader[r.reader_id]}});
+            {"current_key_version", r.current_key_version},
+            {"doors", byReader[r.reader_id]}});
     }
 
     return okResult(out);
@@ -34,9 +34,9 @@ ServiceResult upsertReader(AppState& app, uint32_t reader_id, uint32_t key_versi
 
     app.store->upsertReader(reader_id, key_version);
     app.events.push({.ts_unix_ms = nowUnixMs(),
-                     .kind = "admin",
-                     .message = "upsertReader",
-                     .reader_id = reader_id});
+        .kind = "admin",
+        .message = "upsertReader",
+        .reader_id = reader_id});
 
     return okResult({{"ok", true}});
 }
@@ -46,9 +46,9 @@ ServiceResult deleteReader(AppState& app, uint32_t reader_id) {
 
     app.store->deleteReader(reader_id);
     app.events.push({.ts_unix_ms = nowUnixMs(),
-                     .kind = "admin",
-                     .message = "deleteReader",
-                     .reader_id = reader_id});
+        .kind = "admin",
+        .message = "deleteReader",
+        .reader_id = reader_id});
 
     return okResult({{"ok", true}});
 }
@@ -58,10 +58,10 @@ ServiceResult bindDoor(AppState& app, uint32_t reader_id, uint32_t door_id) {
 
     app.store->allowDoorForReader(reader_id, door_id);
     app.events.push({.ts_unix_ms = nowUnixMs(),
-                     .kind = "admin",
-                     .message = "bindDoor",
-                     .reader_id = reader_id,
-                     .door_id = door_id});
+        .kind = "admin",
+        .message = "bindDoor",
+        .reader_id = reader_id,
+        .door_id = door_id});
 
     return okResult({{"ok", true}});
 }
@@ -71,12 +71,32 @@ ServiceResult unbindDoor(AppState& app, uint32_t reader_id, uint32_t door_id) {
 
     app.store->revokeDoorForReader(reader_id, door_id);
     app.events.push({.ts_unix_ms = nowUnixMs(),
-                     .kind = "admin",
-                     .message = "unbindDoor",
-                     .reader_id = reader_id,
-                     .door_id = door_id});
+        .kind = "admin",
+        .message = "unbindDoor",
+        .reader_id = reader_id,
+        .door_id = door_id});
 
     return okResult({{"ok", true}});
+}
+
+ServiceResult unquarantineReader(AppState& app, uint32_t reader_id) {
+    std::lock_guard<std::mutex> lk(app.m);
+
+    if (!app.anomalyDetector.config().enabled) {
+        return errorResult("misuse_detection_disabled", kHttpBadRequest);
+    }
+
+    const bool was = app.anomalyDetector.unquarantine(reader_id);
+    if (!was) {
+        return errorResult("not_quarantined", kHttpBadRequest);
+    }
+
+    app.events.push({.ts_unix_ms = nowUnixMs(),
+        .kind = "admin",
+        .message = "unquarantine",
+        .reader_id = reader_id});
+
+    return okResult({{"ok", true}, {"reader_id", reader_id}});
 }
 
 }  // namespace admin::service

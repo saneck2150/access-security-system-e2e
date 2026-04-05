@@ -15,6 +15,9 @@ constexpr std::string_view kAeadKeyInfo = "access-aead-v1";
 //! HKDF info string for card pepper derivation.
 constexpr std::string_view kCardPepperInfo = "card-pepper-v1";
 
+//! HKDF info string for nonce key derivation (R1/R2 deterministic nonce).
+constexpr std::string_view kNonceKeyInfo = "nonce-derivation-v1";
+
 //! HKDF salt string for audit HMAC key derivation.
 constexpr std::string_view kAuditHmacSalt = "audit-chain-salt-v1";
 
@@ -75,9 +78,9 @@ crypto_lib::aead::AeadKey KeyManager::deriveAeadKey(uint32_t readerId, uint32_t 
     putLe32(keyVersion, &salt[sizeof(uint32_t)]);
 
     crypto_lib::hkdf::Hkdf hkdf(std::span<const uint8_t>(_masterKey.data(), _masterKey.size()),
-                                std::span<const uint8_t>(salt.data(), salt.size()),
-                                kAeadKeyInfo,
-                                kAeadKeySize);
+        std::span<const uint8_t>(salt.data(), salt.size()),
+        kAeadKeyInfo,
+        kAeadKeySize);
 
     const auto okm = hkdf.derive();
     if (okm.size() != kAeadKeySize) {
@@ -98,9 +101,9 @@ std::array<uint8_t, kCardPepperSize> KeyManager::deriveCardPepper(uint32_t keyVe
     putLe32(keyVersion, salt.data());
 
     crypto_lib::hkdf::Hkdf hkdf(std::span<const uint8_t>(_masterKey.data(), _masterKey.size()),
-                                std::span<const uint8_t>(salt.data(), salt.size()),
-                                kCardPepperInfo,
-                                kCardPepperSize);
+        std::span<const uint8_t>(salt.data(), salt.size()),
+        kCardPepperInfo,
+        kCardPepperSize);
 
     const auto okm = hkdf.derive();
     if (okm.size() != kCardPepperSize) {
@@ -112,14 +115,41 @@ std::array<uint8_t, kCardPepperSize> KeyManager::deriveCardPepper(uint32_t keyVe
     return out;
 }
 
+crypto_lib::aead::AeadKey KeyManager::masterAsAeadKey() const {
+    crypto_lib::aead::AeadKey out;
+    std::copy(_masterKey.begin(), _masterKey.end(), out.key.begin());
+    return out;
+}
+
+crypto_lib::aead::AeadKey KeyManager::deriveNonceKey(
+    uint32_t readerId, uint32_t keyVersion) const {
+    std::array<uint8_t, kAeadSaltSize> salt{};
+    putLe32(readerId, &salt[0]);
+    putLe32(keyVersion, &salt[sizeof(uint32_t)]);
+
+    crypto_lib::hkdf::Hkdf hkdf(std::span<const uint8_t>(_masterKey.data(), _masterKey.size()),
+        std::span<const uint8_t>(salt.data(), salt.size()),
+        kNonceKeyInfo,
+        kAeadKeySize);
+
+    const auto okm = hkdf.derive();
+    if (okm.size() != kAeadKeySize) {
+        throw std::runtime_error("KeyManager: HKDF returned wrong length (nonce key)");
+    }
+
+    crypto_lib::aead::AeadKey out;
+    std::copy(okm.begin(), okm.end(), out.key.begin());
+    return out;
+}
+
 std::array<uint8_t, kAuditHmacKeySize> KeyManager::deriveAuditHmacKey() const {
     const auto salt = std::span<const uint8_t>(
         reinterpret_cast<const uint8_t*>(kAuditHmacSalt.data()), kAuditHmacSalt.size());
 
     crypto_lib::hkdf::Hkdf hkdf(std::span<const uint8_t>(_masterKey.data(), _masterKey.size()),
-                                salt,
-                                kAuditHmacInfo,
-                                kAuditHmacKeySize);
+        salt,
+        kAuditHmacInfo,
+        kAuditHmacKeySize);
 
     const auto okm = hkdf.derive();
     if (okm.size() != kAuditHmacKeySize) {

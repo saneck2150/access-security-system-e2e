@@ -39,9 +39,9 @@ std::string parseErrorToCode(std::string_view what) {
 }  // namespace
 
 FrameHandler::FrameHandler(const key_manager::KeyManager& keyManager,
-                           ReplayWindowMap& replayWindows,
-                           const access_decision::IAccessStore* store,
-                           FrameHandlerConfig config)
+    ReplayWindowMap& replayWindows,
+    const access_decision::IAccessStore* store,
+    FrameHandlerConfig config)
     : _keyManager(keyManager), _replayWindows(replayWindows), _store(store), _config(config) {}
 
 std::variant<protocol::frame::Frame, HandleResult> FrameHandler::parseFrame(
@@ -55,8 +55,8 @@ std::variant<protocol::frame::Frame, HandleResult> FrameHandler::parseFrame(
     }
 }
 
-std::optional<HandleResult> FrameHandler::validateReader(const protocol::frame::Frame& frame,
-                                                         uint32_t& outKeyVersion) {
+std::optional<HandleResult> FrameHandler::validateReader(
+    const protocol::frame::Frame& frame, uint32_t& outKeyVersion) {
     if (!_store) {
         return makeError("no_store", frame.header);
     }
@@ -74,8 +74,8 @@ std::optional<HandleResult> FrameHandler::validateReader(const protocol::frame::
     return std::nullopt;
 }
 
-std::optional<HandleResult> FrameHandler::validateKeyVersion(const protocol::frame::Frame& frame,
-                                                             uint32_t currentKv) {
+std::optional<HandleResult> FrameHandler::validateKeyVersion(
+    const protocol::frame::Frame& frame, uint32_t currentKv) {
     const uint32_t kv = frame.header.key_version;
     const bool acceptPrev = _config.allowPreviousKeyVersion;
     const bool keyOk = (kv == currentKv) || (acceptPrev && currentKv > 1 && kv + 1 == currentKv);
@@ -85,8 +85,8 @@ std::optional<HandleResult> FrameHandler::validateKeyVersion(const protocol::fra
     return std::nullopt;
 }
 
-std::optional<HandleResult> FrameHandler::checkReplay(const protocol::frame::Frame& frame,
-                                                      protocol::replay::ReplayWindow*& outWindow) {
+std::optional<HandleResult> FrameHandler::checkReplay(
+    const protocol::frame::Frame& frame, protocol::replay::ReplayWindow*& outWindow) {
     outWindow = nullptr;
     if (!_config.antiReplayEnabled) {
         return std::nullopt;
@@ -121,8 +121,8 @@ HandleResult FrameHandler::handle(std::span<const uint8_t> frameBytes) {
     return tryDecrypt(frame, window);
 }
 
-HandleResult FrameHandler::makeError(const std::string& reason,
-                                     const protocol::packet::Header& header) const {
+HandleResult FrameHandler::makeError(
+    const std::string& reason, const protocol::packet::Header& header) const {
     return HandleResult{.allow = false, .reason = reason, .plaintext = {}, .header = header};
 }
 
@@ -140,6 +140,9 @@ bool FrameHandler::isReplay(protocol::replay::ReplayWindow* window, uint64_t seq
 std::variant<crypto_lib::aead::AeadKey, HandleResult> FrameHandler::deriveKey(
     const protocol::frame::Frame& frame) {
     try {
+        if (_config.keyDerivationMode == "direct") {
+            return _keyManager.masterAsAeadKey();
+        }
         return _keyManager.deriveAeadKey(frame.header.reader_id, frame.header.key_version);
     } catch (...) {
         return makeError("key_derivation_failed", frame.header);
@@ -155,8 +158,8 @@ std::string FrameHandler::decryptExceptionToCode(const std::exception& e) const 
     return "decrypt_failed";
 }
 
-HandleResult FrameHandler::tryDecrypt(const protocol::frame::Frame& frame,
-                                      protocol::replay::ReplayWindow* window) {
+HandleResult FrameHandler::tryDecrypt(
+    const protocol::frame::Frame& frame, protocol::replay::ReplayWindow* window) {
     auto keyResult = deriveKey(frame);
     if (std::holds_alternative<HandleResult>(keyResult)) {
         return std::get<HandleResult>(keyResult);
@@ -164,8 +167,12 @@ HandleResult FrameHandler::tryDecrypt(const protocol::frame::Frame& frame,
     const auto& aeadKey = std::get<crypto_lib::aead::AeadKey>(keyResult);
 
     try {
-        crypto_lib::aead::SecureAead aead(aeadKey);
-        FrameDecryptor decryptor(aead, DecryptorConfig{.maxSkewMs = _config.maxSkewMs});
+        const auto cipherMode = (_config.cipherMode == "chacha20")
+                                    ? crypto_lib::aead::CipherMode::ChaCha20Poly1305
+                                    : crypto_lib::aead::CipherMode::XChaCha20Poly1305;
+        crypto_lib::aead::SecureAead aead(aeadKey, cipherMode);
+        FrameDecryptor decryptor(
+            aead, DecryptorConfig{.maxSkewMs = _config.maxSkewMs, .aadMode = _config.aadMode});
 
         auto dec = decryptor.decrypt(frame);
         if (!dec.success) {
@@ -177,9 +184,9 @@ HandleResult FrameHandler::tryDecrypt(const protocol::frame::Frame& frame,
         }
 
         return HandleResult{.allow = true,
-                            .reason = "ok",
-                            .plaintext = std::move(dec.plaintext),
-                            .header = frame.header};
+            .reason = "ok",
+            .plaintext = std::move(dec.plaintext),
+            .header = frame.header};
     } catch (const std::exception& e) {
         return makeError(decryptExceptionToCode(e), frame.header);
     } catch (...) {

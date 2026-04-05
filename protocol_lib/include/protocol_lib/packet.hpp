@@ -1,9 +1,11 @@
 #pragma once
+
 #include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
 
+//! Wire-format header for encrypted access control frames.
 namespace protocol::packet {
 
 //! Protocol header containing metadata for encrypted frames.

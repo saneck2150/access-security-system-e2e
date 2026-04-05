@@ -17,7 +17,8 @@ namespace access_core {
 
 //! Configuration for FrameDecryptor.
 struct DecryptorConfig {
-    uint64_t maxSkewMs = 0;  //!< Max allowed timestamp skew in ms (0 = disabled).
+    uint64_t maxSkewMs = 0;        //!< Max allowed timestamp skew in ms (0 = disabled).
+    std::string aadMode = "full";  //!< "full" = header as AAD; "none" = empty AAD.
 };
 
 //! Result of frame decryption attempt.

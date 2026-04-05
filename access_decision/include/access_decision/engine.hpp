@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <access_core/handle_frame.hpp>
+#include <access_core/protocol_anomaly_detector.hpp>
 #include <crypto_lib/secure_aead.hpp>
 #include <key_manager/key_manager.hpp>
 #include <protocol_lib/replay_window.hpp>
@@ -53,19 +54,20 @@ class DecisionEngine {
     //! @param [in] keyManager      Reference to key manager for key derivation.
     //! @param [in] frameHandlerCfg Configuration for frame handling.
     //! @param [in] events          Optional EventBus for real-time events.
+    //! @param [in] detector        Optional R2 anomaly detector (may be nullptr).
     DecisionEngine(const IAccessStore* store,
-                   CardIdHasher hasher,
-                   IAuditLog* audit,
-                   const key_manager::KeyManager& keyManager,
-                   access_core::FrameHandlerConfig frameHandlerCfg = {},
-                   runtime_events::EventBus* events = nullptr);
+        CardIdHasher hasher,
+        IAuditLog* audit,
+        const key_manager::KeyManager& keyManager,
+        access_core::FrameHandlerConfig frameHandlerCfg = {},
+        runtime_events::EventBus* events = nullptr,
+        access_core::ProtocolAnomalyDetector* detector = nullptr);
 
     //! Processes an encrypted frame and returns an access decision.
     //! @param [in]     frameBytes     Raw encrypted frame bytes from the reader.
     //! @param [in,out] replayByReader Map of replay windows per reader ID.
     //! @return DecisionResult with allow/deny and reason code.
-    DecisionResult handleFrameBytes(
-        std::span<const uint8_t> frameBytes,
+    DecisionResult handleFrameBytes(std::span<const uint8_t> frameBytes,
         std::unordered_map<uint32_t, protocol::replay::ReplayWindow>& replayByReader);
 
   private:
@@ -73,15 +75,16 @@ class DecisionEngine {
     CardIdHasher _hasher;
     IAuditLog* _audit = nullptr;
     runtime_events::EventBus* _events = nullptr;
+    access_core::ProtocolAnomalyDetector* _detector = nullptr;
     const key_manager::KeyManager& _keyManager;
     access_core::FrameHandlerConfig _frameHandlerCfg{};
 
     //! Logs an audit event for the access decision.
     void logAuditEvent(const protocol::packet::Header& header,
-                       bool allow,
-                       const std::string& reason,
-                       const std::string& cardId = "",
-                       const std::string& action = "");
+        bool allow,
+        const std::string& reason,
+        const std::string& cardId = "",
+        const std::string& action = "");
 
     //! Creates a denied DecisionResult with the given reason.
     DecisionResult createDeniedResult(const std::string& reason);
@@ -97,16 +100,19 @@ class DecisionEngine {
     //! @param [in]  currentKv Current key version.
     //! @param [out] roleOut   Role if card found.
     //! @return Card HMAC (current or previous version).
-    std::string resolveCardHmac(const std::string& cardId,
-                                uint32_t currentKv,
-                                std::optional<std::string>& roleOut);
+    std::string resolveCardHmac(
+        const std::string& cardId, uint32_t currentKv, std::optional<std::string>& roleOut);
 
     //! Checks if a role has access to a door.
     DecisionResult checkRoleAccess(uint32_t doorId, const std::string& role);
 
     //! Checks access policy after frame validation.
-    DecisionResult checkAccessPolicy(const access_core::HandleResult& frameResult,
-                                     const AccessRequest& request);
+    DecisionResult checkAccessPolicy(
+        const access_core::HandleResult& frameResult, const AccessRequest& request);
+
+    //! Publishes an anomaly event to the event bus.
+    void publishAnomalyEvent(uint32_t readerId, access_core::AnomalyType type,
+        const std::string& detail);
 };
 
 }  // namespace access_decision

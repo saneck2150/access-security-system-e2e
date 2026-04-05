@@ -3,6 +3,7 @@
 #include <access_admin/app_state.hpp>
 #include <access_admin/http_utils.hpp>
 #include <access_admin/service/hw_service.hpp>
+#include <crypto_lib/nonce_generator.hpp>
 #include <crypto_lib/secure_aead.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
@@ -21,11 +22,11 @@ std::string buildPayloadJson(std::string_view uid, std::string_view action) {
 }
 
 protocol::packet::Header buildPacketHeader(uint32_t reader_id,
-                                           uint32_t door_id,
-                                           uint64_t seq,
-                                           uint32_t key_version,
-                                           uint64_t ts_unix_ms,
-                                           const std::array<uint8_t, 24>& nonce) {
+    uint32_t door_id,
+    uint64_t seq,
+    uint32_t key_version,
+    uint64_t ts_unix_ms,
+    const std::array<uint8_t, 24>& nonce) {
     protocol::packet::Header h;
     h.reader_id = reader_id;
     h.door_id = door_id;
@@ -36,17 +37,53 @@ protocol::packet::Header buildPacketHeader(uint32_t reader_id,
     return h;
 }
 
+//! Creates the appropriate NonceGenerator based on mode string.
+std::unique_ptr<crypto_lib::nonce::INonceGenerator> createNonceGenerator(
+    std::string_view nonceMode,
+    crypto_lib::aead::CipherMode cm,
+    const key_manager::KeyManager& km,
+    uint32_t reader_id,
+    uint32_t key_version) {
+    if (nonceMode == "random") {
+        return std::make_unique<crypto_lib::nonce::RandomNonceGenerator>(cm);
+    }
+    const auto nonceKey = km.deriveNonceKey(reader_id, key_version);
+    return std::make_unique<crypto_lib::nonce::HmacNonceGenerator>(nonceKey, cm);
+}
+
+//! Serializes header fields (without nonce) as context for HMAC nonce derivation.
+std::vector<uint8_t> buildNonceContext(uint32_t reader_id,
+    uint32_t door_id,
+    uint64_t ts_unix_ms,
+    uint64_t seq,
+    uint32_t key_version) {
+    // Build a temporary header to serialize, nonce field is zeroed (not part of context).
+    protocol::packet::Header h;
+    h.reader_id = reader_id;
+    h.door_id = door_id;
+    h.ts_unix_ms = ts_unix_ms;
+    h.seq = seq;
+    h.key_version = key_version;
+    h.nonce = {};  // zeroed — nonce is excluded from its own derivation context
+    return h.to_bytes();
+}
+
 //! Encrypts payload and serializes frame.
 std::vector<uint8_t> encryptAndSerialize(crypto_lib::aead::SecureAead& aead,
-                                         const protocol::packet::Header& header,
-                                         const std::string& payload_text,
-                                         uint64_t seq) {
-    const auto aadVec = header.to_bytes();
-    const std::span<const uint8_t> aad(aadVec.data(), aadVec.size());
-    const std::span<const uint8_t> pt(reinterpret_cast<const uint8_t*>(payload_text.data()),
-                                      payload_text.size());
+    const protocol::packet::Header& header,
+    const std::string& payload_text,
+    const std::array<uint8_t, 24>& nonce,
+    std::string_view aadMode) {
+    std::vector<uint8_t> aadVec;
+    std::span<const uint8_t> aad{};
+    if (aadMode != "none") {
+        aadVec = header.to_bytes();
+        aad = std::span<const uint8_t>(aadVec.data(), aadVec.size());
+    }
+    const std::span<const uint8_t> pt(
+        reinterpret_cast<const uint8_t*>(payload_text.data()), payload_text.size());
 
-    const auto c = aead.sealWithSeq(pt, aad, seq);
+    const auto c = aead.sealWithNonce(pt, aad, nonce);
 
     protocol::frame::Frame f;
     f.header = header;
@@ -58,45 +95,55 @@ std::vector<uint8_t> encryptAndSerialize(crypto_lib::aead::SecureAead& aead,
 
 //! Builds an encrypted frame from hardware UID request.
 std::vector<uint8_t> buildEncryptedFrameBytes(const key_manager::KeyManager& km,
-                                              uint32_t reader_id,
-                                              uint32_t door_id,
-                                              uint64_t seq,
-                                              uint32_t key_version,
-                                              uint64_t ts_unix_ms,
-                                              std::string_view uid,
-                                              std::string_view action) {
+    uint32_t reader_id,
+    uint32_t door_id,
+    uint64_t seq,
+    uint32_t key_version,
+    uint64_t ts_unix_ms,
+    std::string_view uid,
+    std::string_view action,
+    std::string_view keyDerivationMode,
+    std::string_view aadMode,
+    std::string_view cipherMode,
+    std::string_view nonceMode) {
     const std::string payloadText = buildPayloadJson(uid, action);
 
-    const auto aeadKey = km.deriveAeadKey(reader_id, key_version);
-    crypto_lib::aead::SecureAead aead(aeadKey);
+    const auto aeadKey = (keyDerivationMode == "direct") ? km.masterAsAeadKey()
+                                                         : km.deriveAeadKey(reader_id, key_version);
+    const auto cm = (cipherMode == "chacha20") ? crypto_lib::aead::CipherMode::ChaCha20Poly1305
+                                               : crypto_lib::aead::CipherMode::XChaCha20Poly1305;
+    crypto_lib::aead::SecureAead aead(aeadKey, cm);
 
-    const auto header =
-        buildPacketHeader(reader_id, door_id, seq, key_version, ts_unix_ms, aead.deriveNonce(seq));
+    auto nonceGen = createNonceGenerator(nonceMode, cm, km, reader_id, key_version);
+    const auto context = buildNonceContext(reader_id, door_id, ts_unix_ms, seq, key_version);
+    const auto nonce = nonceGen->generate(context, seq);
 
-    return encryptAndSerialize(aead, header, payloadText, seq);
+    const auto header = buildPacketHeader(reader_id, door_id, seq, key_version, ts_unix_ms, nonce);
+
+    return encryptAndSerialize(aead, header, payloadText, nonce, aadMode);
 }
 
 //! Pushes hardware event to event bus.
 void pushHwEvent(AppState& app,
-                 const std::string& message,
-                 uint32_t reader_id,
-                 uint32_t door_id,
-                 uint64_t seq = 0) {
+    const std::string& message,
+    uint32_t reader_id,
+    uint32_t door_id,
+    uint64_t seq = 0) {
     app.events.push({.ts_unix_ms = nowUnixMs(),
-                     .kind = "hw",
-                     .message = message,
-                     .reader_id = reader_id,
-                     .door_id = door_id,
-                     .seq = seq});
+        .kind = "hw",
+        .message = message,
+        .reader_id = reader_id,
+        .door_id = door_id,
+        .seq = seq});
 }
 
 //! Builds JSON response for hardware endpoint.
 json buildHwResponse(bool allow,
-                     const std::string& reason,
-                     uint32_t reader_id,
-                     uint32_t door_id,
-                     uint64_t seq,
-                     uint32_t key_version) {
+    const std::string& reason,
+    uint32_t reader_id,
+    uint32_t door_id,
+    uint64_t seq,
+    uint32_t key_version) {
     json out;
     out["allow"] = allow;
     out["reason"] = reason;
@@ -109,15 +156,19 @@ json buildHwResponse(bool allow,
 
 //! Converts hex character to nibble value.
 uint8_t hexNibble(char c) {
-    if (c >= '0' && c <= '9') return uint8_t(c - '0');
-    if (c >= 'a' && c <= 'f') return uint8_t(10 + (c - 'a'));
-    if (c >= 'A' && c <= 'F') return uint8_t(10 + (c - 'A'));
+    if (c >= '0' && c <= '9')
+        return uint8_t(c - '0');
+    if (c >= 'a' && c <= 'f')
+        return uint8_t(10 + (c - 'a'));
+    if (c >= 'A' && c <= 'F')
+        return uint8_t(10 + (c - 'A'));
     return 0;
 }
 
 //! Decodes hex string to bytes.
 std::vector<uint8_t> hexToBytesLoose(const std::string& hex) {
-    if (hex.size() % 2 != 0) return {};
+    if (hex.size() % 2 != 0)
+        return {};
     std::vector<uint8_t> out(hex.size() / 2);
     for (size_t i = 0; i < out.size(); ++i) {
         out[i] = uint8_t((hexNibble(hex[i * 2]) << 4) | hexNibble(hex[i * 2 + 1]));
@@ -147,22 +198,22 @@ bool parseSignature(const std::string& hex, std::vector<uint8_t>& sig, std::stri
 
 //! Computes HMAC-SHA256 and compares with expected signature.
 bool verifyHmac(const std::string& msg,
-                const std::vector<uint8_t>& key,
-                const std::vector<uint8_t>& expected_sig) {
+    const std::vector<uint8_t>& key,
+    const std::vector<uint8_t>& expected_sig) {
     unsigned char mac[crypto_auth_hmacsha256_BYTES];
     crypto_auth_hmacsha256(mac,
-                           reinterpret_cast<const unsigned char*>(msg.data()),
-                           msg.size(),
-                           reinterpret_cast<const unsigned char*>(key.data()));
+        reinterpret_cast<const unsigned char*>(msg.data()),
+        msg.size(),
+        reinterpret_cast<const unsigned char*>(key.data()));
     return sodium_memcmp(mac, expected_sig.data(), crypto_auth_hmacsha256_BYTES) == 0;
 }
 
 }  // namespace
 
 bool verifyHwSignature(const std::string& signature_hex,
-                       const std::string& body,
-                       const std::string& hw_secret_hex,
-                       std::string& err) {
+    const std::string& body,
+    const std::string& hw_secret_hex,
+    std::string& err) {
     if (hw_secret_hex.empty()) {
         err = "misconfigured";
         return false;  // HMAC secret not set - server misconfigured
@@ -226,8 +277,18 @@ ServiceResult processHwUid(AppState& app, const HwUidRequest& req) {
     const uint64_t seq = req.hw_seq;
     pushHwEvent(app, "uid=" + req.uid, req.reader_id, req.door_id, seq);
 
-    const auto frameBytes = buildEncryptedFrameBytes(
-        app.keyManager, req.reader_id, req.door_id, seq, kv, ts, req.uid, req.action);
+    const auto frameBytes = buildEncryptedFrameBytes(app.keyManager,
+        req.reader_id,
+        req.door_id,
+        seq,
+        kv,
+        ts,
+        req.uid,
+        req.action,
+        app.cfg.experiment.keyDerivationMode,
+        app.cfg.experiment.aadMode,
+        app.cfg.experiment.cipherMode,
+        app.cfg.experiment.nonceMode);
 
     const auto r = app.engine->handleFrameBytes(frameBytes, app.replayByReader);
 

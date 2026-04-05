@@ -1,0 +1,41 @@
+# A1/R2 — ChaCha20-Poly1305, Deterministic Nonce + Misuse Detection
+# Algorithm: ChaCha20-Poly1305 IETF (96-bit nonce, RFC 8439)
+# Nonce mode: deterministic — HMAC(K_nonce, header_fields)[:12]
+# Runtime: ProtocolAnomalyDetector enabled (seq_reuse, seq_rollback,
+#          nonce_mismatch, tag_fail_streak → quarantine)
+# All base hardening mechanisms ON (constant across all profiles).
+
+frame_handler:
+  anti_replay_enabled: true
+  replay_window_size: 256
+  max_ct_len: 4096
+  max_skew_ms: 120000
+  allow_previous_key_version: true
+  enforce_reader_door_binding: true
+
+experiment:
+  cipher_mode: "chacha20"
+  nonce_mode: "deterministic"
+  key_derivation_mode: "hkdf"
+  aad_mode: "full"
+  pepper_mode: "versioned"
+  audit_chain_enabled: true
+  misuse_detection_enabled: true
+  rollback_threshold: 100
+  tag_fail_streak_limit: 5
+
+key_management:
+  current_key_version: 1
+  allow_previous_key_version: true
+  master_key_path: "secrets/master_key.hex"
+
+storage:
+  sqlite_path: "data/access_a1_r2.db"
+
+admin:
+  bind_host: "0.0.0.0"
+  port: 8080
+  admin_token: "admin"
+  hw_shared_secret_hex: "a7aa5de55ad5ccd6b9d155ded41751cb06276819e8188c062e64350b5966fae3"
+  max_upload_bytes: 20000000
+  max_events: 1024

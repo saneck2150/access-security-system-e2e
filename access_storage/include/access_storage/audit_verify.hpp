@@ -28,7 +28,7 @@ struct AuditVerifyResult {
 //! @param [in] db      SQLite database handle.
 //! @param [in] hmacKey 32-byte HMAC key used for hashing.
 //! @return Verification result with ok=true if chain is intact.
-AuditVerifyResult verifyAuditChain(sqlite3* db,
-                                   const std::array<uint8_t, kVerifyHashSize>& hmacKey);
+AuditVerifyResult verifyAuditChain(
+    sqlite3* db, const std::array<uint8_t, kVerifyHashSize>& hmacKey);
 
 }  // namespace access_storage

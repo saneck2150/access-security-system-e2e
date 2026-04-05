@@ -17,6 +17,13 @@ The `access_decision` module is the core policy enforcement engine of the access
 │       │  ├─ Replay detection                                         │
 │       │  └─ Key version validation                                   │
 │       ▼                                                              │
+│  ProtocolAnomalyDetector (R2 profiles only)                          │
+│       │  ├─ isQuarantined()    → reject immediately if quarantined  │
+│       │  ├─ reportSeq()        → detect seq_rollback                │
+│       │  ├─ nonce verify       → detect nonce_mismatch              │
+│       │  └─ reportTagFailure() → detect tag_fail_streak             │
+│       │       └─ on anomaly: reason = "quarantined"                 │
+│       ▼                                                              │
 │  parseAccessRequestJson()                                            │
 │       │  └─ Extract card_id, action                                  │
 │       ▼                                                              │
@@ -127,18 +134,23 @@ Parses JSON access requests from decrypted frame payloads:
 
 ## Decision Reasons
 
-| Reason | Description |
-|--------|-------------|
-| `ok` | Access granted |
-| `parse_error` | Frame structure invalid |
-| `replay` | Replay attack detected |
-| `decrypt_failed` | Decryption or MAC failed |
-| `bad_payload` | JSON payload malformed |
-| `unknown_reader` | Reader not registered |
-| `unknown_card` | Card HMAC not in store |
-| `forbidden` | Role not allowed for door |
-| `bad_action` | Action not "open" |
-| `no_store` | Store not configured |
+`DecisionResult.reason` values returned by `DecisionEngine.handleFrameBytes()`:
+
+| Reason | Source | Description |
+|--------|--------|-------------|
+| `ok` | policy | Access granted |
+| `quarantined` | detector (R2) | Reader quarantined by anomaly detector |
+| `parse_error` | FrameHandler | Frame structure invalid |
+| `replay` | FrameHandler | Replay attack detected (seq reuse or too old) |
+| `decrypt_failed` | FrameHandler | Decryption or MAC failed |
+| `mac_verification_failed` | FrameHandler | Alias for decrypt_failed |
+| `bad_key_version` | FrameHandler | key_version not current or previous |
+| `unknown_reader` | FrameHandler/policy | Reader not registered |
+| `bad_payload` | policy | JSON payload malformed |
+| `unknown_card` | policy | Card HMAC not in store |
+| `forbidden` | policy | Role not allowed for door |
+| `bad_action` | policy | Action not "open" |
+| `no_store` | policy | Store not configured |
 
 ## Key Rotation Support
 

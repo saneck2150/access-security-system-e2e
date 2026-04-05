@@ -11,8 +11,8 @@ namespace protocol::frame {
 class FrameParser {
   public:
     //! Constructs a parser for the given byte buffer.
-    //! @param bytes [in] Raw frame bytes to parse.
-    //! @param maxCtLen [in] Maximum allowed ciphertext length (DoS protection).
+    //! @param [in] bytes     Raw frame bytes to parse.
+    //! @param [in] maxCtLen  Maximum allowed ciphertext length (DoS protection).
     FrameParser(const std::span<const uint8_t>& bytes, uint32_t maxCtLen);
 
     //! Parses the buffer and returns a Frame.
@@ -59,8 +59,8 @@ class FrameParser {
     Frame _frame;
 
     //! Ensures n bytes are available, throws with msg if not.
-    //! @param n [in] Number of bytes required.
-    //! @param msg [in] Error message for exception.
+    //! @param [in] n   Number of bytes required.
+    //! @param [in] msg Error message for exception.
     void requireBytes(size_t n, const std::string& msg);
 
     //! Validates minimum frame size.

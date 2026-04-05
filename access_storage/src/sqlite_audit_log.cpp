@@ -19,7 +19,8 @@ using detail::putLe32;
 using detail::putLe64;
 using detail::StmtGuard;
 
-SqliteAuditLog::SqliteAuditLog(sqlite3* db, Hash32 hmacKey) : _db(db), _key(hmacKey) {
+SqliteAuditLog::SqliteAuditLog(sqlite3* db, Hash32 hmacKey, bool chainEnabled)
+    : _db(db), _key(hmacKey), _chainEnabled(chainEnabled) {
     if (!_db) {
         throw std::invalid_argument("SqliteAuditLog: db is null");
     }
@@ -28,32 +29,32 @@ SqliteAuditLog::SqliteAuditLog(sqlite3* db, Hash32 hmacKey) : _db(db), _key(hmac
 
 void SqliteAuditLog::initSchema() {
     execOrThrow(_db,
-                "CREATE TABLE IF NOT EXISTS audit_log ("
-                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                "  ts_unix_ms INTEGER NOT NULL,"
-                "  reader_id INTEGER NOT NULL,"
-                "  door_id INTEGER NOT NULL,"
-                "  seq INTEGER NOT NULL,"
-                "  allow INTEGER NOT NULL,"
-                "  reason TEXT NOT NULL,"
-                "  card_hmac TEXT,"
-                "  action TEXT,"
-                "  prev_hash BLOB NOT NULL,"
-                "  entry_hash BLOB NOT NULL"
-                ");");
+        "CREATE TABLE IF NOT EXISTS audit_log ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  ts_unix_ms INTEGER NOT NULL,"
+        "  reader_id INTEGER NOT NULL,"
+        "  door_id INTEGER NOT NULL,"
+        "  seq INTEGER NOT NULL,"
+        "  allow INTEGER NOT NULL,"
+        "  reason TEXT NOT NULL,"
+        "  card_hmac TEXT,"
+        "  action TEXT,"
+        "  prev_hash BLOB NOT NULL,"
+        "  entry_hash BLOB NOT NULL"
+        ");");
 
     execOrThrow(_db, "CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts_unix_ms);");
     execOrThrow(_db, "CREATE INDEX IF NOT EXISTS idx_audit_reader ON audit_log(reader_id);");
     execOrThrow(_db,
-                "CREATE TABLE IF NOT EXISTS audit_anchor ("
-                "  id INTEGER PRIMARY KEY CHECK (id = 1),"
-                "  last_hash BLOB NOT NULL,"
-                "  updated_ts INTEGER NOT NULL"
-                ");");
+        "CREATE TABLE IF NOT EXISTS audit_anchor ("
+        "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+        "  last_hash BLOB NOT NULL,"
+        "  updated_ts INTEGER NOT NULL"
+        ");");
 
     execOrThrow(_db,
-                "INSERT OR IGNORE INTO audit_anchor(id, last_hash, updated_ts) "
-                "VALUES(1, zeroblob(32), 0);");
+        "INSERT OR IGNORE INTO audit_anchor(id, last_hash, updated_ts) "
+        "VALUES(1, zeroblob(32), 0);");
 }
 
 SqliteAuditLog::Hash32 SqliteAuditLog::getLastEntryHash() const {
@@ -98,17 +99,16 @@ SqliteAuditLog::Hash32 SqliteAuditLog::computeEntryHash(
 
     unsigned char out[kHashSize]{};
     crypto_lib::utils::hmac_sha256(std::span<const uint8_t>(_key.data(), _key.size()),
-                                   std::span<const uint8_t>(data.data(), data.size()),
-                                   out);
+        std::span<const uint8_t>(data.data(), data.size()),
+        out);
 
     Hash32 h{};
     std::memcpy(h.data(), out, kHashSize);
     return h;
 }
 
-void SqliteAuditLog::insertAuditEntry(const access_decision::AuditEvent& e,
-                                      const Hash32& prevHash,
-                                      const Hash32& entryHash) {
+void SqliteAuditLog::insertAuditEntry(
+    const access_decision::AuditEvent& e, const Hash32& prevHash, const Hash32& entryHash) {
     const char* sql =
         "INSERT INTO audit_log("
         " ts_unix_ms, reader_id, door_id, seq, allow, reason, card_hmac, action, prev_hash, "
@@ -162,6 +162,14 @@ void SqliteAuditLog::append(access_decision::AuditEvent e) {
     execOrThrow(_db, "BEGIN IMMEDIATE;");
 
     try {
+        if (!_chainEnabled) {
+            // Chain disabled: store event without HMAC chaining.
+            const Hash32 zeros{};
+            insertAuditEntry(e, zeros, zeros);
+            execOrThrow(_db, "COMMIT;");
+            return;
+        }
+
         const Hash32 prev = getLastEntryHash();
         const Hash32 entry = computeEntryHash(prev, e);
 

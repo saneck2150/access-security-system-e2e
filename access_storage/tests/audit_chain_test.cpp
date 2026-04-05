@@ -21,11 +21,11 @@ static uint64_t nowUnixMs() {
 }
 
 static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
-                                           uint32_t readerId,
-                                           uint32_t doorId,
-                                           uint64_t seq,
-                                           uint32_t keyVersion,
-                                           const std::string& jsonPayload) {
+    uint32_t readerId,
+    uint32_t doorId,
+    uint64_t seq,
+    uint32_t keyVersion,
+    const std::string& jsonPayload) {
     protocol::packet::Header h;
     h.reader_id = readerId;
     h.door_id = doorId;
@@ -38,8 +38,8 @@ static std::vector<uint8_t> makeFrameBytes(crypto_lib::aead::SecureAead& sender,
     const std::span<const uint8_t> aad(aadVec.data(), aadVec.size());
 
     const auto cipher = sender.sealWithSeq(
-        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(jsonPayload.data()),
-                                 jsonPayload.size()),
+        std::span<const uint8_t>(
+            reinterpret_cast<const uint8_t*>(jsonPayload.data()), jsonPayload.size()),
         aad,
         h.seq);
 
@@ -110,10 +110,10 @@ TEST(AuditChain, DetectsTampering) {
     {
         char* err = nullptr;
         const int rc = sqlite3_exec(store.dbHandle(),
-                                    "UPDATE audit_log SET reason='TAMPERED' WHERE id=1;",
-                                    nullptr,
-                                    nullptr,
-                                    &err);
+            "UPDATE audit_log SET reason='TAMPERED' WHERE id=1;",
+            nullptr,
+            nullptr,
+            &err);
         if (rc != SQLITE_OK) {
             std::string msg = err ? err : "sqlite error";
             sqlite3_free(err);
@@ -184,12 +184,11 @@ TEST(AuditChain, DetectsTruncation) {
     // Delete the last row (simulates truncation attack)
     {
         char* err = nullptr;
-        const int rc =
-            sqlite3_exec(store.dbHandle(),
-                         "DELETE FROM audit_log WHERE id = (SELECT MAX(id) FROM audit_log);",
-                         nullptr,
-                         nullptr,
-                         &err);
+        const int rc = sqlite3_exec(store.dbHandle(),
+            "DELETE FROM audit_log WHERE id = (SELECT MAX(id) FROM audit_log);",
+            nullptr,
+            nullptr,
+            &err);
         if (rc != SQLITE_OK) {
             std::string msg = err ? err : "sqlite error";
             sqlite3_free(err);

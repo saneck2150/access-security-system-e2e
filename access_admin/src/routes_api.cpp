@@ -9,7 +9,6 @@
 #include <access_admin/service/hw_service.hpp>
 #include <access_admin/service/readers_service.hpp>
 #include <access_admin/service/service_types.hpp>
-
 #include <crypto_lib/secure_aead.hpp>
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
@@ -78,9 +77,9 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
         try {
             auto j = json::parse(req.body);
             sendResult(res,
-                       upsertReader(app,
-                                    j.at("reader_id").get<uint32_t>(),
-                                    j.at("current_key_version").get<uint32_t>()));
+                upsertReader(app,
+                    j.at("reader_id").get<uint32_t>(),
+                    j.at("current_key_version").get<uint32_t>()));
         } catch (const std::exception& e) {
             sendResult(res, errorResult(e.what(), kHttpBadRequest));
         }
@@ -97,36 +96,49 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
         }
     });
 
-    svr.Post(R"(/api/readers/(\d+)/doors)",
-             [&](const httplib::Request& req, httplib::Response& res) {
-                 if (!requireAuth(req, res, app.cfg.admin.adminToken)) {
-                     return;
-                 }
-                 try {
-                     auto j = json::parse(req.body);
-                     sendResult(res,
-                                bindDoor(app,
-                                         static_cast<uint32_t>(std::stoul(req.matches[1])),
-                                         j.at("door_id").get<uint32_t>()));
-                 } catch (const std::exception& e) {
-                     sendResult(res, errorResult(e.what(), kHttpBadRequest));
-                 }
-             });
+    svr.Post(
+        R"(/api/readers/(\d+)/doors)", [&](const httplib::Request& req, httplib::Response& res) {
+            if (!requireAuth(req, res, app.cfg.admin.adminToken)) {
+                return;
+            }
+            try {
+                auto j = json::parse(req.body);
+                sendResult(res,
+                    bindDoor(app,
+                        static_cast<uint32_t>(std::stoul(req.matches[1])),
+                        j.at("door_id").get<uint32_t>()));
+            } catch (const std::exception& e) {
+                sendResult(res, errorResult(e.what(), kHttpBadRequest));
+            }
+        });
 
     svr.Delete(R"(/api/readers/(\d+)/doors/(\d+))",
-               [&](const httplib::Request& req, httplib::Response& res) {
-                   if (!requireAuth(req, res, app.cfg.admin.adminToken)) {
-                       return;
-                   }
-                   try {
-                       sendResult(res,
-                                  unbindDoor(app,
-                                             static_cast<uint32_t>(std::stoul(req.matches[1])),
-                                             static_cast<uint32_t>(std::stoul(req.matches[2]))));
-                   } catch (const std::exception& e) {
-                       sendResult(res, errorResult(e.what(), kHttpServerError));
-                   }
-               });
+        [&](const httplib::Request& req, httplib::Response& res) {
+            if (!requireAuth(req, res, app.cfg.admin.adminToken)) {
+                return;
+            }
+            try {
+                sendResult(res,
+                    unbindDoor(app,
+                        static_cast<uint32_t>(std::stoul(req.matches[1])),
+                        static_cast<uint32_t>(std::stoul(req.matches[2]))));
+            } catch (const std::exception& e) {
+                sendResult(res, errorResult(e.what(), kHttpServerError));
+            }
+        });
+
+    svr.Post(R"(/api/readers/(\d+)/unquarantine)",
+        [&](const httplib::Request& req, httplib::Response& res) {
+            if (!requireAuth(req, res, app.cfg.admin.adminToken)) {
+                return;
+            }
+            try {
+                sendResult(res,
+                    unquarantineReader(app, static_cast<uint32_t>(std::stoul(req.matches[1]))));
+            } catch (const std::exception& e) {
+                sendResult(res, errorResult(e.what(), kHttpServerError));
+            }
+        });
 
     // ---- door_roles ----
     svr.Get("/api/door_roles", [&](const httplib::Request& req, httplib::Response& res) {
@@ -142,8 +154,7 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
         }
         try {
             auto j = json::parse(req.body);
-            sendResult(
-                res,
+            sendResult(res,
                 allowRole(app, j.at("door_id").get<uint32_t>(), j.at("role").get<std::string>()));
         } catch (const std::exception& e) {
             sendResult(res, errorResult(e.what(), kHttpBadRequest));
@@ -156,8 +167,7 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
         }
         try {
             auto j = json::parse(req.body);
-            sendResult(
-                res,
+            sendResult(res,
                 revokeRole(app, j.at("door_id").get<uint32_t>(), j.at("role").get<std::string>()));
         } catch (const std::exception& e) {
             sendResult(res, errorResult(e.what(), kHttpBadRequest));
@@ -188,8 +198,7 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
             if (j.contains("key_version")) {
                 kv = j.at("key_version").get<uint32_t>();
             }
-            sendResult(
-                res,
+            sendResult(res,
                 upsertCard(
                     app, j.at("card_id").get<std::string>(), j.at("role").get<std::string>(), kv));
         } catch (const std::exception& e) {
@@ -240,8 +249,8 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
             return;
         }
         res.set_header("Content-Disposition", "attachment; filename=\"access.db\"");
-        res.set_content(std::string(result.data.begin(), result.data.end()),
-                        "application/octet-stream");
+        res.set_content(
+            std::string(result.data.begin(), result.data.end()), "application/octet-stream");
     });
 
     svr.Post("/api/db/import", [&](const httplib::Request& req, httplib::Response& res) {

@@ -55,6 +55,7 @@ Parses `access_security.yaml` and populates typed configuration structs used thr
 | `storage` | `StorageConfig` | SQLite database path |
 | `admin` | `AdminConfig` | HTTP API settings |
 | `key_management` | `KeyManagementYaml` | Key version, master key path |
+| `experiment` | `ExperimentConfig` | Security profile (cipher, nonce, AAD, detector) |
 
 ## YAML Structure
 
@@ -79,8 +80,20 @@ admin:
   bind_host: "0.0.0.0"            # Network interface
   port: 8080                      # HTTP port
   admin_token: "admin"            # Bearer token (change in prod!)
+  hw_shared_secret_hex: ""        # 64-hex HMAC secret for ESP32 (empty = disabled)
   max_upload_bytes: 20000000      # ~20MB upload limit
   max_events: 1024                # Event buffer size
+
+experiment:
+  cipher_mode: "xchacha20"        # "xchacha20" (A2) or "chacha20" (A1)
+  nonce_mode: "deterministic"     # "deterministic" (R1/R2) or "random" (R0)
+  key_derivation_mode: "hkdf"     # "hkdf" or "direct"
+  aad_mode: "full"                # "full" (bind header) or "none"
+  pepper_mode: "versioned"        # "versioned" or "static"
+  audit_chain_enabled: true       # HMAC-chained tamper-evident audit log
+  misuse_detection_enabled: false # R2: ProtocolAnomalyDetector + quarantine
+  rollback_threshold: 100         # Seq gap triggering seq_rollback quarantine
+  tag_fail_streak_limit: 5        # Consecutive tag fails before quarantine
 ```
 
 ## Usage

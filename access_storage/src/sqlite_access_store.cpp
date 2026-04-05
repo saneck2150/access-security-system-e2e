@@ -28,28 +28,28 @@ SqliteAccessStore::~SqliteAccessStore() {
 
 void SqliteAccessStore::initSchema() {
     execOrThrow(_db,
-                "CREATE TABLE IF NOT EXISTS cards ("
-                "  card_hmac TEXT PRIMARY KEY,"
-                "  role TEXT NOT NULL"
-                ");");
+        "CREATE TABLE IF NOT EXISTS cards ("
+        "  card_hmac TEXT PRIMARY KEY,"
+        "  role TEXT NOT NULL"
+        ");");
     execOrThrow(_db,
-                "CREATE TABLE IF NOT EXISTS door_roles ("
-                "  door_id INTEGER NOT NULL,"
-                "  role TEXT NOT NULL,"
-                "  PRIMARY KEY(door_id, role)"
-                ");");
+        "CREATE TABLE IF NOT EXISTS door_roles ("
+        "  door_id INTEGER NOT NULL,"
+        "  role TEXT NOT NULL,"
+        "  PRIMARY KEY(door_id, role)"
+        ");");
     execOrThrow(_db,
-                "CREATE TABLE IF NOT EXISTS readers ("
-                "  reader_id INTEGER PRIMARY KEY,"
-                "  current_key_version INTEGER NOT NULL"
-                ");");
+        "CREATE TABLE IF NOT EXISTS readers ("
+        "  reader_id INTEGER PRIMARY KEY,"
+        "  current_key_version INTEGER NOT NULL"
+        ");");
     execOrThrow(_db,
-                "CREATE TABLE IF NOT EXISTS reader_doors ("
-                "  reader_id INTEGER NOT NULL,"
-                "  door_id   INTEGER NOT NULL,"
-                "  PRIMARY KEY(reader_id, door_id),"
-                "  FOREIGN KEY(reader_id) REFERENCES readers(reader_id) ON DELETE CASCADE"
-                ");");
+        "CREATE TABLE IF NOT EXISTS reader_doors ("
+        "  reader_id INTEGER NOT NULL,"
+        "  door_id   INTEGER NOT NULL,"
+        "  PRIMARY KEY(reader_id, door_id),"
+        "  FOREIGN KEY(reader_id) REFERENCES readers(reader_id) ON DELETE CASCADE"
+        ");");
 }
 
 void SqliteAccessStore::upsertCardHmac(std::string cardHmacHex, std::string role) {
@@ -194,8 +194,8 @@ bool SqliteAccessStore::isReaderAllowedDoor(uint32_t reader_id, uint32_t door_id
 std::vector<ReaderRow> SqliteAccessStore::listReaders() const {
     std::vector<ReaderRow> out;
     StmtGuard guard(prepareOrThrow(_db,
-                                   "SELECT reader_id, current_key_version FROM "
-                                   "readers ORDER BY reader_id;"));
+        "SELECT reader_id, current_key_version FROM "
+        "readers ORDER BY reader_id;"));
     while (sqlite3_step(guard.get()) == SQLITE_ROW) {
         ReaderRow r;
         r.reader_id = static_cast<uint32_t>(sqlite3_column_int(guard.get(), 0));
@@ -247,8 +247,8 @@ std::vector<DoorRoleRow> SqliteAccessStore::listDoorRoles(uint32_t door_id) cons
 std::vector<CardRow> SqliteAccessStore::listCards(size_t limit, size_t offset) const {
     std::vector<CardRow> out;
     StmtGuard guard(prepareOrThrow(_db,
-                                   "SELECT card_hmac, role FROM cards ORDER BY "
-                                   "card_hmac LIMIT ? OFFSET ?;"));
+        "SELECT card_hmac, role FROM cards ORDER BY "
+        "card_hmac LIMIT ? OFFSET ?;"));
     sqlite3_bind_int64(guard.get(), 1, static_cast<sqlite3_int64>(limit));
     sqlite3_bind_int64(guard.get(), 2, static_cast<sqlite3_int64>(offset));
     while (sqlite3_step(guard.get()) == SQLITE_ROW) {

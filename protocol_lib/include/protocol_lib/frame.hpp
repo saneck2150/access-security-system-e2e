@@ -1,4 +1,5 @@
 #pragma once
+
 #include <array>
 #include <cstdint>
 #include <span>
@@ -6,6 +7,7 @@
 
 #include "packet.hpp"
 
+//! Frame serialization and deserialization for the wire protocol.
 namespace protocol::frame {
 
 //! 16-byte authentication tag for Poly1305 MAC.
@@ -25,14 +27,14 @@ struct Frame {
 };
 
 //! Serializes a frame to bytes for transmission.
-//! @param f [in] Frame to serialize.
+//! @param [in] f Frame to serialize.
 //! @return Byte vector with magic, version, header, ciphertext length,
 //! ciphertext, and tag.
 std::vector<uint8_t> serialize(const Frame& f);
 
 //! Parses raw bytes into a Frame structure.
-//! @param bytes [in] Raw frame bytes to parse.
-//! @param maxCtLen [in] Maximum allowed ciphertext length (prevents DoS).
+//! @param [in] bytes     Raw frame bytes to parse.
+//! @param [in] maxCtLen  Maximum allowed ciphertext length (prevents DoS).
 //! @return Parsed frame structure.
 //! @throws std::runtime_error on invalid magic, version, or malformed data.
 Frame parseFrame(std::span<const uint8_t> bytes, uint32_t maxCtLen = 4096);
