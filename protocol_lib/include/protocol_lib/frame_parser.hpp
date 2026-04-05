@@ -5,6 +5,7 @@
 
 #include "protocol_lib/frame.hpp"
 
+//! Stateful parser for deserializing raw byte buffers into Frame structures.
 namespace protocol::frame {
 
 //! Stateful parser for deserializing raw bytes into Frame structures.

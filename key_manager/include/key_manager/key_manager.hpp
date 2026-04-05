@@ -93,7 +93,7 @@ class KeyManager {
 };
 
 //! Loads a master key from a hex-encoded file.
-//! @param path [in] Path to file containing 64 hex characters.
+//! @param [in] path Path to file containing 64 hex characters.
 //! @return Parsed 32-byte master key.
 //! @throws std::runtime_error if file cannot be opened.
 //! @throws std::invalid_argument if hex is invalid or wrong length.

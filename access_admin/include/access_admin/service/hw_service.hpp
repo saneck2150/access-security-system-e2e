@@ -13,15 +13,21 @@ namespace admin {
 struct AppState;
 }
 
+//! Service functions for the hardware reader endpoint (ESP32/MFRC522).
 namespace admin::service {
 
 //! Request from hardware reader.
 struct HwUidRequest {
-    std::string uid;              //!< Card UID (hex string).
-    uint32_t reader_id;           //!< Reader identifier.
-    uint32_t door_id;             //!< Door identifier.
-    uint64_t hw_seq;              //!< Hardware sequence number (anti-replay).
-    std::string action = "open";  //!< Action type.
+    //! Card UID (hex string).
+    std::string uid;
+    //! Reader identifier.
+    uint32_t reader_id;
+    //! Door identifier.
+    uint32_t door_id;
+    //! Hardware sequence number (anti-replay).
+    uint64_t hw_seq;
+    //! Action type.
+    std::string action = "open";
 };
 
 //! Parses HwUidRequest from JSON.
