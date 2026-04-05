@@ -8,7 +8,7 @@
 % *** GRAPHICS RELATED PACKAGES ***
 \ifCLASSINFOpdf
    \usepackage[pdftex]{graphicx}
-   \graphicspath{{./pdf/}{./jpeg/}{./eps/}}
+   \graphicspath{{./pdf/}{./jpeg/}{./eps/}{./plots/}}
    \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
 \else
    \usepackage[dvips]{graphicx}
@@ -45,12 +45,12 @@ Technická univerzita v Košiciach, Fakulta elektrotechniky a informatiky, Slove
 \textit{Abstrakt}~\textendash~
 Práca sa zaoberá bezpečnostnými mechanizmami, ktoré sú relevantné pre moderné systémy kontroly prístupu využívajúce bezkontaktné identifikátory RFID/NFC. Teoretická časť nevystupuje iba ako všeobecný prehľad, ale priamo nadväzuje na vytvorený prototyp: čítačku založenú na ESP32 a RC522, serverovú aplikáciu v jazyku C++ a lokálne úložisko SQLite s auditnou stopou. Jadrom návrhu je otázka, ako zvýšiť dôveryhodnosť celého toku udalosti od načítania UID až po rozhodnutie o prístupe a neskoršie overenie auditu.
 
-V texte preto rozoberám autentifikáciu hardvérových požiadaviek pomocou HMAC-SHA-256, ochranu proti opakovaniu správ cez monotónne \texttt{hw\_seq}, vnútorný frame chránený mechanizmom AEAD XChaCha20-Poly1305 a auditný log navrhnutý tak, aby bolo možné odhaliť dodatočnú manipuláciu. Súčasne otvorene pomenúvam aj hranice prototypu: UID karty je v tomto riešení identifikátor, nie kryptografický dôkaz identity, databáza je uložená lokálne a základný experimentálny režim nevyžaduje povinné TLS. Tieto obmedzenia nie sú obchádzané, ale slúžia ako súčasť realistického hodnotenia toho, čo prototyp chráni dobre a kde zostáva priestor na ďalšie rozšírenie.
+V texte preto rozoberám autentifikáciu hardvérových požiadaviek pomocou HMAC-SHA-256, ochranu proti opakovaniu správ cez monotónne \texttt{hw\_seq}, vnútorný frame chránený mechanizmom AEAD (ChaCha20-Poly1305 a XChaCha20-Poly1305) a auditný log navrhnutý tak, aby bolo možné odhaliť dodatočnú manipuláciu. V experimentálnej časti sa porovnáva šesť konfiguračných profilov, ktoré kombinujú oba šifrovacie algoritmy s tromi stratégiami generovania nonce (náhodný, deterministický HMAC a deterministický s runtime anomálnou detekciou). Súčasne otvorene pomenúvam aj hranice prototypu: UID karty je v tomto riešení identifikátor, nie kryptografický dôkaz identity, databáza je uložená lokálne a prototyp nevyžaduje povinné TLS. Tieto obmedzenia nie sú obchádzané, ale slúžia ako súčasť realistického hodnotenia toho, čo prototyp chráni dobre a kde zostáva priestor na ďalšie rozšírenie.
 \end{abstract}
 
 \begin{IEEEkeywords}
 \textit{Kľúčové slová}~\textendash~
-kontrola prístupu, RFID, NFC, kryptografia, AEAD, XChaCha20-Poly1305, HMAC, HKDF, anti-replay, audit log.
+kontrola prístupu, RFID, NFC, kryptografia, AEAD, ChaCha20-Poly1305, XChaCha20-Poly1305, anomálna detekcia, HMAC, HKDF, anti-replay, audit log.
 \end{IEEEkeywords}
 
 \section{Úvod}
@@ -65,7 +65,7 @@ Bezpečnosť riešenia stojí na niekoľkých navzájom previazaných vrstvách:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item autentifikácia hardvérových požiadaviek pomocou HMAC-SHA-256\cite{FIPS1981},
-  \item šifrovanie a integrita interného payloadu pomocou AEAD XChaCha20-Poly1305\cite{RFC8439,XChaChaDraft,LibsodiumXChaChaDoc},
+  \item šifrovanie a integrita interného payloadu pomocou AEAD (ChaCha20-Poly1305\cite{RFC8439} a XChaCha20-Poly1305\cite{XChaChaDraft,LibsodiumXChaChaDoc}),
   \item ochrana proti replay útokom cez monotónne sekvencie a \emph{ReplayWindow},
   \item ochrana súkromia identifikátorov kariet pomocou HMAC hashovania s \emph{pepper},
   \item auditná stopa navrhnutá tak, aby bolo možné odhaliť dodatočnú manipuláciu pomocou HMAC hash chain a anchor bodov\cite{SchneierKelsey1999}.
@@ -73,7 +73,7 @@ Bezpečnosť riešenia stojí na niekoľkých navzájom previazaných vrstvách:
 
 Dôležité je, že jednotlivé vrstvy v prototype neplnia tú istú úlohu. Hardvérová čítačka neposiela na server priamo AEAD šifrovaný payload; odosiela HTTP požiadavku autentifikovanú pomocou HMAC a monotónneho \texttt{hw\_seq}. Až server po overení tejto požiadavky vytvára interný kryptograficky chránený frame, ktorý vstupuje do rozhodovacej logiky. Táto hranica dôvery je v texte pomenovaná zámerne, pretože ovplyvňuje aj interpretáciu výsledkov: niečo iné znamená ochrana proti podvrhnutiu HTTP požiadavky a niečo iné ochrana interného frame alebo auditnej stopy.
 
-Teoretická časť preto nevystupuje ako izolovaný prehľad pojmov. Sleduje tie oblasti, ktoré sa v prototype naozaj objavili: model hrozieb, autentifikáciu zariadenia, anti-replay mechanizmy, návrh bezpečného protokolu, prácu s kľúčmi a auditovateľnosť. Praktická a analytická časť na to nadväzuje experimentmi, v ktorých sa porovnáva jednoduchší základný variant so zabezpečeným riešením.
+Teoretická časť preto nevystupuje ako izolovaný prehľad pojmov. Sleduje tie oblasti, ktoré sa v prototype naozaj objavili: model hrozieb, autentifikáciu zariadenia, anti-replay mechanizmy, návrh bezpečného protokolu, prácu s kľúčmi a auditovateľnosť. Praktická a analytická časť na to nadväzuje experimentmi, v ktorých sa porovnáva šesť konfiguračných profilov líšiacich sa šifrovacím algoritmom, stratégiou generovania nonce a prítomnosťou runtime anomálnej detekcie.
 
 
 \begin{figure}[!ht]
@@ -113,13 +113,13 @@ Hlavné ciele práce sú:
   \item Navrhnúť bezpečnostné požiadavky a model hrozieb pre prototyp prístupového systému.
   \item Zaviesť kryptografické mechanizmy na úrovni komunikácie a spracovania:
   \begin{itemize}[leftmargin=*,itemsep=2pt]
-    \item AEAD (XChaCha20-Poly1305) pre dôvernosť a integritu dát\cite{RFC8439,XChaChaDraft},
+    \item AEAD (ChaCha20-Poly1305 a XChaCha20-Poly1305) pre dôvernosť a integritu dát\cite{RFC8439,XChaChaDraft},
     \item HMAC-SHA-256 pre autentifikáciu požiadaviek hardvéru\cite{FIPS1981},
     \item HKDF pre deriváciu kľúčov a oddelenie účelov\cite{RFC5869}.
   \end{itemize}
   \item Implementovať anti-replay mechanizmus založený na monotónnom \texttt{hw\_seq} (perzistentne uloženom na ESP32) a \emph{ReplayWindow} na serveri.
   \item Navrhnúť a implementovať tamper-evident audit log s možnosťou verifikácie a detekcie truncation.
-  \item Stanoviť analytické ciele hodnotenia: simulovať vybrané útoky a prevádzkové chyby, zbierať metriky (úspech/neúspech útoku, dôvody zamietnutia, latenciu spracovania a záťaž) a porovnať základnú (baseline) implementáciu so zabezpečenou verziou s formulovaním záverov.
+  \item Stanoviť analytické ciele hodnotenia: porovnať šesť konfiguračných profilov (dva AEAD algoritmy $\times$ tri nonce stratégie) v šiestich útokových a výkonnostných scenároch, zbierať metriky (úspešnosť útoku, dôvody zamietnutia, latenciu a priepustnosť) a formulovať závery o príspevku jednotlivých bezpečnostných mechanizmov.
 \end{enumerate}
 
 \subsection{Prínos}
@@ -261,7 +261,7 @@ V tejto práci nie je cieľom vytvoriť úplný korporátny register rizík. Dô
 
 \subsection{Modelovanie hrozieb}
 
-Pri návrhu prototypu sa ukázalo, že hrozby sa dajú najlepšie udržať pod kontrolou vtedy, keď sú pomenované ešte pred implementáciou. Ako orientačný rámec je preto vhodný model STRIDE (Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege). Nie všetky jeho časti sú v tejto práci rovnako dôležité; najviac sa týkajú tých vrstiev, ktoré prototyp naozaj obsahuje:
+Pri návrhu prototypu sa ukázalo, že hrozby sa dajú najlepšie udržať pod kontrolou vtedy, keď sú pomenované ešte pred implementáciou. Ako orientačný rámec je preto vhodný model STRIDE\cite{STRIDE} (Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege). Nie všetky jeho časti sú v tejto práci rovnako dôležité; najviac sa týkajú tých vrstiev, ktoré prototyp naozaj obsahuje:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item Spoofing: podvrhnutie požiadavky (riešené HMAC),
@@ -350,7 +350,7 @@ V prototypovej architektúre sa väzba realizuje databázovým pravidlom \texttt
 
 \subsection{Princíp najmenej oprávnení a oddelenie právomocí}
 
-Princíp \emph{least privilege} hovorí, že každá komponenta má mať len také oprávnenia, ktoré nevyhnutne potrebuje. V prístupovom systéme to znamená, že:
+Princíp \emph{least privilege}\cite{SaltzerSchroeder1975} hovorí, že každá komponenta má mať len také oprávnenia, ktoré nevyhnutne potrebuje. V prístupovom systéme to znamená, že:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item hardvérové zariadenie nemá mať administrátorské oprávnenia,
@@ -407,7 +407,7 @@ V tejto práci sa preto nehrá na to, že samotná karta je \uv{silný autentifi
 \midrule
 Spoofing čítačky & HMAC podpis požiadavky & Chráni pôvod a integritu HTTP požiadavky. \\
 Replay požiadavky & Monotónne \texttt{hw\_seq} + ReplayWindow & Účinné aj po reštarte zariadenia pri zachovaní perzistentného stavu. \\
-Manipulácia interných dát & AEAD XChaCha20-Poly1305 + AAD & Chráni payload a viaže hlavičku na šifrované dáta. \\
+Manipulácia interných dát & AEAD (ChaCha20/XChaCha20-Poly1305) + AAD & Chráni payload a viaže hlavičku na šifrované dáta. \\
 Únik databázy & HMAC(card\_id) s pepper & Obmedzuje priamu použiteľnosť uniknutých identifikátorov. \\
 Mazanie alebo úprava logov & HMAC hash chain + anchor & Umožňuje neskoršiu detekciu nekonzistencie auditu. \\
 \bottomrule
@@ -417,7 +417,7 @@ Mazanie alebo úprava logov & HMAC hash chain + anchor & Umožňuje neskoršiu d
 
 \subsection{Príklad známych slabín: MIFARE Classic}
 
-Historicky boli široko nasadené karty typu MIFARE Classic, ktoré používajú proprietárny algoritmus CRYPTO1. Výskum ukázal vážne slabiny v tomto mechanizme a umožnil praktické útoky vedúce k získaniu kľúčov a klonovaniu kariet. Z toho vyplýva dôležitá poučka: spoliehanie sa na utajenie algoritmu alebo na UID ako jediný faktor je nedostatočné. Aj keď konkrétny prototyp v práci nepoužíva autentifikáciu na úrovni karty, návrh kompenzuje riziká na úrovni servera a protokolu (HMAC, anti-replay, audit).
+Historicky boli široko nasadené karty typu MIFARE Classic\cite{ISO14443}, ktoré používajú proprietárny algoritmus CRYPTO1. Výskum Garcia \emph{et~al.}\cite{GarciaMIFARE2008} ukázal vážne slabiny v tomto mechanizme a umožnil praktické útoky vedúce k získaniu kľúčov a klonovaniu kariet. Následné práce\cite{VerdultMIFARE2015} rozšírili tieto útoky na ďalšie systémy používajúce podobné proprietárne šifry. Z toho vyplýva dôležitá poučka: spoliehanie sa na utajenie algoritmu alebo na UID ako jediný faktor je nedostatočné. Aj keď konkrétny prototyp v práci nepoužíva autentifikáciu na úrovni karty, návrh kompenzuje riziká na úrovni servera a protokolu (HMAC, anti-replay, audit).
 
 \subsection{Bezpečnostné dôsledky pre návrh prototypu}
 
@@ -507,9 +507,9 @@ Symetrické šifrovanie je vhodné pre embedded zariadenia aj servery kvôli vý
 
 ChaCha20 je stream cipher navrhnutý tak, aby mal vysoký výkon v softvéri. Poly1305 je univerzálny autentifikátor (MAC) používaný v AEAD režime ChaCha20-Poly1305. Ich kombinácia je štandardizovaná v RFC 8439 a zapadá do širšieho modelu AEAD rozhraní popísaného v RFC 5116.\\cite{RFC8439,RFC5116}
 
-\subsubsection{XChaCha20-Poly1305 a nonce manažment}
+\subsubsection{ChaCha20-Poly1305, XChaCha20-Poly1305 a nonce manažment}
 
-AEAD konštrukcie sú \uv{krehké} voči zneužitiu nonce: opakovanie nonce pod rovnakým kľúčom môže viesť k vážnym únikom informácií. XChaCha20-Poly1305 rozširuje nonce na 192 bitov, čo umožňuje bezpečnejšie používanie náhodných nonce pre dlhodobo žijúce kľúče\\cite{XChaChaDraft,LibsodiumXChaChaDoc}. V prototypovej implementácii nonce generuje server.
+AEAD konštrukcie sú \uv{krehké} voči zneužitiu nonce: opakovanie nonce pod rovnakým kľúčom môže viesť k vážnym únikom informácií. XChaCha20-Poly1305 rozširuje nonce na 192 bitov, čo umožňuje bezpečnejšie používanie náhodných nonce pre dlhodobo žijúce kľúče\cite{XChaChaDraft,LibsodiumXChaChaDoc}. ChaCha20-Poly1305 IETF (RFC 8439) používa 96-bitový nonce s nižším bezpečným limitom pri náhodnom generovaní (${\sim}2^{48}$ správ)\cite{RFC8439}. V prototypovej implementácii sú podporené obe varianty, pričom nonce môže byť generovaný náhodne alebo deterministicky cez HMAC --- porovnanie oboch prístupov je predmetom experimentov.
 
 \subsubsection{Associated Data (AAD)}
 
@@ -517,15 +517,15 @@ AEAD podporuje \emph{Associated Authenticated Data} (AAD): dáta, ktoré sa neš
 
 \subsection{Náhodnosť, nonce a praktické generovanie}
 
-Mnohé bezpečnostné protokoly stoja na predpoklade, že niektoré hodnoty sú nepredvídateľné (napr. nonce, kľúče). V embedded prostredí však môže byť generovanie kvalitnej náhodnosti problematické: zariadenie nemusí mať dostatok entropie a môže sa spoliehať na deterministické zdroje. Preto je v praxi vhodné:
+Mnohé bezpečnostné protokoly stoja na predpoklade, že niektoré hodnoty sú nepredvídateľné (napr. nonce, kľúče). V embedded prostredí však môže byť generovanie kvalitnej náhodnosti problematické: zariadenie nemusí mať dostatok entropie a môže sa spoliehať na deterministické zdroje. Existujú tri základné stratégie generovania nonce:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
-  \item používať knižnice, ktoré riešia inicializáciu RNG a poskytujú správne API,
-  \item generovať nonce na serveri, ak zariadenie nevie garantovať kvalitu náhodnosti,
-  \item a zabezpečiť, aby sa nonce pod rovnakým kľúčom neopakovala.
+  \item \textbf{Náhodný nonce} --- jednoduchý, ale závisí na kvalite RNG a pri krátkom nonce (96 bitov u ChaCha20) hrozí kolízia pri vysokom počte správ.
+  \item \textbf{Deterministický nonce (HMAC)} --- nonce sa odvodí ako $\text{HMAC}(K_{\text{nonce}}, \text{context})$, kde kontext zahŕňa hlavičku správy. Eliminuje závislosť na RNG, ale vyžaduje zdieľanie nonce kľúča medzi odosielateľom a overovateľom.
+  \item \textbf{Deterministický nonce s runtime verifikáciou} --- rovnaký HMAC nonce, ale server navyše overuje, že prijatý nonce zodpovedá očakávanej hodnote. Ak nezodpovedá, zariadenie sa zakaranténuje.
 \end{itemize}
 
-Rozšírený nonce pri XChaCha20-Poly1305 znižuje riziko kolízie aj pri náhodných noncoch, čo je výhodné v systémoch s dlhšou životnosťou kľúčov.\cite{LibsodiumXChaChaDoc}
+Rozšírený nonce pri XChaCha20-Poly1305 znižuje riziko kolízie aj pri náhodných noncoch\cite{LibsodiumXChaChaDoc}, čo je výhodné v systémoch s dlhšou životnosťou kľúčov. Deterministický HMAC nonce túto výhodu posúva ešte ďalej: pri správnej konštrukcii sa nonce neopakuje ani pri chybnom RNG.
 
 \subsection{Domain separation a kontext v derivácii kľúčov}
 
@@ -580,7 +580,7 @@ Bezpečnostná vlastnosť & Mechanizmus v prototypu \\
 \midrule
 Autentickosť požiadavky od HW & HMAC-SHA-256 nad HTTP požiadavkou \\
 Integrita metadát (reader/door/seq) & AEAD AAD väzba hlavičky frame \\
-Dôvernosť interného payloadu & AEAD XChaCha20-Poly1305 \\
+Dôvernosť interného payloadu & AEAD ChaCha20/XChaCha20-Poly1305 \\
 Ochrana proti replay & hw\_seq + ReplayWindow (sliding window) \\
 Súkromie identifikátora v DB & HMAC(card\_id) s pepper \\
 Detekcia manipulácie auditu & HMAC hash chain + audit anchor \\
@@ -1159,9 +1159,34 @@ V tejto časti už nevychádzam iba z teoretického modelu, ale z konkrétnej im
 
 Praktickú časť preto rozdeľujem na dve vrstvy. Prvá vrstva opisuje samotnú implementáciu, teda štruktúru projektu, tok spracovania udalosti a hlavné mechanizmy použité v kóde. Druhá vrstva bude mať analytický charakter: tam sa budem venovať testom, meraniam a vyhodnoteniu toho, či implementované opatrenia naozaj zvyšujú odolnosť systému voči zvoleným hrozbám.
 
+Tabuľka~\ref{tab:theory-practice} sumarizuje, kde v kóde sa realizuje každý z teoreticky opísaných mechanizmov. Táto väzba je zámerná --- každé implementačné rozhodnutie vychádza z bezpečnostného princípu diskutovaného v teoretickej časti.
+
+\begin{table}[htbp]
+\centering
+\caption{Prepojenie teoretických mechanizmov s praktickou implementáciou}
+\label{tab:theory-practice}
+\small
+\begin{tabular}{p{4.0cm} p{3.2cm} p{4.0cm}}
+\toprule
+\textbf{Teoretický princíp} & \textbf{Sekcia teórie} & \textbf{Implementácia (modul)} \\
+\midrule
+HMAC autentifikácia zariadenia & §\,Krypt. základy, MAC & \texttt{hw\_layer}, \texttt{access\_admin} \\
+AEAD dôvernosť a integrita & §\,Symetrické šifrovanie & \texttt{crypto\_lib}, \texttt{access\_core} \\
+AAD väzba kontextu & §\,Associated Data & \texttt{crypto\_lib}, frame hlavička \\
+HKDF derivácia kľúčov & §\,Domain separation & \texttt{key\_manager} \\
+Anti-replay sliding window & §\,Anti-replay: ReplayWindow & \texttt{protocol\_lib} \\
+Deterministický nonce & §\,Náhodnosť a nonce & \texttt{crypto\_lib::HmacNonceGenerator} \\
+Anomálna detekcia + karanténa & §\,Monitoring, defense-in-depth & \texttt{access\_core::ProtocolAnomalyDetector} \\
+Pseudonymizácia UID (pepper) & §\,Ochrana súkromia & \texttt{access\_storage}, \texttt{key\_manager} \\
+Tamper-evident audit (hash chain) & §\,Audit log & \texttt{access\_storage} \\
+RBAC autorizácia & §\,Modely kontroly prístupu & \texttt{access\_decision::DecisionEngine} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Architektúra implementácie}
 
-Implementácia je koncipovaná ako modulárny serverovo-riadený prototyp. Na strane zariadenia sa nachádza čítačka postavená na platforme ESP32 s modulom RC522. Jej úloha je úmyselne obmedzená: načíta UID karty, pripojí identifikátor čítačky a dverí, doplní monotónne počítadlo \texttt{hw\_seq} a takto vytvorenú požiadavku autentifikuje pomocou HMAC-SHA256. Samotné rozhodovanie o prístupe neprebieha na zariadení, ale na serveri.
+Implementácia je koncipovaná ako modulárny serverovo-riadený prototyp. Na strane zariadenia sa nachádza čítačka postavená na platforme ESP32\cite{Espressif2024} s modulom RC522, komunikujúca podľa ISO~14443\cite{ISO14443}. Jej úloha je úmyselne obmedzená: načíta UID karty, pripojí identifikátor čítačky a dverí, doplní monotónne počítadlo \texttt{hw\_seq} a takto vytvorenú požiadavku autentifikuje pomocou HMAC-SHA256. Samotné rozhodovanie o prístupe neprebieha na zariadení, ale na serveri.
 
 Serverová časť je implementovaná v jazyku C++ a pozostáva z HTTP rozhrania, rozhodovacej logiky, perzistentného úložiska a auditnej vrstvy. Dôležité je, že hardvérová požiadavka sa po prijatí na serveri nespracuje \uv{skratkou}. Najprv sa overí jej HMAC podpis, potom sa z nej vytvorí interný bezpečný frame a až ten vstupuje do rovnakého validačného a rozhodovacieho reťazca, aký používa jadro systému. Vďaka tomu nie je hardvérový vstup samostatnou výnimkou, ale súčasťou jednotnej spracovateľskej cesty.
 
@@ -1198,7 +1223,7 @@ Pri čítaní kódu sa ukazuje, že projekt nie je organizovaný podľa typu sú
 \hline
 \textbf{Modul} & \textbf{Zodpovednosť v implementácii} \\
 \hline
-\texttt{crypto\_lib} & Implementácia kryptografických primitív, najmä XChaCha20-Poly1305, HKDF a pomocných kryptografických funkcií. \\
+\texttt{crypto\_lib} & Implementácia kryptografických primitív: AEAD šifrovanie (ChaCha20-Poly1305 aj XChaCha20-Poly1305), HKDF derivácia, generátory nonce (\texttt{RandomNonceGenerator}, \texttt{HmacNonceGenerator}) a pomocné kryptografické funkcie. \\
 \hline
 \texttt{key\_manager} & Načítanie master kľúča a deterministická derivácia podkľúčov pre AEAD, pepper identifikátorov kariet a auditný HMAC. \\
 \hline
@@ -1221,6 +1246,102 @@ Pri čítaní kódu sa ukazuje, že projekt nie je organizovaný podľa typu sú
 
 Takéto rozdelenie má pre prácu dve výhody. Po prvé, pri opise implementácie sa dá presne ukázať, v ktorom module sa realizuje konkrétny mechanizmus. Po druhé, v analytickej časti sa dajú testy naviazať na konkrétnu vrstvu: napríklad replay na \texttt{protocol\_lib} a \texttt{access\_core}, HMAC autentifikácia na \texttt{hw\_layer} a \texttt{access\_admin}, auditná integrita na \texttt{access\_storage}.
 
+Závislosťová hierarchia modulov (obrázok~\ref{fig:module_deps}) reflektuje princíp jednosmerného toku závislostí: každý modul závisí iba na moduloch nižšej úrovne a nevytvára spätné závislosti:
+
+\begin{figure}[htbp]
+\centering
+\fbox{\parbox{0.92\linewidth}{
+\centering\small
+\texttt{crypto\_lib} $\rightarrow$ \texttt{protocol\_lib} $\rightarrow$ \texttt{key\_manager}\\[3pt]
+$\downarrow$ \hspace{9.5em} $\downarrow$ \hspace{5em} $\downarrow$\\[3pt]
+\multicolumn{1}{c}{\texttt{access\_core} $\leftarrow\leftarrow\leftarrow\leftarrow\leftarrow\leftarrow\leftarrow$}\\[3pt]
+$\downarrow$\\[3pt]
+\texttt{access\_decision} $\leftrightarrow$ \texttt{access\_storage}\\[3pt]
+$\downarrow$ \hspace{9em} $\downarrow$\\[3pt]
+\multicolumn{1}{c}{\texttt{config\_loader} $\rightarrow$ \texttt{runtime\_events} $\rightarrow$ \texttt{access\_admin}}
+}}
+\caption{Závislosťová hierarchia modulov projektu \texttt{access-security}. Šípky označujú smer závislosti (modul $A \rightarrow B$ znamená, že $A$ závisí na $B$). Modul \texttt{access\_admin} integruje všetky ostatné komponenty cez objekt \texttt{AppState}.}
+\label{fig:module_deps}
+\end{figure}
+
+\subsection{Externé závislosti}
+\label{sec:third_party}
+
+Prototyp využíva päť externých knižníc, ktoré sú zahrnuté v adresári \texttt{third\_party/} ako zdrojový kód kompilovaný spoločne s projektom. Takýto prístup (vendoring) zaručuje reprodukovateľnosť zostavenia --- projekt nie je závislý na systémových balíkoch, ktorých verzia a konfigurácia sa môže líšiť medzi prostrediami. Tabuľka~\ref{tab:third_party} uvádza zoznam závislostí s verziou a účelom.
+
+\begin{table}[htbp]
+\centering
+\caption{Externé závislosti projektu}
+\label{tab:third_party}
+\small
+\begin{tabular}{l l p{8.0cm}}
+\toprule
+\textbf{Knižnica} & \textbf{Verzia} & \textbf{Účel v projekte} \\
+\midrule
+libsodium\cite{LibsodiumDoc} & 1.0.20 & Kryptografické operácie: AEAD šifrovanie (ChaCha20-Poly1305, XChaCha20-Poly1305), HMAC-SHA-256, HKDF derivácia kľúčov, generovanie náhodných čísel, konštantné porovnávanie. \\
+cpp-httplib\cite{CppHttplib} & 0.30.1 & Jednoduchý HTTP server a klient (header-only). Slúži ako základ REST API a administrátorského webového rozhrania. \\
+nlohmann/json\cite{NlohmannJson} & 3.11.3 & Parsovanie a serializácia JSON správ medzi čítačkou, serverom a webovým rozhraním. \\
+yaml-cpp\cite{YamlCpp} & 0.9.0 & Načítanie konfiguračného súboru \texttt{access\_security.yaml} s nastaveniami profilov, portov a databázy. \\
+Google Test\cite{GoogleTest} & 1.14.0 & Unit a integračné testy. Používa sa pri verifikácii kvality kódu (44 testovacích prípadov). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Z bezpečnostného hľadiska je najkritickejšou závislosťou knižnica \textbf{libsodium}, pretože na nej stojí celá kryptografická vrstva systému --- a teda aj všetky experimentálne výsledky tejto práce. Nasledujúca sekcia preto podrobne zdôvodňuje, prečo je analýza postavená na tejto knižnici validná.
+
+\subsection{Zdôvodnenie použitia knižnice libsodium}
+\label{sec:libsodium_justification}
+
+Všetky kryptografické operácie v prototypovom systéme --- AEAD šifrovanie, HMAC autentifikácia, derivácia kľúčov, generovanie nonce, porovnávanie tagov --- sa vykonávajú prostredníctvom knižnice libsodium\cite{LibsodiumDoc}. Keďže experimentálna analýza v kapitole~\ref{sec:experiments} meria vlastnosti týchto operácií (odolnosť voči manipulácii, replay, nonce misuse, výkonnosť), je potrebné zdôvodniť, prečo sú výsledky získané cez libsodium relevantné nielen pre konkrétnu implementáciu, ale aj pre hodnotenie podkladových kryptografických konštrukcií.
+
+\subsubsection{Súlad so štandardmi}
+
+Libsodium implementuje algoritmy presne podľa príslušných štandardov:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{ChaCha20-Poly1305} (funkcia \texttt{crypto\_aead\_chacha20poly1305\_ietf}): implementácia podľa RFC~8439\cite{RFC8439}, vrátane IETF variantu s 96-bitovým nonce a 32-bitovým počítadlom blokov.
+  \item \textbf{XChaCha20-Poly1305} (funkcia \texttt{crypto\_aead\_xchacha20poly1305}): konštrukcia podľa Internet-Draft\cite{XChaChaDraft}, kde sa 192-bitový nonce redukuje cez medzikrok HChaCha20\cite{Bernstein2012} na 96-bitový vstup pre ChaCha20.
+  \item \textbf{HMAC-SHA-256} (funkcia \texttt{crypto\_auth\_hmacsha256}): podľa RFC~2104\cite{RFC2104} a FIPS~198-1\cite{FIPS1981}.
+  \item \textbf{HKDF} (funkcie \texttt{crypto\_kdf\_hkdf\_sha256\_extract/expand}): podľa RFC~5869\cite{RFC5869}, dvojfázová derivácia (extract + expand) s SHA-256 ako podkladovou hash funkciou.
+\end{itemize}
+
+\noindent Súlad so štandardmi znamená, že vlastnosti dokázané v akademickej literatúre (napríklad odolnosť AEAD konštrukcie voči nonce misuse za predpokladu unikátnych nonce\cite{RogawayNonceMisuse2004}, alebo bezpečnosť HKDF pri dostatočnej entropii vstupného materiálu\cite{RFC5869}) sa prenášajú na našu implementáciu za predpokladu, že samotná knižnica neobsahuje chyby.
+
+\subsubsection{Bezpečnostné audity a nasadenie}
+
+Libsodium bola podrobená nezávislému bezpečnostnému auditu (Private Internet Access / NCC~Group, 2017\cite{LibsodiumAudit}), ktorý nezistil kritické zraniteľnosti v kryptografických primitívach. Knižnica je súčasťou produkčných systémov s vysokými bezpečnostnými požiadavkami:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{WireGuard}\cite{WireGuard} --- VPN protokol integrovaný do jadra Linux od verzie 5.6, používa ChaCha20-Poly1305 ako primárny šifrovací algoritmus.
+  \item \textbf{Signal Protocol} --- end-to-end šifrovanie v aplikáciách Signal, WhatsApp a iných; využíva Curve25519 a ChaCha20-Poly1305 z libsodium/NaCl.
+  \item \textbf{Minisign, age, Keybase} --- nástroje na podpisovanie a šifrovanie s milónmi používateľov.
+\end{itemize}
+
+\noindent Široké nasadenie v bezpečnostne kritických aplikáciách poskytuje empirickú evidenciu, že implementácia je robustná a neobsahuje systematické chyby, ktoré by znehodnocovali výsledky postavené na nej.
+
+\subsubsection{Ochrana proti bočným kanálom}
+
+Pre experimentálnu analýzu je dôležité, že libsodium implementuje \emph{konštantné} (constant-time) operácie pre všetky kryptografické primitíva. Porovnávanie tagov prebieha cez \texttt{sodium\_memcmp()}, ktorý je garantovane nezávislý od obsahu vstupov. AEAD operácie neobsahujú dátovo závislé vetvenia ani prístupy do pamäte závislé od tajných kľúčov\cite{LibsodiumDoc}. To znamená, že namerané časy v scenári S6 (throughput) odrážajú skutočnú výpočtovú náročnosť algoritmov, nie artefakty timing leakov.
+
+\subsubsection{Kompilácia zo zdrojového kódu}
+
+V projekte sa libsodium 1.0.20 kompiluje priamo zo zdrojového kódu pomocou CMake, nie ako predkompilovaný binárny balík. Tým je zaručené:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Známa a fixovaná verzia} --- experimenty sú reprodukovateľné s identickým kódom knižnice.
+  \item \textbf{Rovnaké optimalizácie pre oba algoritmy} --- kompilátor (GCC/Clang) aplikuje rovnaké optimalizačné flagy (\texttt{-O2}) na zdrojové súbory oboch AEAD variantov. Zdrojový kód libsodium navyše obsahuje runtime detekciu SIMD inštrukčných sád (AVX2, SSSE3) a automaticky vyberá najrýchlejšiu implementáciu pre danú platformu\cite{LibsodiumDoc}.
+  \item \textbf{Absencia externých patchov} --- zdrojový kód je identický s oficiálnym vydaním, čo vylučuje možnosť, že namerané výsledky sú ovplyvnené modifikáciou knižnice.
+\end{enumerate}
+
+\subsubsection{Záver k validite analýzy}
+
+Na základe vyššie uvedených argumentov možno konštatovať, že výsledky experimentov v tejto práci:
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item sú \textbf{relevantné pre hodnotenie kryptografických konštrukcií} (ChaCha20-Poly1305, XChaCha20-Poly1305, HMAC-SHA-256, HKDF), pretože libsodium ich implementuje v súlade so štandardmi a bez známych odchýlok,
+  \item sú \textbf{relevantné pre hodnotenie architektonických mechanizmov} (anti-replay, anomálna detekcia, karanténa, AAD binding), pretože tieto mechanizmy sú implementované v projektovom kóde a libsodium v nich pôsobí len ako korektná čierna skrinka,
+  \item \textbf{nie sú automaticky prenositeľné} na iné implementácie tých istých algoritmov --- konkrétne namerané priepustnosti a latencie sú vlastnosťou libsodium 1.0.20 na danej platforme, nie abstraktnou vlastnosťou algoritmov (túto otázku podrobnejšie rozoberáme v kapitole~\ref{sec:experiments}, Tézis~6).
+\end{itemize}
+
 \subsection{Tok spracovania prístupovej udalosti}
 
 Z pohľadu celého systému je najdôležitejší tok jednej prístupovej udalosti. V implementácii má tento tok niekoľko jasne oddelených krokov:
@@ -1231,7 +1352,7 @@ Z pohľadu celého systému je najdôležitejší tok jednej prístupovej udalos
   \item Zo surového JSON tela sa vytvorí podpis HMAC-SHA256 a požiadavka sa odošle na endpoint \texttt{/api/hw/uid}.
   \item Server v module \texttt{access\_admin} overí podpis \texttt{X-HW-Signature}. Ak podpis nesedí, požiadavka je zamietnutá ešte pred spracovaním biznis logiky.
   \item Po úspešnom overení sa požiadavka prevedie na interný payload \texttt{\{"card\_id": ..., "action": "open"\}} a pomocou \texttt{KeyManager} sa získa AEAD kľúč podľa \texttt{reader\_id} a aktuálnej verzie kľúča.
-  \item Server vytvorí interný frame: zostaví hlavičku \texttt{reader\_id}, \texttt{door\_id}, \texttt{ts\_unix\_ms}, \texttt{seq}, \texttt{key\_version} a \texttt{nonce}; payload následne zašifruje algoritmom XChaCha20-Poly1305.
+  \item Server vytvorí interný frame: zostaví hlavičku \texttt{reader\_id}, \texttt{door\_id}, \texttt{ts\_unix\_ms}, \texttt{seq}, \texttt{key\_version} a \texttt{nonce}; payload následne zašifruje konfigurovateľným AEAD algoritmom (ChaCha20-Poly1305 alebo XChaCha20-Poly1305 podľa aktívneho profilu).
   \item \texttt{DecisionEngine} odovzdá frame do \texttt{FrameHandler}, ktorý vykoná parsovanie, kontrolu väzby reader--door, kontrolu verzie kľúča, anti-replay kontrolu a dešifrovanie payloadu.
   \item Po úspešnom dešifrovaní sa payload interpretuje ako žiadosť o otvorenie dverí. Server dopočíta HMAC identifikátora karty, nájde zodpovedajúcu rolu a overí, či má táto rola oprávnenie pre konkrétne dvere.
   \item Výsledok sa uloží do auditnej stopy, odošle sa do \texttt{runtime\_events} a v jednoduchej JSON podobe sa vráti späť zariadeniu.
@@ -1250,7 +1371,7 @@ Z tohto dôvodu v ďalšom texte rozoberám praktickú časť podľa mechanizmov
 Prvý kontrolný bod v celom toku spracovania je overenie, či HTTP požiadavka skutočne pochádza z registrovaného zariadenia. Zariadenie posiela na server JSON telo s poľami \texttt{uid}, \texttt{reader\_id}, \texttt{door\_id} a \texttt{hw\_seq}. Ako vstup do HMAC-SHA-256 slúži kanonický reťazec zložený z metódy, cesty a surového tela požiadavky:
 
 \begin{equation}
-\texttt{msg} = \texttt{"POST /api/hw/uid\textbackslash n"} \parallel \texttt{raw\_body}
+\texttt{msg} = \texttt{\char34 POST /api/hw/uid\textbackslash n\char34} \parallel \texttt{raw\_body}
 \end{equation}
 
 Výsledný podpis sa prenáša v HTTP hlavičke \texttt{X-HW-Signature} ako hexadecimálny reťazec. Na strane servera sa HMAC prepočíta nad rovnakým kanonickým vstupom a porovná s hodnotou z hlavičky. Porovnanie prebieha konštantným časom cez funkciu \texttt{sodium\_memcmp} z knižnice libsodium, čo eliminuje riziko timing útoku, pri ktorom by útočník mohol postupne odhadovať správny podpis podľa dĺžky odpovede\cite{FIPS1981,RFC2104}.
@@ -1274,22 +1395,44 @@ V implementácii sa používajú dva AEAD algoritmy z rodiny ChaCha20-Poly1305, 
   \item \textbf{ChaCha20-Poly1305 IETF} s 96-bitovým noncom (12 bajtov). Štandardizovaný v RFC 8439 a široko nasadzovaný v TLS 1.3 aj v ďalších protokoloch\cite{RFC8439}. Kratší nonce znižuje bezpečný limit pre náhodne generované nonce na približne $2^{48}$ správ.
 \end{itemize}
 
-V tomto prototype nonce nie je náhodný, ale deterministicky odvodený zo sekvenčného čísla. Pri takejto konštrukcii je riziko kolízie pre oba algoritmy identické: nonce sa zopakuje iba vtedy, keď sa zopakuje \texttt{seq}, čomu bráni anti-replay mechanizmus. Oba algoritmy sú preto zahrnuté v implementácii nie kvôli rozdielnej bezpečnosti, ale kvôli možnosti porovnať ich výkon v experimentálnych profiloch.
+Implementácia podporuje tri stratégie generovania nonce, označené R0, R1 a R2 (podrobnejšie v nasledujúcej podsekcii). Pri deterministickej konštrukcii (R1, R2) je riziko kolízie pre oba algoritmy identické: nonce sa zopakuje iba vtedy, keď sa zopakuje vstupný kontext, čomu bráni kombinácia anti-replay mechanizmu a unikátneho \texttt{seq}. Oba algoritmy sú preto zahrnuté v implementácii nie kvôli rozdielnej bezpečnosti, ale kvôli možnosti porovnať ich výkon a režijné náklady v experimentálnych profiloch.
 
-Kryptografické operácie sú realizované výhradne cez knižnicu libsodium, konkrétne cez funkcie \texttt{crypto\_aead\_xchacha20poly1305\_ietf\_*} a \texttt{crypto\_aead\_chacha20poly1305\_ietf\_*}. Rozhodnutie neimplementovať cipher suites vlastnou cestou je zámerné: libsodium je auditovaná knižnica s konštantnočasovou implementáciou, čo eliminuje celú triedu implementačných chýb\cite{LibsodiumXChaChaDoc}.
+Kryptografické operácie sú realizované výhradne cez knižnicu libsodium, konkrétne cez funkcie \texttt{crypto\_aead\_xchacha20poly1305\_ietf\_*} a \texttt{crypto\_aead\_chacha20poly1305\_ietf\_*}. Oba algoritmy vychádzajú z rodiny stream cipher primitív navrhnutých D.~J.~Bernsteinom\cite{Bernstein2012}. Rozhodnutie neimplementovať cipher suites vlastnou cestou je zámerné: libsodium je auditovaná knižnica s konštantnočasovou implementáciou, čo eliminuje celú triedu implementačných chýb\cite{LibsodiumXChaChaDoc}.
 
 \subsubsection{Konštrukcia nonce}
 
-Nonce sa v prototype odvodzuje deterministicky z náhodného prefixu (vygenerovaného pri vytvorení AEAD inštancie pomocou \texttt{randombytes\_buf}) a sekvenčného čísla požiadavky v little-endian formáte:
+Implementácia definuje rozhranie \texttt{INonceGenerator} s jednou metódou \texttt{generate(context, seq)}, za ktorým stoja tri konkrétne stratégie:
+
+\paragraph{R0: Náhodný nonce.}
+Trieda \texttt{RandomNonceGenerator} ignoruje kontext aj sekvenčné číslo a pri každom volaní vygeneruje kryptograficky bezpečný náhodný nonce pomocou \texttt{randombytes\_buf}:
 
 \begin{equation}
-\text{nonce}_{\text{XChaCha20}} = \text{prefix}_{16\text{B}} \parallel \text{seq\_le}_{8\text{B}} \quad (= 24\;\text{bajtov})
-\end{equation}
-\begin{equation}
-\text{nonce}_{\text{ChaCha20}} = \text{prefix}_{4\text{B}} \parallel \text{seq\_le}_{8\text{B}} \quad (= 12\;\text{bajtov})
+\text{nonce}_{\text{R0}} = \texttt{randombytes\_buf}(n) \qquad n \in \{12, 24\}
 \end{equation}
 
-Na drôtovom formáte frame zaberá nonce vždy 24 bajtov; pri ChaCha20 sa využíva prvých 12 a zvyšok je nulový. Deterministická konštrukcia eliminuje závislosť na kvalite generátora náhodných čísiel pri opakovanom šifrovaní a garantuje, že pri rôznych hodnotách \texttt{seq} sa nonce nikdy nezopakuje pod rovnakým kľúčom. Podmienkou je, aby sa sekvenčné číslo nikdy nepoužilo dvakrát pre rovnaký kľúč, čo zabezpečuje kombinácia monotónneho \texttt{hw\_seq} na zariadení a serverovej anti-replay kontroly.
+Bezpečnosť tejto stratégie závisí na kvalite generátora náhodných čísiel a na počte správ pod jedným kľúčom. Pre XChaCha20 s 24-bajtovým noncom je riziko kolízie zanedbateľné do $2^{96}$ správ; pre ChaCha20 s 12-bajtovým noncom klesá bezpečná hranica na približne $2^{48}$.
+
+\paragraph{R1/R2: Deterministický HMAC nonce.}
+Trieda \texttt{HmacNonceGenerator} odvodzuje nonce deterministicky z dedikovaného kľúča $K_{\text{nonce}}$ a kontextu hlavičky frame. Kľúč sa odvodzuje cez HKDF-SHA-256 z master kľúča:
+
+\begin{equation}
+K_{\text{nonce}} = \text{HKDF-SHA-256}(K_{\text{master}},\; \texttt{reader\_id} \parallel \texttt{key\_version},\; \text{\texttt{\char34 nonce-derivation-v1\char34}})
+\end{equation}
+
+Samotný nonce sa počíta ako skrátený výstup HMAC-SHA-256 nad serializovanou hlavičkou (52~bajtov), v~ktorej je pole nonce vynulované, aby sa predišlo kruhovej závislosti:
+
+\begin{equation}
+\text{nonce}_{\text{R1/R2}} = \text{HMAC-SHA-256}(K_{\text{nonce}},\; \texttt{header\_context})\;[:n] \qquad n \in \{12, 24\}
+\end{equation}
+
+kde $\texttt{header\_context} = \texttt{reader\_id} \parallel \texttt{door\_id} \parallel \texttt{ts\_unix\_ms} \parallel \texttt{seq} \parallel \texttt{key\_version} \parallel 0^{24}$ v~little-endian formáte.
+
+Deterministická konštrukcia eliminuje závislosť na kvalite generátora náhodných čísiel\cite{BellareNonceMisuse2006}. Nonce sa zopakuje iba vtedy, keď sa zopakuje celý kontext, čomu bráni unikátnosť \texttt{seq} garantovaná anti-replay mechanizmom. Navyše, keďže kontext obsahuje aj \texttt{door\_id} a \texttt{ts\_unix\_ms}, rovnaký nonce nevznikne ani pri rôznych kontextoch s rovnakým sekvenčným číslom.
+
+\paragraph{Rozdiel medzi R1 a R2.}
+Stratégie R1 a R2 používajú identický \texttt{HmacNonceGenerator}. Odlišuje ich to, či server po vytvorení frame \emph{overuje}, že prijatý nonce zodpovedá deterministickému výpočtu. Overenie vykonáva \texttt{ProtocolAnomalyDetector} (sekcia~\ref{sec:anomaly_detector}), ktorý je aktívny iba v~profiloch R2. V~profiloch R1 je detektor vypnutý: nonce sa síce generuje deterministicky, ale server akceptuje frame bez verifikácie nonce zhody.
+
+Na drôtovom formáte frame zaberá pole nonce vždy 24 bajtov kvôli uniformnej štruktúre hlavičky. Pri profile A2 (XChaCha20-Poly1305) sa využíva celých 24 bajtov; pri profile A1 (ChaCha20-Poly1305) sa používa prvých 12 bajtov a zvyšných 12 je nulových. Táto konvencia zjednodušuje parsovanie a zaručuje, že veľkosť hlavičky je rovnaká naprieč všetkými profilmi.
 
 \subsubsection{AAD väzba hlavičky}
 
@@ -1297,7 +1440,7 @@ Hlavička frame obsahuje polia \texttt{reader\_id}, \texttt{door\_id}, \texttt{t
 
 Praktický význam tejto väzby sa ukáže pri konkrétnom útoku. Bez AAD by útočník mohol zachytiť platný frame a podvrhnúť hodnotu \texttt{door\_id}: payload by bol stále korektne dešifrovaný, no systém by vyhodnotil prístup pre iné dvere. AAD toto znemožňuje, pretože kryptograficky viaže šifrovaný obsah na presný kontext metadát. Ide o realizáciu princípu, že kontext autorizácie musí byť nedeliteľnou súčasťou správy.
 
-Implementácia podporuje aj konfigurovateľný režim \texttt{aad\_mode: "none"}, v ktorom sa AAD nepoužíva a hlavička nie je kryptograficky chránená. Tento režim existuje výhradne pre experimentálne porovnanie a umožňuje v analytickej časti demonštrovať presný dopad absencie AAD väzby.
+Implementácia podporuje aj konfigurovateľný režim \texttt{aad\_mode: "none"}, v~ktorom sa AAD nepoužíva a hlavička nie je kryptograficky chránená. Tento režim je v~kóde prítomný ako záložná možnosť, no \emph{nie je súčasťou experimentálnej matice}: všetkých šesť testovaných profilov (A1-R0 až A2-R2) používa plnú AAD väzbu (\texttt{aad\_mode: "full"}). Dopad absencie AAD sa demonštruje nepriamo --- scenárom S2 (field tampering), kde útočník mení \texttt{door\_id} v~hlavičke a~AAD väzba spôsobí zlyhanie autentifikačného tagu.
 
 \subsection{Derivácia kľúčov a domain separation}
 
@@ -1305,17 +1448,35 @@ Celý kryptografický materiál v prototype pochádza z jedného 256-bitového m
 
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
   \item \textbf{AEAD kľúče} pre šifrovanie interného frame. Salt je zložený z \texttt{reader\_id} (4 bajty, little-endian) a \texttt{key\_version} (4 bajty), info reťazec je \texttt{"access-aead-v1"}.
+  \item \textbf{Nonce kľúče} pre deterministickú deriváciu nonce (stratégie R1/R2). Salt je rovnaký ako pri AEAD kľúčoch (\texttt{reader\_id} $\parallel$ \texttt{key\_version}), info reťazec je \texttt{"nonce-derivation-v1"}.
   \item \textbf{Pepper} pre hashovanie identifikátorov kariet. Salt obsahuje iba \texttt{key\_version}, info reťazec je \texttt{"card-pepper-v1"}.
   \item \textbf{Auditný HMAC kľúč} pre hash chain. Salt je \texttt{"audit-chain-salt-v1"}, info reťazec \texttt{"audit-hmac-v1"}.
 \end{enumerate}
 
-Info reťazce zabezpečujú domain separation: z rovnakého master kľúča nikdy nevznikne rovnaký podkľúč pre dva rôzne účely, ani keby sa hodnoty \texttt{reader\_id} a \texttt{key\_version} náhodne prekrývali. Súčasne umožňujú neskoršiu zmenu verzie schémy (napríklad z \texttt{access-aead-v1} na \texttt{access-aead-v2}) bez spätnej kompatibility so starými kľúčmi, čo je dôležité pri migračných scenároch.
+\begin{table}[htbp]
+\centering
+\caption{Prehľad HKDF derivácie kľúčov z master secret}
+\label{tab:hkdf-keys}
+\small
+\begin{tabular}{l l l}
+\toprule
+\textbf{Kľúč} & \textbf{Salt} & \textbf{Info reťazec} \\
+\midrule
+AEAD & \texttt{reader\_id} $\parallel$ \texttt{key\_ver} & \texttt{access-aead-v1} \\
+Nonce ($K_{\text{nonce}}$) & \texttt{reader\_id} $\parallel$ \texttt{key\_ver} & \texttt{nonce-derivation-v1} \\
+Pepper & \texttt{key\_ver} & \texttt{card-pepper-v1} \\
+Auditný HMAC & \texttt{audit-chain-salt-v1} & \texttt{audit-hmac-v1} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Info reťazce zabezpečujú domain separation\cite{RFC5869}: z rovnakého master kľúča nikdy nevznikne rovnaký podkľúč pre dva rôzne účely, ani keby sa hodnoty \texttt{reader\_id} a \texttt{key\_version} náhodne prekrývali. Súčasne umožňujú neskoršiu zmenu verzie schémy (napríklad z \texttt{access-aead-v1} na \texttt{access-aead-v2}) bez spätnej kompatibility so starými kľúčmi, čo je dôležité pri migračných scenároch.
 
 Z bezpečnostného hľadiska je podstatné, že AEAD kľúč sa odvodzuje per-reader. Kompromitácia jedného zariadenia a extrakcia jeho odvoditeľného kľúča neodhaľuje kľúče iných čítačiek, pretože salt HKDF obsahuje unikátnu hodnotu \texttt{reader\_id}. Izolácia je priamym dôsledkom správnej konštrukcie derivácie a nevyžaduje distribúciu samostatných tajomstiev.
 
 Verzovanie kľúčov v salt zabezpečuje, že pri rotácii (zmene \texttt{key\_version}) sa odvodí úplne nový AEAD kľúč bez nutnosti meniť master secret. Server v konfigurácii umožňuje režim \texttt{allow\_previous\_key\_version}, v ktorom dočasne akceptuje aj bezprostredne predchádzajúcu verziu. Cieľom je hladký prechod pri rotácii: zariadenie nemusí byť aktualizované presne v rovnakom okamihu ako server, čo znižuje riziko krátkodobého výpadku\cite{NIST80057}.
 
-Implementácia podporuje aj režim \texttt{key\_derivation\_mode: "direct"}, v ktorom sa HKDF nepoužíva a master kľúč slúži priamo ako AEAD kľúč pre všetky čítačky. Tento režim je určený iba pre experimentálne porovnanie, kde slúži na demonštráciu dôsledkov absencie per-reader izolácie.
+Implementácia podporuje aj režim \texttt{key\_derivation\_mode: "direct"}, v~ktorom sa HKDF nepoužíva a master kľúč slúži priamo ako AEAD kľúč pre všetky čítačky. Podobne ako pri \texttt{aad\_mode}, tento režim je v~kóde prítomný ako záložná možnosť, ale \emph{nie je súčasťou experimentálnej matice}. Všetky profily používajú HKDF deriváciu s~per-reader salt, čím je zaručená izolácia kľúčov medzi čítačkami. Experimenty sa zameriavajú na premenné s~priamejším dopadom na odolnosť voči útokom: voľbu AEAD algoritmu (A1/A2), stratégiu generovania nonce (R0/R1/R2) a~prítomnosť anomálneho detektora.
 
 \subsection{Anti-replay mechanizmus}
 
@@ -1333,9 +1494,43 @@ Prečo nestačí jednoduchá podmienka \texttt{seq > lastSeen}? V prostredí Wi-
 
 Veľkosť okna (\texttt{replay\_window\_size}) je konfigurovateľná a priamo ovplyvňuje kompromis medzi bezpečnosťou a praktickou použiteľnosťou: príliš malé okno zvyšuje falošné odmietnutia, príliš veľké predlžuje čas, počas ktorého je zachytená stará požiadavka potenciálne zopakovateľná. Implementácia udržiava okno pomocou fronty (\texttt{std::deque}) a množiny (\texttt{std::unordered\_set}), pričom pri prekročení kapacity sa najstaršia hodnota automaticky evikvuje.
 
+\subsection{Detektor protokolových anomálií}
+\label{sec:anomaly_detector}
+
+Nad rámec reaktívneho odmietnutia jednotlivých frame implementácia obsahuje komponent \texttt{ProtocolAnomalyDetector}, ktorý sleduje vzory správania na úrovni celej čítačky a pri podozrivej aktivite dokáže čítačku proaktívne umiestniť do karantény. Tento prístup vychádza z princípov detekcie anomálií v sieťovom prostredí\cite{NIST80094}.
+
+Detektor udržiava per-reader stavový záznam a~sleduje štyri typy anomálií:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Opakované sekvenčné číslo} (\texttt{seq\_reuse}): ak frame nesie \texttt{seq}, ktoré už bolo zaznamenané. Na rozdiel od \texttt{ReplayWindow}, ktorá frame iba odmietne, detektor túto udalosť zaregistruje ako indikátor replay útoku.
+  \item \textbf{Rollback sekvenčného čísla} (\texttt{seq\_rollback}): ak \texttt{seq + rollbackThreshold < maxSeenSeq}. Veľký skok späť signalizuje, že útočník sa pokúša obísť sliding window opakovaním starších sekvencií.
+  \item \textbf{Nesúlad nonce} (\texttt{nonce\_mismatch}): ak prijatý nonce nezodpovedá deterministicky odvodenému nonce z kontextu hlavičky. Táto kontrola je aktívna iba v~profiloch s~\texttt{nonceMode = "deterministic"} (R1/R2), no v~kóde je podmienená \emph{aj} zapnutím detektora --- preto sa vykonáva iba v~profiloch R2.
+  \item \textbf{Séria zlyhaní tagu} (\texttt{tag\_fail\_streak}): ak počet po sebe nasledujúcich zlyhaní AEAD autentifikačného tagu dosiahne konfigurovateľný limit. Opakované zlyhania indikujú brute-force pokus o~uhádnutie platného ciphertextu.
+\end{enumerate}
+
+Pri detekcii anomálie sa čítačka umiestni do karantény: všetky ďalšie frame od tejto čítačky sú zamietnuté s~dôvodom \texttt{reader\_quarantined}, bez ohľadu na ich obsah. Karanténa je proaktívna obrana --- izoluje celé zariadenie, nie iba jednotlivý frame. Tým sa odlišuje od anti-replay okna (ktoré zamieta iba konkrétnu sekvenciu) a~od zlyhania AEAD dešifrovania (ktoré zamieta iba frame s~neplatným tagom).
+
+V~experimentálnej matici je detektor zapnutý výhradne v~profiloch R2 (A1-R2, A2-R2). Profily R0 a R1 majú detektor vypnutý, čo umožňuje v~scenároch S1--S5 presne kvantifikovať jeho prínos: profily R0/R1 vykazujú nenulovú úspešnosť útoku (napr. 11\,\% v~S4), zatiaľ čo R2 dosahuje 0\,\% vďaka okamžitej karanténe po prvej anomálii.
+
+\begin{table}[htbp]
+\centering
+\caption{Konfigurácia \texttt{ProtocolAnomalyDetector} a reakcia na anomálie}
+\label{tab:anomaly-config}
+\begin{tabular}{l l l}
+\toprule
+\textbf{Typ anomálie} & \textbf{Podmienka detekcie} & \textbf{Reakcia} \\
+\midrule
+\texttt{seq\_reuse} & $\texttt{seq} \in \texttt{\_seen}$ & Okamžitá karanténa \\
+\texttt{seq\_rollback} & $\texttt{seq} + \delta < \texttt{maxSeenSeq}$ & Okamžitá karanténa \\
+\texttt{nonce\_mismatch} & $\texttt{nonce} \neq \text{HMAC}(K_n, \text{ctx})[:n]$ & Okamžitá karanténa \\
+\texttt{tag\_fail\_streak} & 5 po sebe nasledujúcich zlyhaní & Karanténa po 5. zlyhaní \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Ochrana identifikátorov kariet}
 
-Databáza neukladá surové UID kariet. Pri registrácii aj pri vyhľadávaní sa UID prepočíta na HMAC hash s tajomstvom, ktoré v databáze uložené nie je:
+Databáza neukladá surové UID kariet --- v súlade s princípom minimalizácie dát\cite{ISO27001} a ochranou identifikátorov\cite{NIST80063B4}. Pri registrácii aj pri vyhľadávaní sa UID prepočíta na HMAC hash s tajomstvom, ktoré v databáze uložené nie je:
 
 \begin{equation}
 \texttt{card\_hmac} = \mathrm{HMAC\text{-}SHA\text{-}256}(\texttt{pepper},\; \texttt{uid})
@@ -1373,11 +1568,59 @@ Model RBAC v prototype znamená, že karty nemajú priame oprávnenia na dvere. 
 
 Výsledok rozhodnutia (\texttt{allow} alebo \texttt{deny}) sa spolu s identifikátorom čítačky, dverí, sekvenčným číslom a dôvodom zapíše do tamper-evident auditnej stopy. Dôvod zamietnutia (\texttt{reason}) je interný diagnostický kód (napríklad \texttt{replay}, \texttt{unknown\_card}, \texttt{mac\_verification\_failed}), ktorý sa nezverejňuje nedôveryhodnému klientovi, ale ukladá sa do auditu a zobrazuje v administrátorskom rozhraní. Tým sa zabezpečuje, že diagnostika je k dispozícii prevádzke, no útočník z odpovede nezíska informácie užitočné pre iteráciu útoku.
 
+\subsection{Konfigurácia systému a bezpečnostné profily}
+
+Správanie bezpečnostných mechanizmov prototypu je plne konfigurovateľné cez súbor \texttt{config/access\_security.yaml}, ktorý server načítava pri štarte. Konfigurácia rozlišuje tri úrovne parametrov:
+
+\begin{description}[leftmargin=*,itemsep=2pt]
+  \item[Serverové parametre:] hostiteľ, port, maximálna veľkosť payloadu, cesta k databáze, maximálna prípustná časová odchýlka (\texttt{max\_skew\_ms}).
+  \item[Kryptografické parametre:] voľba AEAD algoritmu (\texttt{cipher\_mode}: \texttt{xchacha20poly1305} alebo \texttt{chacha20poly1305}), režim generovania nonce (\texttt{nonce\_mode}: \texttt{random} / \texttt{deterministic}), režim AAD (\texttt{aad\_mode}: \texttt{full} / \texttt{none"}), režim derivácie kľúčov (\texttt{key\_derivation\_mode}: \texttt{hkdf} / \texttt{direct}).
+  \item[Prevádzkové parametre:] veľkosť replay window (\texttt{replay\_window\_size}, predvolene 256), povolenie predchádzajúcej verzie kľúča (\texttt{allow\_previous\_key\_version}), stav detektora anomálií (\texttt{anomaly\_detector\_enabled}), prahy detektora (\texttt{rollback\_threshold}: 100, \texttt{tag\_fail\_streak\_limit}: 5).
+\end{description}
+
+\begin{table}[htbp]
+\centering
+\caption{Kľúčové konfiguračné parametre a ich mapovanie na bezpečnostné profily}
+\label{tab:config-params}
+\small
+\begin{tabular}{l l l}
+\toprule
+\textbf{Parameter} & \textbf{Hodnoty} & \textbf{Experimentálne profily} \\
+\midrule
+\texttt{cipher\_mode} & \texttt{chacha20poly1305} & A1 \\
+ & \texttt{xchacha20poly1305} & A2 \\
+\texttt{nonce\_mode} & \texttt{random} & R0 \\
+ & \texttt{deterministic} & R1, R2 \\
+\texttt{anomaly\_detector\_enabled} & \texttt{false} & R0, R1 \\
+ & \texttt{true} & R2 \\
+\texttt{aad\_mode} & \texttt{full} & všetky 6 profilov \\
+\texttt{key\_derivation\_mode} & \texttt{hkdf} & všetky 6 profilov \\
+\texttt{replay\_window\_size} & 256 & všetky 6 profilov \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Toto oddelenie konfigurácie od kódu umožňuje prepínať profily bez rekompilácie a zaručuje, že experimentálny harness aj produkčný server môžu využívať rovnakú implementačnú logiku --- menia sa iba parametre, nie kód. Konfigurácia zároveň obsahuje explicitné záložné hodnoty (\texttt{aad\_mode: none} a \texttt{key\_derivation\_mode: direct}), ktoré slúžia pre diagnostiku a ladenie, ale nie sú súčasťou experimentálnej matice.
+
+\subsection{Webové administrátorské rozhranie}
+
+Modul \texttt{access\_admin} okrem REST API servíruje aj webové rozhranie dostupné na \texttt{/static/}. Rozhranie je implementované v čistom JavaScripte bez externého frameworku a sprostredkúva priamy prístup ku všetkým správcovským operáciám:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Správa čítačiek, dverí, rolí a kariet:} CRUD operácie nad databázovými entitami; karty sa registrujú zadaním UID, ktoré server okamžite prepočíta na HMAC hash pred uložením.
+  \item \textbf{Väzby reader--door:} priradenie čítačky ku konkrétnym dverám; táto väzba je vynucovaná aj na úrovni kryptografickej AAD hlavičky.
+  \item \textbf{Live log:} real-time stream posledných 50 rozhodnutí cez polling endpointu \texttt{/api/events}; zobrazuje profil, výsledok, dôvod zamietnutia a latenciu.
+  \item \textbf{Auditná verifikácia:} tlačidlo na spustenie offline verifikácie integrity hash chain; výsledok zobrazuje počet záznamov, stav reťaze a prípadnú polohu prvej nekonzistencie.
+  \item \textbf{Import/export databázy:} JSON export aktuálneho stavu, JSON import pre migráciu konfigurácie.
+\end{itemize}
+
+Autentifikácia administrátorského rozhrania je realizovaná hlavičkou \texttt{X-Admin-Token}, ktorá je striktne oddelená od HMAC autentifikácie zariadení (princíp najmenej oprávnení\cite{SaltzerSchroeder1975}): kompromitácia čítačky nedáva útočníkovi prístup k správcovskej funkcionalite a naopak.
+
 \subsection{Prepojenie mechanizmov: prečo vrstvy nestoja samostatne}
 
-Popísané mechanizmy nie sú navzájom nezávislé bezpečnostné funkcie, ale navrhnuté tak, aby sa dopĺňali. HMAC autentifikácia zariadenia by bola neúčinná bez anti-replay, pretože by stačilo zachytiť jednu platnú požiadavku a opakovať ju. Anti-replay bez HMAC by bol zbytočný, pretože útočník by mohol vyrobiť ľubovoľnú novú požiadavku s nepoužitým \texttt{seq}. AEAD bez AAD by chránilo dôvernosť payloadu, ale nie kontext autorizácie. A audit bez hash chain by bol dôveryhodný iba do momentu, kým by sa útočník nedostal k databáze.
+Popísané mechanizmy nie sú navzájom nezávislé bezpečnostné funkcie, ale navrhnuté tak, aby sa dopĺňali v zmysle princípu defense-in-depth\cite{DefenseInDepth,NIST80053}. HMAC autentifikácia zariadenia by bola neúčinná bez anti-replay, pretože by stačilo zachytiť jednu platnú požiadavku a opakovať ju. Anti-replay bez HMAC by bol zbytočný, pretože útočník by mohol vyrobiť ľubovoľnú novú požiadavku s nepoužitým \texttt{seq}. AEAD bez AAD by chránilo dôvernosť payloadu, ale nie kontext autorizácie. A audit bez hash chain by bol dôveryhodný iba do momentu, kým by sa útočník nedostal k databáze.
 
-Práve toto vzájomné prepojenie je jedným z hlavných predmetov analytickej časti. Experimenty s konfiguračnými profilmi budú ukazovať, čo sa stane, keď sa jednotlivé mechanizmy modifikujú: demonštrujú nie iba to, že zabezpečená verzia je \uv{lepšia}, ale aj to, ktorá konkrétna vrstva chráni proti ktorému konkrétnemu útoku.
+Práve toto vzájomné prepojenie je jedným z hlavných predmetov analytickej časti. Experimentálna matica šiestich profilov (A1-R0 až A2-R2) variuje AEAD algoritmus, stratégiu generovania nonce a~prítomnosť anomálneho detektora, pričom ostatné vrstvy (AAD väzba, HKDF derivácia, pepper, anti-replay okno) zostávajú vo všetkých profiloch zapnuté. Šesť scenárov (S1--S6) potom ukazuje, ktorá konkrétna kombinácia vrstiev chráni proti ktorému konkrétnemu útoku --- a~naopak, kde samotná zmena jednej premennej (napríklad prechod z~R1 na R2) dokáže eliminovať celú triedu útokov.
 
 \section{Verifikácia kvality kódu pred experimentmi}
 
@@ -1385,7 +1628,7 @@ Pred vykonaním akýchkoľvek experimentov je nutné overiť, že implementácia
 
 \subsection{Statická analýza: clang-tidy}
 
-Ako nástroj statickej analýzy bol použitý \texttt{clang-tidy} verzie 18.1.3 (Ubuntu LLVM). Nástroj analyzuje zdrojový kód bez jeho spustenia a hľadá vzory, ktoré indikujú potenciálne chyby: prístupy do neplatnej pamäte, implicitné konverzie, narrowing conversions, zbytočné kópie a ďalšie defekty evidované v moduloch \texttt{bugprone-*}, \texttt{cert-*}, \texttt{clang-analyzer-*} a \texttt{performance-*}.
+Ako nástroj statickej analýzy bol použitý \texttt{clang-tidy}\cite{ClangTidy} verzie 18.1.3 (Ubuntu LLVM). Nástroj analyzuje zdrojový kód bez jeho spustenia a hľadá vzory, ktoré indikujú potenciálne chyby: prístupy do neplatnej pamäte, implicitné konverzie, narrowing conversions, zbytočné kópie a ďalšie defekty evidované v moduloch \texttt{bugprone-*}, \texttt{cert-*}, \texttt{clang-analyzer-*} a \texttt{performance-*}.
 
 Analýza bola spustená nad všetkými 76 zdrojovými súbormi projektu (hlavičkové a implementačné) (moduly \texttt{crypto\_lib}, \texttt{protocol\_lib}, \texttt{key\_manager}, \texttt{access\_core}, \texttt{access\_decision}, \texttt{access\_storage}, \texttt{config\_loader}, \texttt{runtime\_events} a \texttt{access\_admin}) s kompilačnou databázou vygenerovanou pomocou \texttt{CMAKE\_EXPORT\_COMPILE\_COMMANDS=ON}. Postup je reprodukovateľný nasledujúcimi príkazmi:
 
@@ -1418,7 +1661,7 @@ Výsledky:
 Pre dynamickú analýzu bol projekt preložený s nasledujúcimi sanitizermi:
 
 \begin{itemize}
-\item \textbf{AddressSanitizer (ASan)}: detekuje prístupy mimo hraníc bufferov (buffer overflow, underflow), použitie po uvoľnení (use-after-free), dvojité uvoľnenie (double-free) a ďalšie chyby práce s pamäťou za behu programu.
+\item \textbf{AddressSanitizer (ASan)}\cite{AddressSanitizer}: detekuje prístupy mimo hraníc bufferov (buffer overflow, underflow), použitie po uvoľnení (use-after-free), dvojité uvoľnenie (double-free) a ďalšie chyby práce s pamäťou za behu programu.
 \item \textbf{UndefinedBehaviorSanitizer (UBSan)}: detekuje nedefinované správanie podľa štandardu C++ --- pretečenie znamienkových celých čísel, dereferenciu \texttt{nullptr}, nesprávne zarovnanie ukazovateľov a ďalšie.
 \item \textbf{LeakSanitizer (LSan)}: na Linuxe sa aktivuje automaticky spolu s ASan; pri ukončení procesu overí, či nezostala neuvoľnená dynamicky alokovaná pamäť.
 \end{itemize}
@@ -1446,7 +1689,7 @@ Doplňujúca poznámka k rozsahu: MemorySanitizer (MSan), ktorý detekuje číta
 
 \subsection{Testovacia sada a pokrytie}
 
-Testovacia sada obsahuje 44 testovacích prípadov (makrá \texttt{TEST()} frameworku Google Test) rozdelených do 7 testovacích binárnych súborov:
+Testovacia sada obsahuje 44 testovacích prípadov (makrá \texttt{TEST()} frameworku Google Test\cite{GoogleTest}) rozdelených do 7 testovacích binárnych súborov:
 
 \begin{table}[h]
 \centering
@@ -1485,6 +1728,14 @@ Všetkých 44 testovacích prípadov prešlo pod ASan, UBSan a LSan bez jedinéh
 \subsection{Záver verifikácie}
 
 Kombinácia statickej a dynamickej analýzy potvrdila, že implementácia neobsahuje pamäťové chyby, nedefinované správanie ani bezpečnostné defekty detekovateľné automatizovanými nástrojmi. Statická analýza odhalila 16 nálezov v troch kategóriách: 2 bugprone (implicitné konverzie), 13 performance (zbytočné kópie) a 1 modernize (chýbajúci \texttt{override}); skupiny \texttt{cert-*} a \texttt{clang-analyzer-*} nehlásili žiadny nález. Dynamická analýza s tromi sanitizermi neodhalila žiadnu chybu na vykonaných cestách. Tento výsledok vytvára dôveryhodný základ pre interpretáciu experimentov v nasledujúcich kapitolách --- rozdiely vo výsledkoch medzi konfiguračnými profilmi je možné pripísať zmenám v konfigurácii, nie skrytým defektom implementácie.
+
+% ==============================================================
+% Experimentálna analýza
+% ==============================================================
+\input{chapter_experiments}
+
+% ==============================================================
+\input{chapter_conclusion}
 
 \begin{thebibliography}{99}
 
@@ -1545,6 +1796,80 @@ R.~S.~Sandhu, E.~J.~Coyne, H.~L.~Feinstein, and C.~E.~Youman, ``Role-Based Acces
 \bibitem{FIPS2013}
 National Institute of Standards and Technology, ``FIPS 201-3: Personal Identity Verification (PIV) of Federal Employees and Contractors,'' 2022. [Online]. Available: \url{https://csrc.nist.gov/pubs/fips/201-3/final}
 
+\bibitem{GarciaMIFARE2008}
+F.~D.~Garcia, G.~de~Koning~Gans, R.~Muijrers, P.~van~Rossum, R.~Verdult, R.~W.~Schreur, and B.~Jacobs, ``Dismantling MIFARE Classic,'' in \emph{Proceedings of the 13th European Symposium on Research in Computer Security (ESORICS)}, LNCS vol.~5283, pp.~97--114, 2008.
+
+\bibitem{VerdultMIFARE2015}
+R.~Verdult, F.~D.~Garcia, and B.~Ege, ``Dismantling Megamos Crypto: Wirelessly Lockpicking a Vehicle Immobilizer,'' in \emph{Proceedings of the 24th USENIX Security Symposium}, pp.~703--718, 2015.
+
+\bibitem{Bernstein2012}
+D.~J.~Bernstein, ``The Salsa20 family of stream ciphers,'' in \emph{New Stream Cipher Designs}, LNCS vol.~4986, pp.~84--97, Springer, 2008.
+
+\bibitem{RogawayNonceMisuse2004}
+P.~Rogaway and T.~Shrimpton, ``A Provable-Security Treatment of the Key-Wrap Problem,'' in \emph{Advances in Cryptology --- EUROCRYPT 2006}, LNCS vol.~4004, pp.~373--390, 2006.
+
+\bibitem{BellareNonceMisuse2006}
+M.~Bellare, A.~Boldyreva, and J.~O'Neill, ``Deterministic and Efficiently Searchable Encryption,'' in \emph{Advances in Cryptology --- CRYPTO 2007}, LNCS vol.~4622, pp.~535--552, 2007.
+
+\bibitem{SaltzerSchroeder1975}
+J.~H.~Saltzer and M.~D.~Schroeder, ``The protection of information in computer systems,'' \emph{Proceedings of the IEEE}, vol.~63, no.~9, pp.~1278--1308, 1975.
+
+\bibitem{NIST80053}
+Joint Task Force, ``NIST SP 800-53 Rev. 5: Security and Privacy Controls for Information Systems and Organizations,'' NIST, 2020. [Online]. Available: \url{https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final}
+
+\bibitem{ISO27001}
+International Organization for Standardization, ``ISO/IEC 27001:2022 Information security, cybersecurity and privacy protection --- Information security management systems --- Requirements,'' ISO, 2022.
+
+\bibitem{GoogleTest}
+Google, ``GoogleTest --- Google Testing and Mocking Framework,'' 2024. [Online]. Available: \url{https://github.com/google/googletest}
+
+\bibitem{ClangTidy}
+LLVM Project, ``Clang-Tidy --- Extra Clang Tools Documentation,'' 2024. [Online]. Available: \url{https://clang.llvm.org/extra/clang-tidy/}
+
+\bibitem{AddressSanitizer}
+K.~Serebryany, D.~Bruening, A.~Potapenko, and D.~Vyukov, ``AddressSanitizer: A Fast Address Sanity Checker,'' in \emph{Proceedings of the 2012 USENIX Annual Technical Conference}, pp.~309--318, 2012.
+
+\bibitem{Espressif2024}
+Espressif Systems, ``ESP32 Technical Reference Manual,'' Version 5.3, 2024. [Online]. Available: \url{https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf}
+
+\bibitem{NIST80094}
+K.~Scarfone, W.~Jansen, and M.~Tracy, ``NIST SP 800-94: Guide to Intrusion Detection and Prevention Systems (IDPS),'' NIST, 2007. [Online]. Available: \url{https://csrc.nist.gov/pubs/sp/800/94/final}
+
+\bibitem{DefenseInDepth}
+National Security Agency, ``Defense in Depth: A practical strategy for achieving Information Assurance in today's highly networked environments,'' NSA/IAD, 2012. [Online]. Available: \url{https://apps.nsa.gov/iaarchive/library/ia-guidance/archive/defense-in-depth.cfm}
+
+\bibitem{SQLiteSec}
+D.~R.~Hipp, ``SQLite: Security,'' SQLite Consortium, 2024. [Online]. Available: \url{https://www.sqlite.org/security.html}
+
+\bibitem{ISO14443}
+International Organization for Standardization, ``ISO/IEC 14443:2018 Identification cards --- Contactless integrated circuit cards --- Proximity cards,'' ISO, 2018.
+
+\bibitem{STRIDE}
+S.~Hernan, S.~Lambert, T.~Ostwald, and A.~Shostack, ``Threat Modeling --- Uncover Security Design Flaws Using The STRIDE Approach,'' \emph{MSDN Magazine}, November 2006.
+
+\bibitem{LibsodiumDoc}
+F.~Denis, ``The Sodium cryptography library (libsodium),'' 2024. [Online]. Available: \url{https://doc.libsodium.org/}
+
+\bibitem{LibsodiumAudit}
+Private Internet Access and NCC~Group, ``Libsodium Security Assessment,'' 2017. [Online]. Available: \url{https://www.privateinternetaccess.com/blog/libsodium-v1-0-12-and-target-v1-0-13-security-assessment/}
+
+\bibitem{WireGuard}
+J.~A.~Donenfeld, ``WireGuard: Next Generation Kernel Network Tunnel,'' in \emph{Proceedings of the 2017 Network and Distributed System Security Symposium (NDSS)}, 2017.
+
+\bibitem{CppHttplib}
+Y.~Iida, ``cpp-httplib: A C++ header-only HTTP/HTTPS server and client library,'' 2024. [Online]. Available: \url{https://github.com/yhirose/cpp-httplib}
+
+\bibitem{NlohmannJson}
+N.~Lohmann, ``JSON for Modern C++,'' 2024. [Online]. Available: \url{https://github.com/nlohmann/json}
+
+\bibitem{YamlCpp}
+J.~Beder, ``yaml-cpp: A YAML parser and emitter in C++,'' 2024. [Online]. Available: \url{https://github.com/jbeder/yaml-cpp}
+
+\bibitem{OpenSSL}
+OpenSSL Software Foundation, ``OpenSSL: Cryptography and SSL/TLS Toolkit,'' 2024. [Online]. Available: \url{https://www.openssl.org/}
+
+\bibitem{BoringSSL}
+Google, ``BoringSSL,'' 2024. [Online]. Available: \url{https://boringssl.googlesource.com/boringssl/}
 
 \end{thebibliography}
 \end{document}

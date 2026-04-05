@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+//! Thread-safe event bus for real-time monitoring of access control activity.
 namespace runtime_events {
 
 //! Represents a single runtime event in the system.
@@ -37,18 +38,17 @@ struct Event {
 class EventBus {
   public:
     //! Constructs an EventBus with specified maximum event capacity.
-    //! @param maxEvents [in] Maximum number of events to retain (oldest dropped
-    //! when full).
+    //! @param [in] maxEvents Maximum number of events to retain (oldest dropped when full).
     explicit EventBus(size_t maxEvents = 1024);
 
     //! Adds an event to the bus, assigning it a unique ID.
-    //! @param e [in] Event to push (id field will be overwritten).
+    //! @param [in] e Event to push (id field will be overwritten).
     //! @return Assigned event ID.
     uint64_t push(Event e);
 
     //! Retrieves events with ID greater than afterId.
-    //! @param afterId [in] Return only events with id > afterId.
-    //! @param limit [in] Maximum number of events to return.
+    //! @param [in] afterId Return only events with id > afterId.
+    //! @param [in] limit   Maximum number of events to return.
     //! @return Vector of matching events in chronological order.
     std::vector<Event> getAfter(uint64_t afterId, size_t limit = 200) const;
 

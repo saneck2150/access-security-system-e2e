@@ -42,24 +42,24 @@ class KeyManager {
     using MasterKey = std::array<uint8_t, kMasterKeySize>;
 
     //! Constructs a KeyManager with the given master key and configuration.
-    //! @param masterKey [in] 32-byte master secret for key derivation.
-    //! @param cfg [in] Key versioning configuration.
+    //! @param [in] masterKey 32-byte master secret for key derivation.
+    //! @param [in] cfg       Key versioning configuration.
     //! @throws std::invalid_argument if currentKeyVersion is 0.
     KeyManager(MasterKey masterKey, KeyManagerConfig cfg = {});
 
     //! Checks if a key version is acceptable for decryption.
-    //! @param keyVersion [in] Version to check.
+    //! @param [in] keyVersion Version to check.
     //! @return True if version equals current or (current-1 if allowed).
     bool isAcceptedKeyVersion(uint32_t keyVersion) const;
 
     //! Derives an AEAD key for frame encryption/decryption.
-    //! @param readerId [in] Reader ID for domain separation.
-    //! @param keyVersion [in] Key version for rotation support.
+    //! @param [in] readerId   Reader ID for domain separation.
+    //! @param [in] keyVersion Key version for rotation support.
     //! @return 32-byte AEAD key derived via HKDF.
     crypto_lib::aead::AeadKey deriveAeadKey(uint32_t readerId, uint32_t keyVersion) const;
 
     //! Derives a pepper for hashing card IDs.
-    //! @param keyVersion [in] Key version for rotation support.
+    //! @param [in] keyVersion Key version for rotation support.
     //! @return 32-byte pepper derived via HKDF.
     //! @throws std::invalid_argument if keyVersion is 0.
     std::array<uint8_t, kCardPepperSize> deriveCardPepper(uint32_t keyVersion) const;
@@ -87,8 +87,8 @@ class KeyManager {
     KeyManagerConfig _cfg{};
 
     //! Writes a 32-bit value in little-endian format.
-    //! @param v [in] Value to encode.
-    //! @param out [out] 4-byte output buffer.
+    //! @param [in]  v   Value to encode.
+    //! @param [out] out 4-byte output buffer.
     void putLe32(uint32_t v, uint8_t out[4]) const;
 };
 

@@ -78,7 +78,7 @@ All multi-byte integers are **little-endian**.
 │    13    │   8  │ ts_unix_ms (uint64)                               │
 │    21    │   8  │ seq (uint64)                                      │
 │    29    │   4  │ key_version (uint32)                              │
-│    33    │  24  │ nonce (XChaCha20)                                 │
+│    33    │  24  │ nonce (A2 uses all 24 bytes; A1 uses first 12, rest 0)│
 ├──────────┼──────┼───────────────────────────────────────────────────┤
 │    57    │   4  │ ciphertext_length (uint32)                        │
 │    61    │   N  │ ciphertext (N bytes)                              │

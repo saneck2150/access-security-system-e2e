@@ -6,7 +6,7 @@
 
 namespace access_decision {
 
-CardIdHasher::CardIdHasher(std::array<uint8_t, outputSize> pepperKey) : _pepper(pepperKey) {}
+CardIdHasher::CardIdHasher(std::array<uint8_t, kHmacOutputSize> pepperKey) : _pepper(pepperKey) {}
 
 std::string CardIdHasher::toHex(const uint8_t* data, size_t length) const {
     std::string result;
@@ -22,12 +22,12 @@ std::string CardIdHasher::hmacHex(std::string_view cardId) const {
     if (cardId.empty()) {
         throw std::runtime_error("cardId empty");
     }
-    unsigned char hmacOutput[outputSize]{};
+    unsigned char hmacOutput[kHmacOutputSize]{};
     const auto keySpan = std::span<const uint8_t>(_pepper.data(), _pepper.size());
     const auto dataSpan =
         std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(cardId.data()), cardId.size());
     crypto_lib::utils::hmac_sha256(keySpan, dataSpan, hmacOutput);
-    return toHex(hmacOutput, outputSize);
+    return toHex(hmacOutput, kHmacOutputSize);
 }
 
 }  // namespace access_decision

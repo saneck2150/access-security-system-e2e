@@ -4,4 +4,6 @@ build/
 secrets/master_key.hex
 config/access_security.yaml
 data/access.db
-build-san/
+build_san/
+analysis/.venv
+analysis/plots/

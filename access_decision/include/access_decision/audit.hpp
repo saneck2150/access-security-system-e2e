@@ -11,16 +11,22 @@ namespace access_decision {
 
 //! Represents a single access decision event for audit logging.
 struct AuditEvent {
-    uint64_t ts_unix_ms = 0;  //!< Unix timestamp in milliseconds.
-    uint32_t reader_id = 0;   //!< Reader that received the request.
-    uint32_t door_id = 0;     //!< Door the request was for.
-    uint64_t seq = 0;         //!< Sequence number (replay protection).
-
-    bool allow = false;  //!< True if access was granted.
-    std::string reason;  //!< Outcome code (e.g., "ok", "forbidden").
-
-    std::string card_id;  //!< HMAC-hashed card identifier.
-    std::string action;   //!< Requested action (e.g., "open").
+    //! Unix timestamp in milliseconds.
+    uint64_t ts_unix_ms = 0;
+    //! Reader that received the request.
+    uint32_t reader_id = 0;
+    //! Door the request was for.
+    uint32_t door_id = 0;
+    //! Sequence number (replay protection).
+    uint64_t seq = 0;
+    //! True if access was granted.
+    bool allow = false;
+    //! Outcome code (e.g., "ok", "forbidden").
+    std::string reason;
+    //! HMAC-hashed card identifier.
+    std::string card_id;
+    //! Requested action (e.g., "open").
+    std::string action;
 };
 
 //! Abstract interface for audit logging.

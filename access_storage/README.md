@@ -177,9 +177,9 @@ access_decision::AuditEvent event{
     .door_id = 100,
     .seq = 42,
     .allow = true,
-    .reason = "role_match",
+    .reason = "ok",
     .card_id = "abc123...",
-    .action = "unlock"
+    .action = "open"
 };
 audit.append(event);
 ```
