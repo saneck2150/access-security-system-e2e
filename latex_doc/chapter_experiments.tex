@@ -5,11 +5,14 @@
 \section{Experimentálna analýza bezpečnostných profilov}
 \label{sec:experiments}
 
+Táto kapitola nadväzuje na teoretické východiská z oblastí AEAD, správy nonce, anti-replay ochrany, derivácie kľúčov a detekcie protokolových anomálií. Kým teoretická časť formulovala bezpečnostné požiadavky a model hrozieb, táto kapitola tieto požiadavky premieňa na merateľné tvrdenia a overuje ich experimentálne pomocou profilov A1/A2\,$\times$\,R0/R1/R2. Jadrom analýzy nie je všeobecná bezpečnosť celého informačného systému, ale konkrétne vyhodnotenie toho, ako voľba AEAD algoritmu, nonce stratégie a runtime detektora ovplyvňuje odolnosť voči zvoleným triedam útokov. Každý scenár (S1--S5) priamo zodpovedá jednému teoretickému konceptu: S1 overuje anti-replay, S2 AAD binding, S3 nonce enforcement, S4 sekvenčnú čerstvosť a S5 forgery resistance.
+
 Predchádzajúce kapitoly opísali návrh a implementáciu bezpečnostných mechanizmov prototypu. Cieľom tejto kapitoly je experimentálne overiť, či a ako tieto mechanizmy skutočne zvyšujú odolnosť systému voči vybraným útokovým scenárom. Experimenty sú navrhnuté tak, aby pokrývali rôzne triedy hrozieb a umožnili porovnanie šiestich konfiguračných profilov.
 
 Výber scenárov vychádza z modelu hrozieb STRIDE\cite{STRIDE} presentovaného v teoretickej časti. Nie všetky kategórie STRIDE sú pre tento prototyp rovnako relevantné: Denial of Service je čiastočne riešený na úrovni validácie vstupov a nie je predmetom kryptografickej analýzy; Elevation of Privilege sa viaže na autorizačnú politiku, nie na nonce/AEAD mechanizmus. Tabuľka~\ref{tab:stride-scenarios} zobrazuje, ktoré kategórie STRIDE pokrývajú jednotlivé scenáre.
 
 \begin{table}[htbp]
+\renewcommand{\arraystretch}{1.3}
 \centering
 \caption{Mapovanie STRIDE kategórií hrozieb na experimentálne scenáre}
 \label{tab:stride-scenarios}
@@ -40,6 +43,7 @@ Throughput & S6 & --- & Výkonnostný overhead bezpečnostných mechanizmov. \\
 Experimentálny harness kombinuje dva šifrovacie algoritmy s tromi režimami generovania nonce, čo vytvára maticu šiestich profilov:
 
 \begin{table}[htbp]
+\renewcommand{\arraystretch}{1.3}
 \centering
 \caption{Matica konfiguračných profilov (algoritmus $\times$ režim nonce)}
 \label{tab:profile_matrix}
@@ -101,14 +105,14 @@ Každá iterácia prebieha v troch fázach:
 
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
   \item \textbf{Warmup} (200 frame, nezaznamenávaný): Naplní replay window a ustáli stav detektora.
-  \item \textbf{Baseline} (200 frame, zaznamenaný): Validné frame. Slúži na meranie false reject rate a referenčnej latencie. Baseline sa zapisuje len raz pre každý profil (nie pre každý attack\_n).
+  \item \textbf{Baseline} (200 frame, zaznamenaný): Validné frame. Slúži na meranie false reject rate a referenčnej latencie. Baseline sa opakuje pre každú kombináciu (profil, attack\_n, run) --- každá iterácia beží s čerstvým kontextom.
   \item \textbf{Trial / Attack} ($N$ frame, zaznamenaný): Scenár generuje útočné alebo meracie frame cez \texttt{buildTrialFrame()}.
 \end{enumerate}
 
 \subsubsection{Reprodukovateľnosť}
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
-  \item Deterministický seed (predvolene 42) pre pseudonáhodný generátor nonce (R0). Režim R0 používa \texttt{SeededNonceGenerator} namiesto \texttt{randombytes\_buf()}, čo zaručuje rovnaký výstup pri každom behu.
+  \item Každý beh $r$ ($r = 0\ldots4$) používa iný seed $42 + r$, čo zvyšuje vzájomnú nezávislosť behov. Režim R0 používa \texttt{SeededNonceGenerator} s týmto seed-om namiesto \texttt{randombytes\_buf()}; každý beh je individuálne reprodukovateľný opakovaním s rovnakým seed-om.
   \item Čerstvý \texttt{ExperimentContext} (vrátane SQLite databázy) pre každú kombináciu (profil, step, run).
   \item CLI prepínače \texttt{--seed=N}, \texttt{--warmup=N}, \texttt{--baseline=N}, \texttt{--runs=N} umožňujú reprodukovateľné experimenty.
 \end{itemize}
@@ -148,7 +152,7 @@ Dva pod-scenáre:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item \textbf{S3a} (Fixed Nonce): Simuluje zlyhanie RNG --- všetky frame používajú rovnaký nonce (0xAA). Frame je zašifrovaný s týmto nonce a nonce je zapísaný do hlavičky.
-  \item \textbf{S3b} (Wrong Nonce): Simuluje kompromitovanú čítačku --- frame sú generované s odlišným seed (seed + 1), čo produkuje validné, ale neočakávané nonce.
+  \item \textbf{S3b} (Wrong Nonce): Simuluje kompromitovanú čítačku --- útočníkove frame sú generované s pevným seed 43 (odlišným od legitímnych behov), čo produkuje validné, ale neočakávané nonce.
 \end{itemize}
 
 \textit{Očakávané správanie:} R0/R1 nemajú mechanizmus na overenie nonce --- frame sa úspešne dešifruje (nonce z hlavičky sa použije na dešifrovanie). R2 porovná nonce s očakávanou hodnotou a pri nesúlade vyvolá \texttt{nonce\_mismatch} s okamžitou karanténou.
@@ -169,7 +173,7 @@ kde $W = 256$ je veľkosť replay window a $\delta = 100$ je rollback threshold.
 
 \textit{Matematika úspešnosti pre R0/R1:} Z 155 slotov v rollback zóne sa 99 prekrýva s baseline sekvenciami v \texttt{\_seen} sade (60000--60098). Reálne prejde len 56 unikátnych sekvencií (59944--59999). Pri $N=500$: $56/500 = 11.2\%$.
 
-\subsubsection{S5: Tag probe (brute-force)}
+\subsubsection{S5: Tag probe (forgery resistance)}
 
 Scenár vytvorí validný frame a následne poškodí ciphertext náhodnými bajtami. Simuluje útočníka, ktorý skúša rôzne šifrotexty bez znalosti kľúča --- formálne ide o test odolnosti AEAD konštrukcie voči forgery\cite{RFC5116}.
 
@@ -181,7 +185,7 @@ Scenár vytvorí validný frame a následne poškodí ciphertext náhodnými baj
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item Warmup: 1000 frame, baseline: 0, trial: 1000/5000/10000/50000 frame.
-  \item 5 nezávislých behov pre štatistickú istotu.
+  \item 5 behov s odlišnými seed-mi (42--46) na posúdenie variability a robustnosti výsledkov naprieč behmi.
   \item Fáza trial označená ako ``measure'' (nie ``attack'').
 \end{itemize}
 
@@ -214,7 +218,7 @@ Z primárnych dát sa počítajú nasledujúce metriky:
 
 \subsubsection{Štatistická robustnosť}
 
-Každý scenár beží 5-krát s rovnakým seed. Bezpečnostné metriky (attack success rate) vykazujú nulovú smerodajnú odchýlku --- výsledky sú plne deterministické. Jediná variabilita je v latencii (S6), kde smerodajná odchýlka throughput dosahuje 1--4\% priemeru.
+Každý beh $r$ ($r = 0\ldots4$) používa seed $42 + r$, takže nonce hodnoty sa líšia medzi behmi. Pre \textbf{bezpečnostné metriky} (S1--S5) 5 behov slúži ako kontrola reprodukovateľnosti: keďže ochranné mechanizmy (AEAD overenie, replay window, detektor) sú invariantné voči konkrétnym hodnotám nonce, výsledok je binárny a zhodný naprieč všetkými behmi. Pásma v grafoch majú nulovú šírku --- nie ako výsledok štatistickej inferencie, ale ako vizuálne potvrdenie konzistentnosti. Pre \textbf{latenciu a priepustnosť} (S6) sú behy skutočným zdrojom variability (OS a HW šum) a štandardná odchýlka má bežný štatistický výklad; dosahuje 1--4\,\% priemeru.
 
 \subsection{Výsledky: Úspešnosť útokov}
 \label{sec:results_attacks}
@@ -235,19 +239,19 @@ Obrázok~\ref{fig:heatmap} zobrazuje úspešnosť útokov pre všetky kombináci
 \noindent Z tabuľky~\ref{tab:scenario-summary} a obrázka~\ref{fig:heatmap} vyplýva jasné delenie:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
-  \item \textbf{S1, S2, S5} --- všetky profily blokujú útok (0\% úspešnosť). Ochrana zabezpečuje replay window (S1), AAD binding (S2) a AEAD (S5).
-  \item \textbf{S3a, S3b} --- R0/R1 sú zraniteľné (100\% úspešnosť), R2 blokuje (0\%).
+  \item \textbf{S1, S2, S5} --- pri žiadnom profile nedošlo k prijatiu škodlivého frame (0\% úspešnosť). Ochranu zabezpečuje replay window (S1), AAD binding (S2) a AEAD tag verifikácia (S5).
+  \item \textbf{S3a, S3b} --- R0/R1 nepresadzujú nonce politiku: manipulovaný nonce prejde overením (100\% úspešnosť); R2 detektor odchýlku zachytí a zakaranténuje (0\%).
   \item \textbf{S4} --- R0/R1 čiastočne zraniteľné (11\%), R2 blokuje (0\%).
 \end{itemize}
 
 \subsubsection{Závislosť od počtu útočných frame}
 
-Obrázok~\ref{fig:by_n} zobrazuje ako sa úspešnosť útoku mení s rastúcim $N$. Pásma zobrazujú 95\% interval spoľahlivosti cez 5 behov.
+Obrázok~\ref{fig:by_n} zobrazuje ako sa úspešnosť útoku mení s rastúcim $N$. Pásma zobrazujú rozsah výsledkov cez 5 behov; nulová šírka pásiem potvrdzuje konzistentnosť výsledkov naprieč všetkými behmi.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{plots/attack_success_by_n.png}
-\caption{Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: 95\% CI cez 5 behov.}
+\caption{Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: rozsah cez 5 behov (nulová šírka = konzistentný deterministický výsledok).}
 \label{fig:by_n}
 \end{figure}
 
@@ -285,11 +289,11 @@ Obrázok~\ref{fig:quarantine} ukazuje, že pre scenáre S1--S4 nastáva karanté
 
 \input{plots/throughput_table}
 
-\noindent Všetky profily dosahujú priepustnosť nad 14{,}000 frame/s, čo je rádovo viac ako reálna záťaž fyzického prístupového systému ($<$10 udalostí/s). Mediánová latencia je 56--63\,$\mu$s.
+\noindent Obrázok~\ref{fig:throughput} zobrazuje distribúciu priepustnosti pre každý profil. Všetky profily dosahujú priepustnosť nad 16{,}000 frame/s, čo je rádovo viac ako reálna záťaž fyzického prístupového systému ($<$10 udalostí/s). Mediánová latencia je 56--63\,$\mu$s.
 
 \textbf{Porovnanie algoritmov:} A2 (XChaCha20) dosahuje mierne vyššiu priepustnosť ako A1 (ChaCha20), čo je prekvapivý výsledok. Príčinou je pravdepodobne optimalizácia libsodium pre XChaCha20 cestu.
 
-\textbf{Overhead detektora:} Porovnanie R1 a R2 umožňuje izolovať overhead \texttt{ProtocolAnomalyDetector}. Rozdiel je 5--10\% (napr. A2--R1: 17{,}015~fps vs.\ A2--R2: 15{,}306~fps). Tento overhead pochádza z:
+\textbf{Overhead detektora:} Porovnanie R1 a R2 umožňuje izolovať overhead \texttt{ProtocolAnomalyDetector}. Rozdiel je 5--10\% (napr. A2--R1: 17{,}562~fps vs.\ A2--R2: 16{,}120~fps). Tento overhead pochádza z:
 \begin{itemize}[leftmargin=*,itemsep=1pt]
   \item výpočtu očakávaného nonce (HKDF derivácia + HMAC),
   \item porovnania nonce v konštantnom čase (\texttt{sodium\_memcmp}),
@@ -337,16 +341,16 @@ if (detectorActive && nonceMode == "deterministic") {
 
 \subsubsection{Tézis 2: ProtocolAnomalyDetector materiálne zvyšuje bezpečnosť}
 
-R2 profily dosahujú 0\% úspešnosť útoku vo \emph{všetkých} testovaných scenároch. V scenároch S3 a S4 je R2 \textbf{jediný mechanizmus}, ktorý útok zastaví:
+R2 profily dosiahli 0\% úspešnosť útoku naprieč všetkými piatimi testovanými scenármi. V scenároch S3 a S4 bol R2 \textbf{jediným z testovaných mechanizmov}, ktorý útok zastavil:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item S3a/S3b: 100\% $\rightarrow$ 0\% (nonce\_mismatch detekcia),
   \item S4: 11\% $\rightarrow$ 0\% (seq\_rollback detekcia).
 \end{itemize}
 
-\noindent V S1, S2 a S5 iné mechanizmy (replay window, AAD, AEAD) tiež blokujú útok, ale R2 pridáva \emph{karanténu} --- útočníkova čítačka je zablokovaná pre všetky budúce požiadavky, nielen pre jednotlivý frame.
+\noindent V S1, S2 a S5 iné mechanizmy (replay window, AAD, AEAD tag verifikácia) tiež zamietajú škodlivé frame, ale R2 pridáva \emph{karanténu} --- čítačka je zablokovaná pre ďalšie požiadavky, nielen odmietnutý jednotlivý frame.
 
-\textbf{Záver:} \texttt{ProtocolAnomalyDetector} nie je len doplnok k existujúcim mechanizmom. V dvoch z piatich útokových scenárov je \emph{jedinou} ochranou.
+\textbf{Záver:} \texttt{ProtocolAnomalyDetector} nie je len doplnok k existujúcim mechanizmom. V dvoch z piatich testovaných útokových scenárov bol jedinou testovanou ochranou.
 
 \subsubsection{Tézis 3: Replay window a anomálna detekcia sú komplementárne}
 
@@ -407,6 +411,43 @@ Namerané rozdiely v priepustnosti medzi algoritmami A1 (ChaCha20-Poly1305) a A2
 
 \noindent Pre závery tejto práce je toto rozlíšenie nepodstatné: oba algoritmy sú ekvivalentné z hľadiska bezpečnostných metrík (scenáre S1--S5) a oba dosahujú priepustnosť rádovo prevyšujúcu požiadavky fyzického prístupového systému. Avšak pri extrapolácii nameraných výkonnostných údajov na iné platformy alebo iné kryptografické knižnice\cite{OpenSSL,BoringSSL} je potrebné vykonať nezávislé meranie.
 
+\subsection{Porovnanie s minimalistickými implementáciami}
+\label{sec:baseline_comparison}
+
+Experimentálna matica pokrýva šesť profilov od A1-R0 po A2-R2. Pre úplnosť kontextu je užitočné zasadiť výsledky do širšieho rámca a porovnať ich s~hypotetickými minimalistickými architektúrami, ktoré sa v~praxi vyskytujú v~jednoduchých prístupových systémoch.
+
+Uvažujeme tri referenčné úrovne ochrany:
+\begin{description}[leftmargin=*,itemsep=3pt]
+  \item[B0 --- bez kryptografickej ochrany:] HTTP endpoint bez podpisu požiadavky, payload prenášaný ako plaintext, žiadna anti-replay ochrana, žiadny audit.
+  \item[B1 --- základný HTTPS:] HTTPS s tokenom v~hlavičke (napr.\ statický API kľúč), ale bez interného AEAD frame, bez anti-replay sekvencie a bez tamper-evident auditu. Bežný vzor pre jednoduché IoT API.
+  \item[A1-R0 --- základný profil tejto práce:] Náš najjednoduchší testovaný profil. Pridáva: HMAC podpis každej požiadavky, interný AEAD frame (ChaCha20-Poly1305) s~AAD binding, sliding window anti-replay, pepper-hashed identifikátory kariet a~HMAC hash chain audit.
+\end{description}
+
+\begin{table}[htbp]
+\renewcommand{\arraystretch}{1.3}
+\centering
+\caption{Odolnosť voči útočným scenárom podľa úrovne implementácie}
+\label{tab:baseline_comparison}
+\small
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Scenár / útok} & \textbf{B0} & \textbf{B1} & \textbf{A1-R0} & \textbf{A1-R2 / A2-R2} \\
+\midrule
+S1 Replay           & \texttimes & \texttimes  & \checkmark & \checkmark{} + karanténa \\
+S2 Tampering (AAD)  & \texttimes & čiastočne   & \checkmark & \checkmark{} (pred dekr.) \\
+S3 Nonce misuse     & n/a        & n/a         & \texttimes & \checkmark \\
+S4 Seq rollback     & \texttimes & \texttimes  & čiastočne  & \checkmark \\
+S5 Tag probe        & \texttimes & \texttimes  & \checkmark & \checkmark{} + karanténa \\
+Manipulácia auditu  & \texttimes & \texttimes  & \checkmark & \checkmark \\
+Identita karty (DB) & \texttimes & \texttimes  & \checkmark{} (HMAC) & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Z~tabuľky vyplývajú tri závery. Po prvé, prechod z~B0 na A1-R0 predstavuje kvalitatívny skok: väčšina útočných scenárov (S1, S2, S5, audit, identita) je zastavená bez nutnosti nasadiť R2. Po druhé, S3 (nonce misuse) a~plná ochrana pri S4 vyžadujú R2 detektor --- jednoduché AEAD bez serverovej verifikácie nonce nestačí. Po tretie, karanténa v~R2 profiloch mení charakter odpovede systému z~per-frame odmietania na izoláciu celého zariadenia, čo je realizáciou princípu \emph{defense-in-depth}\cite{DefenseInDepth,NIST80053}.
+
+B1 (HTTPS bez interného AEAD) chráni pred pasívnym odpočúvačom na sieťovej vrstve, no nevyrieši scenáre, kde je komunikácia legitimná na transportnej vrstve ale manipulovaná na aplikačnej --- presne to, čo demonštrujú S1--S5. Interný AEAD frame a~anti-replay sú teda komplementárne k~TLS, nie jeho náhradou\cite{RFC9325}.
+
 \subsection{Zhrnutie experimentov}
 
 \begin{figure}[htbp]
@@ -416,17 +457,17 @@ Namerané rozdiely v priepustnosti medzi algoritmami A1 (ChaCha20-Poly1305) a A2
 \label{fig:summary_table}
 \end{figure}
 
-\noindent Experimentálna analýza šiestich scenárov naprieč šiestimi konfiguračnými profilmi potvrdila nasledujúce zistenia:
+\noindent Obrázok~\ref{fig:summary_table} poskytuje prehľad výsledkov všetkých scenárov a profilov. Experimentálna analýza šiestich scenárov naprieč šiestimi konfiguračnými profilmi potvrdila nasledujúce zistenia:
 
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
   \item \textbf{Nulová false reject rate:} Žiadny validný frame nebol zamietnutý žiadnym profilom.
   \item \textbf{Deterministický nonce bez verifikácie nezvyšuje detekciu:} R1 zlepšuje kvalitu generovania nonce, ale bez serverovej verifikácie neposkytuje pridanú detekčnú schopnosť oproti R0.
-  \item \textbf{R2 (det. + detector) eliminuje všetky testované útoky:} 0\% úspešnosť naprieč S1--S5.
+  \item \textbf{R2 zablokoval všetky testované útoky:} 0\% úspešnosť naprieč S1--S5 v rámci tejto experimentálnej sady.
   \item \textbf{Replay window a detektor sú komplementárne:} S4 odhaľuje štruktúrnu medzeru replay window, ktorú detektor uzatvára.
   \item \textbf{AAD binding je fundamentálna ochrana:} Funguje nezávisle od nonce režimu.
   \item \textbf{Karanténa pridáva proaktívnu izoláciu zariadení:} Kvalitativne odlišná od per-frame odmietnutia.
   \item \textbf{Overhead detektora je $<$10\%:} Rádovo nepodstatný pre reálnu prevádzku prístupového systému.
-  \item \textbf{Výsledky sú plne deterministické:} Smerodajná odchýlka bezpečnostných metrík cez 5 behov je nulová.
+  \item \textbf{Výsledky sú reprodukovateľné:} Všetkých 5 behov (seedy 42--46) poskytlo zhodné výsledky attack success rate. Bezpečnostné mechanizmy sú invariantné voči hodnotám nonce --- 5 behov tu neplní úlohu štatistického vzorku, ale overenia konzistencie výsledkov.
 \end{enumerate}
 
 Tieto výsledky potvrdujú pôvodnú hypotézu práce: kombinácia AEAD s AAD binding, deterministickým nonce a runtime anomálnou detekciou (profil R2) \textbf{materiálne zvyšuje odolnosť} prístupového systému v porovnaní so základnými konfiguráciami, a to pri prijateľnom výkonnostnom overheade.

@@ -32,7 +32,7 @@ void runScenario(IScenario& scenario, MetricsCollector& metrics, const RunConfig
                 ExperimentContext ctx(profile, mk, dbPath,
                     cfg.readerId, cfg.doorId, cfg.keyVersion, {cfg.cardId});
                 FrameFactory factory(km, profile,
-                    makeNonceGen(profile, km, cfg.seed, cfg.readerId, cfg.keyVersion));
+                    makeNonceGen(profile, km, cfg.seed + run, cfg.readerId, cfg.keyVersion));
 
                 scenario.setup(ctx, factory, km, profile);
 

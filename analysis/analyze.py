@@ -257,7 +257,7 @@ def plot_attack_success_by_n(data: pd.DataFrame, out: Path):
     # Hide unused axes.
     for j in range(len(scenarios), n_rows * n_cols):
         axes[j // n_cols][j % n_cols].set_visible(False)
-    fig.suptitle("Attack Success Rate vs. N (mean \u00b1 95% CI over runs)", fontsize=14)
+    fig.suptitle("Attack Success Rate vs. N (mean over 5 runs, bands = range)", fontsize=14)
     fig.tight_layout()
     fig.savefig(out / "attack_success_by_n.png")
     plt.close(fig)
@@ -279,9 +279,9 @@ def plot_latency_boxplot(data: pd.DataFrame, out: Path):
         ax.set_title(SCENARIO_TITLES.get(scenario, scenario))
         ax.set_ylabel("Latency (\u00b5s)")
         ax.set_xlabel("")
-    fig.suptitle("Per-Frame Latency Distribution", fontsize=14)
-    fig.tight_layout()
-    fig.savefig(out / "latency_boxplot.png")
+    fig.suptitle("Per-Frame Latency Distribution", fontsize=14, y=1.01)
+    fig.tight_layout(rect=[0, 0, 1, 0.99])
+    fig.savefig(out / "latency_boxplot.png", bbox_inches="tight")
     plt.close(fig)
     print("  -> latency_boxplot.png")
 

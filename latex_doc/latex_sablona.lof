@@ -1,0 +1,12 @@
+\babel@toc {nil}{}\relax 
+\contentsline {figure}{\numberline {1}{\ignorespaces Zjednodušená end-to-end schéma prototypu a hraníc dôvery medzi vrstvami.}}{11}{figure.1}%
+\contentsline {figure}{\numberline {2}{\ignorespaces ChaCha20-Poly1305 AEAD: tok šifrovania (vľavo) a dešifrovania (vpravo). Poly1305 autentifikuje AAD aj CipherText spoločne. Pri dešifrovaní sa overenie tagu vykoná \emph {pred} dešifrovaním.}}{20}{figure.2}%
+\contentsline {figure}{\numberline {3}{\ignorespaces Závislosťová hierarchia modulov projektu \texttt {access-security} ($A \rightarrow B$: modul $A$ závisí na $B$).}}{38}{figure.3}%
+\contentsline {figure}{\numberline {4}{\ignorespaces Derivácia kľúčov z master secret cez HKDF. Každá vetva má vlastný \texttt {info} reťazec (domain separation).}}{42}{figure.4}%
+\contentsline {figure}{\numberline {5}{\ignorespaces Úspešnosť útokov podľa scenára a profilu (priemer cez 5 behov). Zelené bunky: útok zablokovaný (0\%). Červené bunky: útok úspešný.}}{52}{figure.5}%
+\contentsline {figure}{\numberline {6}{\ignorespaces Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: rozsah cez 5 behov (nulová šírka = konzistentný deterministický výsledok).}}{53}{figure.6}%
+\contentsline {figure}{\numberline {7}{\ignorespaces Počet frame od začiatku útoku do prvej karantény (len R2 profily, priemer $\pm $ std).}}{54}{figure.7}%
+\contentsline {figure}{\numberline {8}{\ignorespaces Priepustnosť pri $N=50{,}000$ frame (priemer $\pm $ std cez 5 behov) a percentily latencie.}}{55}{figure.8}%
+\contentsline {figure}{\numberline {9}{\ignorespaces Porovnanie latencie R1 (bez detektora) a R2 (s detektorom) na validných baseline frame.}}{55}{figure.9}%
+\contentsline {figure}{\numberline {10}{\ignorespaces Distribúcia latencie podľa scenára a profilu (baseline vs.\ attack fáza, $N=500$).}}{56}{figure.10}%
+\contentsline {figure}{\numberline {11}{\ignorespaces Súhrnná tabuľka výsledkov experimentov: scenár $\times $ profil.}}{59}{figure.11}%
