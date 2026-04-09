@@ -191,10 +191,11 @@
 \contentsline {subsection}{\numberline {\mbox {XXIII-C}}Popis útokových scenárov}{51}{subsection.23.3}%
 \contentsline {subsubsection}{\numberline {\mbox {XXIII-C}1}S1: Replay útok}{51}{subsubsection.23.3.1}%
 \contentsline {subsubsection}{\numberline {\mbox {XXIII-C}2}S2: Manipulácia poľa v hlavičke (AAD tampering)}{51}{subsubsection.23.3.2}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}3}S3a/S3b: Zneužitie nonce (RNG fault)}{51}{subsubsection.23.3.3}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}4}S4: Rollback sekvenčného čísla}{51}{subsubsection.23.3.4}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}5}S5: Tag probe (forgery resistance)}{51}{subsubsection.23.3.5}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}6}S6: Throughput benchmark}{51}{subsubsection.23.3.6}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}3}S3a: Overenie nonce enforcement politiky}{51}{subsubsection.23.3.3}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}4}S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation)}{51}{subsubsection.23.3.4}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}5}S4: Rollback sekvenčného čísla}{52}{subsubsection.23.3.5}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}6}S5: Tag probe (forgery resistance)}{52}{subsubsection.23.3.6}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-C}7}S6: Throughput benchmark}{52}{subsubsection.23.3.7}%
 \contentsline {subsection}{\numberline {\mbox {XXIII-D}}Metodika zberu a spracovania dát}{52}{subsection.23.4}%
 \contentsline {subsubsection}{\numberline {\mbox {XXIII-D}1}Zber dát}{52}{subsubsection.23.4.1}%
 \contentsline {subsubsection}{\numberline {\mbox {XXIII-D}2}Odvodzované metriky}{52}{subsubsection.23.4.2}%
@@ -204,24 +205,24 @@
 \contentsline {subsubsection}{\numberline {\mbox {XXIII-E}2}Závislosť od počtu útočných frame}{54}{subsubsection.23.5.2}%
 \contentsline {subsubsection}{\numberline {\mbox {XXIII-E}3}Rýchlosť karantény}{54}{figure.7}%
 \contentsline {subsection}{\numberline {\mbox {XXIII-F}}Výsledky: Baseline korektnosť}{54}{subsection.23.6}%
-\contentsline {subsection}{\numberline {\mbox {XXIII-G}}Výsledky: Latencia a priepustnosť}{54}{subsection.23.7}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-G}1}Throughput benchmark (S6)}{54}{table.20}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-G}2}Overhead detektora na baseline frame}{55}{figure.9}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-G}3}Distribúcia latencie podľa scenárov}{55}{figure.10}%
-\contentsline {subsection}{\numberline {\mbox {XXIII-H}}Diskusia a interpretácia výsledkov}{57}{subsection.23.8}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}1}Tézis 1: Deterministický nonce bez verifikácie nie je dostatočný}{57}{subsubsection.23.8.1}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}2}Tézis 2: ProtocolAnomalyDetector materiálne zvyšuje bezpečnosť}{57}{subsubsection.23.8.2}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}3}Tézis 3: Replay window a anomálna detekcia sú komplementárne}{57}{subsubsection.23.8.3}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}4}Tézis 4: AAD binding poskytuje ochranu nezávisle od režimu nonce}{57}{subsubsection.23.8.4}%
-\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}5}Tézis 5: Defense-in-depth cez karanténu}{57}{subsubsection.23.8.5}%
+\contentsline {subsection}{\numberline {\mbox {XXIII-G}}Výsledky: Latencia a priepustnosť}{55}{subsection.23.7}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-G}1}Throughput benchmark (S6)}{55}{table.20}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-G}2}Overhead detektora na baseline frame}{56}{figure.9}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-G}3}Distribúcia latencie podľa scenárov}{56}{figure.10}%
+\contentsline {subsection}{\numberline {\mbox {XXIII-H}}Diskusia a interpretácia výsledkov}{56}{subsection.23.8}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}1}Tézis 1: Nonce enforcement a HKDF izolácia ako dva piliere bezpečnosti}{56}{subsubsection.23.8.1}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}2}Tézis 2: ProtocolAnomalyDetector materiálne zvyšuje bezpečnosť}{56}{subsubsection.23.8.2}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}3}Tézis 3: Replay window a anomálna detekcia sú komplementárne}{58}{subsubsection.23.8.3}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}4}Tézis 4: AAD binding poskytuje ochranu nezávisle od režimu nonce}{58}{subsubsection.23.8.4}%
+\contentsline {subsubsection}{\numberline {\mbox {XXIII-H}5}Tézis 5: Defense-in-depth cez karanténu}{58}{subsubsection.23.8.5}%
 \contentsline {subsubsection}{\numberline {\mbox {XXIII-H}6}Tézis 6: Overhead detektora je prijateľný}{58}{subsubsection.23.8.6}%
-\contentsline {subsection}{\numberline {\mbox {XXIII-I}}Porovnanie s minimalistickými implementáciami}{58}{subsection.23.9}%
+\contentsline {subsection}{\numberline {\mbox {XXIII-I}}Porovnanie s minimalistickými implementáciami}{59}{subsection.23.9}%
 \contentsline {subsection}{\numberline {\mbox {XXIII-J}}Zhrnutie experimentov}{59}{subsection.23.10}%
 \contentsline {section}{\numberline {XXIV}Záver}{60}{section.24}%
 \contentsline {subsection}{\numberline {\mbox {XXIV-A}}Súhrn realizovaných prác}{60}{subsection.24.1}%
-\contentsline {subsection}{\numberline {\mbox {XXIV-B}}Hlavné výsledky a závery}{60}{subsection.24.2}%
+\contentsline {subsection}{\numberline {\mbox {XXIV-B}}Hlavné výsledky a závery}{61}{subsection.24.2}%
 \contentsline {subsection}{\numberline {\mbox {XXIV-C}}Splnenie cieľov práce}{61}{subsection.24.3}%
 \contentsline {subsection}{\numberline {\mbox {XXIV-D}}Otvorené otázky a obmedzenia}{61}{subsection.24.4}%
 \contentsline {subsection}{\numberline {\mbox {XXIV-E}}Možnosti rozšírenia}{62}{subsection.24.5}%
-\contentsline {subsection}{\numberline {\mbox {XXIV-F}}Záverečné zhodnotenie}{62}{subsection.24.6}%
-\contentsline {section}{References}{62}{section*.3}%
+\contentsline {subsection}{\numberline {\mbox {XXIV-F}}Záverečné zhodnotenie}{63}{subsection.24.6}%
+\contentsline {section}{References}{63}{section*.3}%

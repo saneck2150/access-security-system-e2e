@@ -5,7 +5,7 @@
 \section{Experimentálna analýza bezpečnostných profilov}
 \label{sec:experiments}
 
-Táto kapitola nadväzuje na teoretické východiská z oblastí AEAD, správy nonce, anti-replay ochrany, derivácie kľúčov a detekcie protokolových anomálií. Kým teoretická časť formulovala bezpečnostné požiadavky a model hrozieb, táto kapitola tieto požiadavky premieňa na merateľné tvrdenia a overuje ich experimentálne pomocou profilov A1/A2\,$\times$\,R0/R1/R2. Jadrom analýzy nie je všeobecná bezpečnosť celého informačného systému, ale konkrétne vyhodnotenie toho, ako voľba AEAD algoritmu, nonce stratégie a runtime detektora ovplyvňuje odolnosť voči zvoleným triedam útokov. Každý scenár (S1--S5) priamo zodpovedá jednému teoretickému konceptu: S1 overuje anti-replay, S2 AAD binding, S3 nonce enforcement, S4 sekvenčnú čerstvosť a S5 forgery resistance.
+Táto kapitola nadväzuje na teoretické východiská z oblastí AEAD, správy nonce, anti-replay ochrany, derivácie kľúčov a detekcie protokolových anomálií. Kým teoretická časť formulovala bezpečnostné požiadavky a model hrozieb, táto kapitola tieto požiadavky premieňa na merateľné tvrdenia a overuje ich experimentálne pomocou profilov A1/A2\,$\times$\,R0/R1/R2. Jadrom analýzy nie je všeobecná bezpečnosť celého informačného systému, ale konkrétne vyhodnotenie toho, ako voľba AEAD algoritmu, nonce stratégie a runtime detektora ovplyvňuje odolnosť voči zvoleným triedam útokov. Každý scenár (S1--S5) priamo zodpovedá jednému teoretickému konceptu: S1 overuje anti-replay, S2 AAD binding, S3 kryptografickú izoláciu kľúčov medzi čítačkami (HKDF), S4 sekvenčnú čerstvosť a S5 forgery resistance.
 
 Predchádzajúce kapitoly opísali návrh a implementáciu bezpečnostných mechanizmov prototypu. Cieľom tejto kapitoly je experimentálne overiť, či a ako tieto mechanizmy skutočne zvyšujú odolnosť systému voči vybraným útokovým scenárom. Experimenty sú navrhnuté tak, aby pokrývali rôzne triedy hrozieb a umožnili porovnanie šiestich konfiguračných profilov.
 
@@ -28,14 +28,15 @@ Information Disclosure & --- & HMAC(card\_id) & Ochrana identifikátorov; netest
 Denial of Service & --- & Validácia vstupov & Mimo rozsahu kryptografickej experimentálnej matice. \\
 Elevation of Privilege & --- & RBAC + binding & Pokrytá unit testami (engine\_test). \\
 Replay (nad rámec STRIDE) & S1 & ReplayWindow & Opakovanie zachyteného frame. \\
-Nonce misuse & S3a, S3b & R2 detektor & Zlyhanie RNG alebo kompromitovaná čítačka. \\
+Nonce enforcement & S3a & R2 detektor & Overenie, či R2 zachytí odchýlku od deterministického nonce invariantu. \\
+Key isolation (cross-reader) & S3b & HKDF + AEAD & Izolácia kľúčov medzi čítačkami --- frame z kontextu inej čítačky je odmietnutý. \\
 Seq. rollback & S4 & R2 detektor & Rollback sekvenčného čísla mimo sliding window. \\
 Throughput & S6 & --- & Výkonnostný overhead bezpečnostných mechanizmov. \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\noindent Scenáre S3, S4 a S6 nemajú priamu analógiu v STRIDE, ale pokrývajú hrozby špecifické pre protokoly s nonce-based AEAD: zneužitie slabého RNG, rollback sekvencie a výkonnostný dopad mechanizmov. Tieto scenáre vychádzajú z literatúry o nonce misuse a odolnosti protokolov\cite{RogawayNonceMisuse2004,BellareNonceMisuse2006}.
+\noindent Scenáre S3, S4 a S6 nemajú priamu analógiu v STRIDE, ale pokrývajú hrozby špecifické pre protokoly s per-reader deriváciou kľúčov, rollback sekvencie a výkonnostný dopad mechanizmov. S3 vychádza z princípu kryptografickej izolácie prostredníctvom HKDF\cite{RFC5869}; S4 z literatúry o nonce misuse a odolnosti protokolov\cite{RogawayNonceMisuse2004,BellareNonceMisuse2006}.
 
 \subsection{Matica konfiguračných profilov}
 \label{sec:profile_matrix}
@@ -87,7 +88,7 @@ Experimentálny harness kombinuje dva šifrovacie algoritmy s tromi režimami ge
 \subsection{Architektúra experimentálneho harnessu}
 \label{sec:harness}
 
-Experimentálny harness je implementovaný v jazyku C++ a zdieľa rovnaký kryptografický kód aj rozhodovaciu logiku (\texttt{DecisionEngine}) ako produkčný server. Tým je zaručené, že experimenty merajú skutočné správanie systému, nie simuláciu oddelenú od implementácie --- prístup odporúčaný pre verifikáciu bezpečnostných vlastností\cite{NIST80053}.
+Experimentálny harness je implementovaný v jazyku C++ a zdieľa rovnaký kryptografický kód aj rozhodovaciu logiku (\texttt{DecisionEngine}) ako produkčný server. Tým je zaručené, že experimenty merajú skutočné správanie systému, nie simuláciu oddelenú od implementácie --- prístup odporúčaný pre verifikáciu bezpečnostných vlastností\cite{NIST80053}. Harness nie je unit testom izolovanej kryptografickej funkcie ani úplným end-to-end testom vrátane siete; ide o \emph{security-oriented component test}: overuje, \emph{ako} je AEAD v systéme použité --- ako sa tvorí nonce, ako je hlavička viazaná cez AAD, ako systém reaguje na replay, rollback a odchýlky od protokolových invariantov.
 
 \subsubsection{Hlavné komponenty}
 
@@ -112,7 +113,7 @@ Každá iterácia prebieha v troch fázach:
 \subsubsection{Reprodukovateľnosť}
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
-  \item Každý beh $r$ ($r = 0\ldots4$) používa iný seed $42 + r$, čo zvyšuje vzájomnú nezávislosť behov. Režim R0 používa \texttt{SeededNonceGenerator} s týmto seed-om namiesto \texttt{randombytes\_buf()}; každý beh je individuálne reprodukovateľný opakovaním s rovnakým seed-om.
+  \item Každý beh $r$ ($r = 0\ldots4$) používa iný seed $42 + r$, čo zavádza medzibehová variabilitu pri zachovaní reprodukovateľnosti. Režim R0 používa \texttt{SeededNonceGenerator} s týmto seed-om namiesto \texttt{randombytes\_buf()}; každý beh je individuálne reprodukovateľný opakovaním s rovnakým seed-om.
   \item Čerstvý \texttt{ExperimentContext} (vrátane SQLite databázy) pre každú kombináciu (profil, step, run).
   \item CLI prepínače \texttt{--seed=N}, \texttt{--warmup=N}, \texttt{--baseline=N}, \texttt{--runs=N} umožňujú reprodukovateľné experimenty.
 \end{itemize}
@@ -140,24 +141,32 @@ Scenár zachytí validný frame v polovici baseline fázy a opakovane ho posiela
 
 \subsubsection{S2: Manipulácia poľa v hlavičke (AAD tampering)}
 
-Scenár vytvorí validný frame a následne zmení \texttt{door\_id} v serializovanej hlavičke bez prešifrovania. Tým simuluje útočníka, ktorý presmeruje požiadavku na iné dvere.
+Scenár vytvorí validný frame a následne zmení \texttt{door\_id} v binárnej serializácii hlavičky bez opätovného šifrovania payloadu. Overuje AAD binding: cieľom je zachytiť nekonzistentnosť medzi hlavičkou a payloadom na úrovni kryptografickej väzby --- nie na úrovni sieťovej vrstvy alebo aplikačného smerovania.
 
 \textit{Konfigurácia:} V harness sa podvrhnutý \texttt{door\_id} (pôvodný $+ 999$) explicitne registruje ako povolené dvere pre danú čítačku (\texttt{allowDoorForReader}). Tým sa izoluje kryptografická detekcia manipulácie od autorizačnej politiky --- bez tohto kroku by frame bol zamietnutý už na úrovni reader-door bindingu (\texttt{unknown\_reader}), čo by zakrylo správanie AEAD/AAD vrstvy.
 
 \textit{Očakávané správanie:} Keďže \texttt{door\_id} je súčasťou AAD, zmena spôsobí zlyhanie AEAD overenia. R0/R1 vracajú \texttt{decrypt\_failed}. R2 detekuje problém skôr --- zmena \texttt{door\_id} mení kontext pre deterministický nonce, takže overenie nonce zlyhá (\texttt{nonce\_mismatch}) ešte pred pokusom o dešifrovanie.
 
-\subsubsection{S3a/S3b: Zneužitie nonce (RNG fault)}
+\subsubsection{S3a: Overenie nonce enforcement politiky}
 
-Dva pod-scenáre:
+Scenár injektuje chybu do generovania nonce: \texttt{FixedNonceGenerator(0xAA)} produkuje rovnaký nonce pre každý frame bez ohľadu na kontext a sekvenciu. Cieľom je overiť, či a ako jednotlivé nonce režimy reagujú na porušenie deterministického nonce invariantu.
 
-\begin{itemize}[leftmargin=*,itemsep=2pt]
-  \item \textbf{S3a} (Fixed Nonce): Simuluje zlyhanie RNG --- všetky frame používajú rovnaký nonce (0xAA). Frame je zašifrovaný s týmto nonce a nonce je zapísaný do hlavičky.
-  \item \textbf{S3b} (Wrong Nonce): Simuluje kompromitovanú čítačku --- útočníkove frame sú generované s pevným seed 43 (odlišným od legitímnych behov), čo produkuje validné, ale neočakávané nonce.
-\end{itemize}
+\textit{Očakávané správanie:} R0/R1 nemajú verifikáciu nonce --- engine použije nonce z hlavičky frame na dešifrovanie bez ďalšej kontroly. AEAD dešifrovanie uspeje (kľúč je správny, nonce je len vstupný parameter). R2 rekonštruuje očakávaný nonce z rovnakého kľúča a kontextu a porovná ho s hodnotou v hlavičke; pri nesúlade vyvolá \texttt{nonce\_mismatch} s okamžitou karanténou.
 
-\textit{Očakávané správanie:} R0/R1 nemajú mechanizmus na overenie nonce --- frame sa úspešne dešifruje (nonce z hlavičky sa použije na dešifrovanie). R2 porovná nonce s očakávanou hodnotou a pri nesúlade vyvolá \texttt{nonce\_mismatch} s okamžitou karanténou.
+\textit{Prečo je tento test dôležitý:} S3a je jediný scenár, ktorý priamo testuje \textbf{nonce enforcement} --- odlišuje R0/R1 od R2 práve v kontexte nonce politiky (S4 odlišuje R0/R1 od R2 cez seq rollback detekciu, nie nonce). V aktuálnom jednoserverovom nasadení generátor aj verifikátor nonce zdieľajú ten istý \texttt{KeyManager} --- za normálnych okolností k odchýlke nedôjde. Avšak ak systém v budúcnosti prejde na distribuovanú architektúru (viacero serverov, oddelené generovanie a verifikácia frame, multi-process nasadenie), vynucovaná nonce politika sa stáva kritickou bezpečnostnou poistkou. R2 zabezpečuje, že štrukturálne zmeny v nasadení nenaruší garanciu unikátnosti nonce bez povšimnutia\cite{RogawayNonceMisuse2004}.
 
-\textit{Kľúčový detail:} R1 používa deterministický nonce na strane odosielateľa, ale server ho neoveruje --- overenie je architektonicky viazané na \texttt{ProtocolAnomalyDetector}, ktorý je aktívny len v R2. Toto je zámerné rozhodnutie v návrhu.
+\subsubsection{S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation)}
+
+Komponentový validačný scenár overuje, že frame vytvorený v kľúčovom kontexte jednej čítačky nemožno úspešne overiť v kontexte inej čítačky. Nejde o simuláciu aktuálneho produkčného HTTP toku zariadenia (čítačka v produkcii nekonštruuje AEAD frame), ale o overenie izolačných vlastností HKDF per-reader derivácie v AEAD vrstve.
+
+HKDF\cite{RFC5869} derivuje unikátny kľúč pre každú čítačku:
+\begin{equation}
+K_{\text{aead}}^{(r)} = \text{HKDF}(\text{master}, \; \text{salt}=\text{reader\_id} \| \text{key\_version}, \; \text{info}=\text{``access-aead-v1''})
+\end{equation}
+
+\textit{Postup:} Harness zašifruje frame kľúčom čítačky~2 ($K_{\text{aead}}^{(2)}$), ale hlavičku frame podvrhne tak, aby obsahovala \texttt{reader\_id}=1. Engine parsuje hlavičku, derivuje kľúč pre čítačku~1 ($K_{\text{aead}}^{(1)}$) a pokúsi sa o AEAD dešifrovanie. Zlyhanie je dvojnásobné: kľúč aj AAD sú nekonzistentné so šifrovaným obsahom.
+
+\textit{Očakávané správanie:} Všetky profily odmietajú 100\% útočných frame (\texttt{decrypt\_failed}). R2 navyše detekuje nonce anomáliu okamžite (nonce bol derivovaný z kontextu čítačky~2) --- \texttt{nonce\_mismatch} vedie ku karanténe od prvého frame. Kľúčový záver: HKDF per-reader derivácia poskytuje kryptografickú izoláciu (compartmentalization) --- kompromitácia jednej čítačky neohrozí ostatné.
 
 \subsubsection{S4: Rollback sekvenčného čísla}
 
@@ -175,7 +184,7 @@ kde $W = 256$ je veľkosť replay window a $\delta = 100$ je rollback threshold.
 
 \subsubsection{S5: Tag probe (forgery resistance)}
 
-Scenár vytvorí validný frame a následne poškodí ciphertext náhodnými bajtami. Simuluje útočníka, ktorý skúša rôzne šifrotexty bez znalosti kľúča --- formálne ide o test odolnosti AEAD konštrukcie voči forgery\cite{RFC5116}.
+Scenár vytvorí validný frame a následne poškodí ciphertext náhodnými bajtami. Overuje, či AEAD tag verifikácia zachytí poškodenú šifrovanú časť frame --- formálne ide o test odolnosti použitia AEAD voči forgery pokusom\cite{RFC5116}. Nejde o modelovanie externého útočníka, ktorý posiela ciphertext po sieti; frame je interná štruktúra servera. Scenár testuje správanie overenia tagu pri chybnom alebo zámernom poškodení v rámci spracovacej cesty.
 
 \textit{Očakávané správanie:} AEAD overenie zlyhá pre všetky profily (\texttt{decrypt\_failed}). R2 navyše sleduje sériu zlyhaní a po dosiahnutí limitu 5 zakaranténuje čítačku s anomáliou \texttt{tag\_fail\_streak}.
 
@@ -240,18 +249,19 @@ Obrázok~\ref{fig:heatmap} zobrazuje úspešnosť útokov pre všetky kombináci
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item \textbf{S1, S2, S5} --- pri žiadnom profile nedošlo k prijatiu škodlivého frame (0\% úspešnosť). Ochranu zabezpečuje replay window (S1), AAD binding (S2) a AEAD tag verifikácia (S5).
-  \item \textbf{S3a, S3b} --- R0/R1 nepresadzujú nonce politiku: manipulovaný nonce prejde overením (100\% úspešnosť); R2 detektor odchýlku zachytí a zakaranténuje (0\%).
+  \item \textbf{S3a} --- nonce enforcement: R0/R1 prepustia frame s chybným nonce (100\%); R2 odchýlku zachytí a zakaranténuje (0\%).
+  \item \textbf{S3b} --- cross-reader key isolation: žiadny profil neprijal frame z kontextu inej čítačky (0\%); R2 karanténuje od prvého frame.
   \item \textbf{S4} --- R0/R1 čiastočne zraniteľné (11\%), R2 blokuje (0\%).
 \end{itemize}
 
 \subsubsection{Závislosť od počtu útočných frame}
 
-Obrázok~\ref{fig:by_n} zobrazuje ako sa úspešnosť útoku mení s rastúcim $N$. Pásma zobrazujú rozsah výsledkov cez 5 behov; nulová šírka pásiem potvrdzuje konzistentnosť výsledkov naprieč všetkými behmi.
+Obrázok~\ref{fig:by_n} zobrazuje ako sa úspešnosť útoku mení s rastúcim $N$. Pásma zobrazujú 95\% interval spoľahlivosti cez 5 behov; nulová šírka pásiem potvrdzuje konzistentnosť výsledkov naprieč všetkými behmi.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{plots/attack_success_by_n.png}
-\caption{Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: rozsah cez 5 behov (nulová šírka = konzistentný deterministický výsledok).}
+\caption{Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: 95\% CI cez 5 behov (nulová šírka = konzistentný deterministický výsledok).}
 \label{fig:by_n}
 \end{figure}
 
@@ -266,7 +276,7 @@ Obrázok~\ref{fig:by_n} zobrazuje ako sa úspešnosť útoku mení s rastúcim $
 \label{fig:quarantine}
 \end{figure}
 
-Obrázok~\ref{fig:quarantine} ukazuje, že pre scenáre S1--S4 nastáva karanténa \emph{na prvom útočnom frame} (frame\_idx = 0). Pre S5 (tag probe) nastáva na frame\_idx = 4, čo zodpovedá nakonfigurovanému limitu \texttt{tag\_fail\_streak} = 5 (prvých 5 zlyhaní je tolerovaných, 5. spustí karanténu). Hodnoty A1--R2 a A2--R2 sú identické, čo potvrdzuje, že rýchlosť detekcie závisí od konfigurácie detektora, nie od zvoleného šifrovacieho algoritmu.
+Obrázok~\ref{fig:quarantine} ukazuje, že pre scenáre S1--S4 nastáva karanténa \emph{na prvom útočnom frame} (frame\_idx = 0). Pre S5 (tag probe) nastáva na frame\_idx = 4, čo zodpovedá nakonfigurovanému limitu \texttt{tag\_fail\_streak\_limit} = 5 (prvé 4 zlyhania sú tolerované; 5.\ zlyhanie aktivuje karanténu). Hodnoty A1--R2 a A2--R2 sú identické, čo potvrdzuje, že rýchlosť detekcie závisí od konfigurácie detektora, nie od zvoleného šifrovacieho algoritmu.
 
 \subsection{Výsledky: Baseline korektnosť}
 \label{sec:results_baseline}
@@ -289,11 +299,11 @@ Obrázok~\ref{fig:quarantine} ukazuje, že pre scenáre S1--S4 nastáva karanté
 
 \input{plots/throughput_table}
 
-\noindent Obrázok~\ref{fig:throughput} zobrazuje distribúciu priepustnosti pre každý profil. Všetky profily dosahujú priepustnosť nad 16{,}000 frame/s, čo je rádovo viac ako reálna záťaž fyzického prístupového systému ($<$10 udalostí/s). Mediánová latencia je 56--63\,$\mu$s.
+\noindent Obrázok~\ref{fig:throughput} zobrazuje distribúciu priepustnosti pre každý profil. Všetky profily dosahujú priepustnosť nad 5{,}000 frame/s, čo je rádovo viac ako reálna záťaž fyzického prístupového systému ($<$10 udalostí/s). Mediánová latencia je 142--188\,$\mu$s.
 
 \textbf{Porovnanie algoritmov:} A2 (XChaCha20) dosahuje mierne vyššiu priepustnosť ako A1 (ChaCha20), čo je prekvapivý výsledok. Príčinou je pravdepodobne optimalizácia libsodium pre XChaCha20 cestu.
 
-\textbf{Overhead detektora:} Porovnanie R1 a R2 umožňuje izolovať overhead \texttt{ProtocolAnomalyDetector}. Rozdiel je 5--10\% (napr. A2--R1: 17{,}562~fps vs.\ A2--R2: 16{,}120~fps). Tento overhead pochádza z:
+\textbf{Overhead detektora:} Porovnanie R1 a R2 umožňuje izolovať overhead \texttt{ProtocolAnomalyDetector}. Rozdiel je ${\sim}19\%$ (A2--R1: 6{,}720~fps vs.\ A2--R2: 5{,}462~fps). Tento overhead pochádza z:
 \begin{itemize}[leftmargin=*,itemsep=1pt]
   \item výpočtu očakávaného nonce (HKDF derivácia + HMAC),
   \item porovnania nonce v konštantnom čase (\texttt{sodium\_memcmp}),
@@ -309,7 +319,7 @@ Obrázok~\ref{fig:quarantine} ukazuje, že pre scenáre S1--S4 nastáva karanté
 \label{fig:overhead}
 \end{figure}
 
-\noindent Obrázok~\ref{fig:overhead} izoluje overhead detektora porovnaním R1 a R2 na baseline frame z S1--S5. Medián latencie R2 je o ${\sim}3$--$5\,\mu$s vyšší, čo zodpovedá dodatočnému HMAC výpočtu pre overenie nonce.
+\noindent Obrázok~\ref{fig:overhead} izoluje overhead detektora porovnaním R1 a R2 na baseline frame z S1--S5. Medián latencie R2 je o ${\sim}35\,\mu$s vyšší, čo zodpovedá dodatočnej HKDF derivácii nonce kľúča, HMAC výpočtu pre overenie nonce a aktualizácii stavu detektora.
 
 \subsubsection{Distribúcia latencie podľa scenárov}
 
@@ -325,32 +335,27 @@ Obrázok~\ref{fig:quarantine} ukazuje, že pre scenáre S1--S4 nastáva karanté
 \subsection{Diskusia a interpretácia výsledkov}
 \label{sec:discussion}
 
-\subsubsection{Tézis 1: Deterministický nonce bez verifikácie nie je dostatočný}
+\subsubsection{Tézis 1: Nonce enforcement a HKDF izolácia ako dva piliere bezpečnosti}
 
-Výsledky S3a/S3b ukazujú, že R1 (deterministický nonce bez detektora) poskytuje \textbf{rovnakú detekčnú schopnosť ako R0} (náhodný nonce) v testovaných scenároch zneužitia nonce. R1 síce eliminuje závislosť na kvalite generátora náhodných čísel --- čo je vlastnosť cenná sama o sebe --- ale bez serverovej verifikácie neposkytuje aktívnu detekciu manipulácie nonce. Príčina je architektonická: verifikácia nonce na serveri (\texttt{engine.cpp}, riadok 226) vyžaduje aktívny \texttt{ProtocolAnomalyDetector}:
+\textbf{S3a --- nonce enforcement:} R0/R1 nemajú verifikáciu nonce; frame s chybným nonce prejde so 100\% úspešnosťou. R2 rekonštruuje očakávaný nonce a pri nesúlade okamžite zakaranténuje čítačku (0\% úspešnosť). S3a je jediný scenár, kde sa R0/R1 a~R2 správajú zásadne odlišne. V~aktuálnom jednoserverovom nasadení generátor a~verifikátor nonce zdieľajú ten istý \texttt{KeyManager} --- odchýlka nemôže nastať za normálnych okolností. Ak však systém prejde na distribuovanú architektúru (viacero serverov, oddelené generovanie a~verifikácia), vynucovaná nonce politika sa stáva kritickou poistkou proti tichému porušeniu unikátnosti nonce\cite{RogawayNonceMisuse2004}.
 
-\begin{verbatim}
-if (detectorActive && nonceMode == "deterministic") {
-    // compute expected nonce, compare...
-}
-\end{verbatim}
+\textbf{S3b --- HKDF key isolation:} HKDF\cite{RFC5869} derivuje unikátny AEAD kľúč pre každú kombináciu (reader\_id, key\_version). Žiadny profil neprijal ani jeden cross-reader frame (0\% úspešnosť). R2 reaguje okamžitou karanténou (nonce kontextový nesúlad), R0/R1 odmietajú individuálne (decrypt\_failed).
 
-\noindent Keď je \texttt{detectorActive = false} (R0, R1), server použije nonce z hlavičky na dešifrovanie bez akejkoľvek kontroly. Deterministický nonce je teda \emph{politika generovania} bez \emph{mechanizmu vynucovania}. Tento výsledok nie je artefakt experimentu --- je to vlastnosť architektúry, ktorá platí aj v produkčnom nasadení.
-
-\textbf{Záver:} Deterministický nonce (R1) zlepšuje \emph{kvalitu generovania} nonce odstránením závislosti na RNG, no bez serverovej verifikácie nezvyšuje \emph{detekčnú schopnosť} systému voči zneužitiu nonce. Pre aktívnu detekciu manipulácie je nevyhnutná kombinácia deterministického generovania s verifikáciou na prijímacej strane (R2). Toto zistenie korešponduje s výskumom nonce-misuse resistance\cite{RogawayNonceMisuse2004,BellareNonceMisuse2006}, kde autori zdôrazňujú, že bezpečnosť závisí od celého kontextu použitia, nie len od samotnej konštrukcie nonce.
+\textbf{Záver:} S3a a~S3b testujú dve komplementárne osi bezpečnosti. Nonce enforcement (S3a) diferencuje nonce režimy a~zabezpečuje škálovateľnosť; HKDF izolácia (S3b) zabezpečuje compartmentalization medzi čítačkami nezávisle od nonce režimu.
 
 \subsubsection{Tézis 2: ProtocolAnomalyDetector materiálne zvyšuje bezpečnosť}
 
-R2 profily dosiahli 0\% úspešnosť útoku naprieč všetkými piatimi testovanými scenármi. V scenároch S3 a S4 bol R2 \textbf{jediným z testovaných mechanizmov}, ktorý útok zastavil:
+R2 profily dosiahli 0\% úspešnosť útoku naprieč všetkými testovanými scenármi. V scenároch S3a a S4 bol R2 \textbf{jediným z testovaných mechanizmov}, ktorý útok zastavil:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
-  \item S3a/S3b: 100\% $\rightarrow$ 0\% (nonce\_mismatch detekcia),
+  \item S3a: nonce enforcement --- R0/R1 prepustia 100\%, R2 zachytí a zakaranténuje (0\%),
+  \item S3b: cross-reader --- všetky profily blokujú (HKDF izolácia), R2 navyše karanténuje od prvého frame,
   \item S4: 11\% $\rightarrow$ 0\% (seq\_rollback detekcia).
 \end{itemize}
 
 \noindent V S1, S2 a S5 iné mechanizmy (replay window, AAD, AEAD tag verifikácia) tiež zamietajú škodlivé frame, ale R2 pridáva \emph{karanténu} --- čítačka je zablokovaná pre ďalšie požiadavky, nielen odmietnutý jednotlivý frame.
 
-\textbf{Záver:} \texttt{ProtocolAnomalyDetector} nie je len doplnok k existujúcim mechanizmom. V dvoch z piatich testovaných útokových scenárov bol jedinou testovanou ochranou.
+\textbf{Záver:} \texttt{ProtocolAnomalyDetector} nie je len doplnok k existujúcim mechanizmom. V~dvoch z~piatich testovaných útokových scenárov (S3a, S4) bol jedinou testovanou ochranou; v~S3b a~S5 pridáva operačnú eskaláciu (karanténu) k~existujúcemu kryptografickému odmietnutiu.
 
 \subsubsection{Tézis 3: Replay window a anomálna detekcia sú komplementárne}
 
@@ -394,11 +399,11 @@ Aj v scenároch, kde R0/R1 blokujú každý individuálny útočný frame (S1, S
 
 Tabuľka~\ref{tab:throughput} ukazuje overhead detektora:
 \begin{itemize}[leftmargin=*,itemsep=1pt]
-  \item A1: R1 (16{,}014~fps) $\rightarrow$ R2 (15{,}154~fps): $-5.4\%$
-  \item A2: R1 (17{,}015~fps) $\rightarrow$ R2 (15{,}306~fps): $-10.0\%$
+  \item A1: R1 (6{,}389~fps) $\rightarrow$ R2 (5{,}188~fps): $-18.8\%$
+  \item A2: R1 (6{,}720~fps) $\rightarrow$ R2 (5{,}462~fps): $-18.7\%$
 \end{itemize}
 
-\noindent Aj pri najnižšej nameranej priepustnosti (A1--R0: 14{,}284~fps) systém spracuje $>$14{,}000 frame/s. Fyzický prístupový systém typicky generuje menej ako 10 udalostí za sekundu. Overhead detektora je teda rádovo nepodstatný pre reálnu prevádzku.
+\noindent Aj pri najnižšej nameranej priepustnosti (A1--R2: 5{,}188~fps) systém spracuje $>$5{,}000 frame/s. Fyzický prístupový systém typicky generuje menej ako 10 udalostí za sekundu. Overhead detektora (${\sim}19\%$) je teda rádovo nepodstatný pre reálnu prevádzku, hoci nie je zanedbateľný a mal by byť zohľadnený pri nasadení s~vyššou záťažou.
 
 \medskip
 \noindent\textbf{Poznámka k porovnaniu A1 a A2.}
@@ -435,7 +440,8 @@ Uvažujeme tri referenčné úrovne ochrany:
 \midrule
 S1 Replay           & \texttimes & \texttimes  & \checkmark & \checkmark{} + karanténa \\
 S2 Tampering (AAD)  & \texttimes & čiastočne   & \checkmark & \checkmark{} (pred dekr.) \\
-S3 Nonce misuse     & n/a        & n/a         & \texttimes & \checkmark \\
+S3a Nonce enforcement & n/a        & n/a         & \texttimes & \checkmark \\
+S3b Cross-reader     & \texttimes & \texttimes  & \checkmark & \checkmark{} + karanténa \\
 S4 Seq rollback     & \texttimes & \texttimes  & čiastočne  & \checkmark \\
 S5 Tag probe        & \texttimes & \texttimes  & \checkmark & \checkmark{} + karanténa \\
 Manipulácia auditu  & \texttimes & \texttimes  & \checkmark & \checkmark \\
@@ -444,7 +450,7 @@ Identita karty (DB) & \texttimes & \texttimes  & \checkmark{} (HMAC) & \checkmar
 \end{tabular}
 \end{table}
 
-Z~tabuľky vyplývajú tri závery. Po prvé, prechod z~B0 na A1-R0 predstavuje kvalitatívny skok: väčšina útočných scenárov (S1, S2, S5, audit, identita) je zastavená bez nutnosti nasadiť R2. Po druhé, S3 (nonce misuse) a~plná ochrana pri S4 vyžadujú R2 detektor --- jednoduché AEAD bez serverovej verifikácie nonce nestačí. Po tretie, karanténa v~R2 profiloch mení charakter odpovede systému z~per-frame odmietania na izoláciu celého zariadenia, čo je realizáciou princípu \emph{defense-in-depth}\cite{DefenseInDepth,NIST80053}.
+Z~tabuľky vyplývajú tri závery. Po prvé, prechod z~B0 na A1-R0 predstavuje kvalitatívny skok: väčšina útočných scenárov (S1, S2, S3, S5, audit, identita) je zastavená bez nutnosti nasadiť R2. Po druhé, plná ochrana pri S4 vyžaduje R2 detektor --- jednoduché AEAD bez anomálnej detekcie nestačí na detekciu seq rollback. Po tretie, karanténa v~R2 profiloch mení charakter odpovede systému z~per-frame odmietania na izoláciu celého zariadenia, čo je realizáciou princípu \emph{defense-in-depth}\cite{DefenseInDepth,NIST80053}.
 
 B1 (HTTPS bez interného AEAD) chráni pred pasívnym odpočúvačom na sieťovej vrstve, no nevyrieši scenáre, kde je komunikácia legitimná na transportnej vrstve ale manipulovaná na aplikačnej --- presne to, čo demonštrujú S1--S5. Interný AEAD frame a~anti-replay sú teda komplementárne k~TLS, nie jeho náhradou\cite{RFC9325}.
 
@@ -461,12 +467,12 @@ B1 (HTTPS bez interného AEAD) chráni pred pasívnym odpočúvačom na sieťove
 
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
   \item \textbf{Nulová false reject rate:} Žiadny validný frame nebol zamietnutý žiadnym profilom.
-  \item \textbf{Deterministický nonce bez verifikácie nezvyšuje detekciu:} R1 zlepšuje kvalitu generovania nonce, ale bez serverovej verifikácie neposkytuje pridanú detekčnú schopnosť oproti R0.
-  \item \textbf{R2 zablokoval všetky testované útoky:} 0\% úspešnosť naprieč S1--S5 v rámci tejto experimentálnej sady.
+  \item \textbf{Nonce enforcement a HKDF izolácia (S3a/S3b):} S3a ukazuje, že R2 ako jediný vynucuje nonce politiku --- poistka pre budúce škálovanie. S3b potvrdzuje, že HKDF per-reader derivácia izoluje kľúčový materiál medzi čítačkami naprieč všetkými profilmi.
+  \item \textbf{R2 zablokoval všetky testované scenáre:} 0\% úspešnosť naprieč S1--S5 v~rámci tejto experimentálnej sady (vrátane S3a, ktorý je komponentovou validáciou nonce mechanizmu, nie simuláciou externého útoku).
   \item \textbf{Replay window a detektor sú komplementárne:} S4 odhaľuje štruktúrnu medzeru replay window, ktorú detektor uzatvára.
   \item \textbf{AAD binding je fundamentálna ochrana:} Funguje nezávisle od nonce režimu.
   \item \textbf{Karanténa pridáva proaktívnu izoláciu zariadení:} Kvalitativne odlišná od per-frame odmietnutia.
-  \item \textbf{Overhead detektora je $<$10\%:} Rádovo nepodstatný pre reálnu prevádzku prístupového systému.
+  \item \textbf{Overhead detektora (${\sim}19\%$):} Pri reálnej záťaži prístupového systému ($<$10 udalostí/s) rádovo nepodstatný; pri vyššej záťaži by mal byť zohľadnený.
   \item \textbf{Výsledky sú reprodukovateľné:} Všetkých 5 behov (seedy 42--46) poskytlo zhodné výsledky attack success rate. Bezpečnostné mechanizmy sú invariantné voči hodnotám nonce --- 5 behov tu neplní úlohu štatistického vzorku, ale overenia konzistencie výsledkov.
 \end{enumerate}
 

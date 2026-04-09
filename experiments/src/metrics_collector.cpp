@@ -36,7 +36,7 @@ void MetricsCollector::append(const MetricRow& row) {
          << (row.quarantined ? "true" : "false") << ','
          << row.anomalyType << ','
          << row.latencyNs << ','
-         << _seed << ','
+         << (_seed + row.runIdx) << ','
          << row.runIdx << '\n';
 }
 

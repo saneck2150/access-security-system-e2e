@@ -293,11 +293,11 @@
 \citation{FIPS1981}
 \citation{RFC2104}
 \citation{OWASPAPI2023}
-\citation{XChaChaDraft}
-\citation{LibsodiumXChaChaDoc}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXI-F}}Poznámka k implementačným rozhodnutiam a k ďalšiemu spracovaniu textu}{40}{subsection.21.6}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXI-G}}Autentifikácia hardvérovej požiadavky}{40}{subsection.21.7}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXI-H}}AEAD šifrovanie interného frame}{40}{subsection.21.8}\protected@file@percent }
+\citation{XChaChaDraft}
+\citation{LibsodiumXChaChaDoc}
 \citation{RFC8439}
 \citation{Bernstein2012}
 \citation{LibsodiumXChaChaDoc}
@@ -358,6 +358,7 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXII-E}}Záver verifikácie}{48}{subsection.22.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {XXIII}Experimentálna analýza bezpečnostných profilov}{48}{section.23}\protected@file@percent }
 \newlabel{sec:experiments}{{XXIII}{48}{Experimentálna analýza bezpečnostných profilov}{section.23}{}}
+\citation{RFC5869}
 \citation{RogawayNonceMisuse2004}
 \citation{BellareNonceMisuse2006}
 \citation{RFC8439}
@@ -376,15 +377,18 @@
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-B}3}Reprodukovateľnosť}{50}{subsubsection.23.2.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-B}4}Vzťah harnessu k produkčnému systému}{50}{subsubsection.23.2.4}\protected@file@percent }
 \citation{NIST80098}
-\citation{RFC5116}
+\citation{RogawayNonceMisuse2004}
+\citation{RFC5869}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-C}}Popis útokových scenárov}{51}{subsection.23.3}\protected@file@percent }
 \newlabel{sec:scenarios}{{\mbox  {XXIII-C}}{51}{Popis útokových scenárov}{subsection.23.3}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}1}S1: Replay útok}{51}{subsubsection.23.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}2}S2: Manipulácia poľa v hlavičke (AAD tampering)}{51}{subsubsection.23.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}3}S3a/S3b: Zneužitie nonce (RNG fault)}{51}{subsubsection.23.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}4}S4: Rollback sekvenčného čísla}{51}{subsubsection.23.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}5}S5: Tag probe (forgery resistance)}{51}{subsubsection.23.3.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}6}S6: Throughput benchmark}{51}{subsubsection.23.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}3}S3a: Overenie nonce enforcement politiky}{51}{subsubsection.23.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}4}S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation)}{51}{subsubsection.23.3.4}\protected@file@percent }
+\citation{RFC5116}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}5}S4: Rollback sekvenčného čísla}{52}{subsubsection.23.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}6}S5: Tag probe (forgery resistance)}{52}{subsubsection.23.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-C}7}S6: Throughput benchmark}{52}{subsubsection.23.3.7}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-D}}Metodika zberu a spracovania dát}{52}{subsection.23.4}\protected@file@percent }
 \newlabel{sec:methodology}{{\mbox  {XXIII-D}}{52}{Metodika zberu a spracovania dát}{subsection.23.4}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-D}1}Zber dát}{52}{subsubsection.23.4.1}\protected@file@percent }
@@ -393,65 +397,68 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-E}}Výsledky: Úspešnosť útokov}{52}{subsection.23.5}\protected@file@percent }
 \newlabel{sec:results_attacks}{{\mbox  {XXIII-E}}{52}{Výsledky: Úspešnosť útokov}{subsection.23.5}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-E}1}Celkový prehľad}{52}{subsubsection.23.5.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Úspešnosť útokov podľa scenára a profilu (priemer cez 5 behov). Zelené bunky: útok zablokovaný (0\%). Červené bunky: útok úspešný.}}{52}{figure.5}\protected@file@percent }
-\newlabel{fig:heatmap}{{5}{52}{Úspešnosť útokov podľa scenára a profilu (priemer cez 5 behov). Zelené bunky: útok zablokovaný (0\%). Červené bunky: útok úspešný}{figure.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Úspešnosť útokov podľa scenára a profilu (priemer cez 5 behov). Zelené bunky: útok zablokovaný (0\%). Červené bunky: útok úspešný.}}{53}{figure.5}\protected@file@percent }
+\newlabel{fig:heatmap}{{5}{53}{Úspešnosť útokov podľa scenára a profilu (priemer cez 5 behov). Zelené bunky: útok zablokovaný (0\%). Červené bunky: útok úspešný}{figure.5}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {18}{\ignorespaces Attack success rate and detector response by scenario and profile}}{53}{table.18}\protected@file@percent }
 \newlabel{tab:scenario-summary}{{18}{53}{Attack success rate and detector response by scenario and profile}{table.18}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: rozsah cez 5 behov (nulová šírka = konzistentný deterministický výsledok).}}{53}{figure.6}\protected@file@percent }
-\newlabel{fig:by_n}{{6}{53}{Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: rozsah cez 5 behov (nulová šírka = konzistentný deterministický výsledok)}{figure.6}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-E}2}Závislosť od počtu útočných frame}{54}{subsubsection.23.5.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Počet frame od začiatku útoku do prvej karantény (len R2 profily, priemer $\pm $ std).}}{54}{figure.7}\protected@file@percent }
-\newlabel{fig:quarantine}{{7}{54}{Počet frame od začiatku útoku do prvej karantény (len R2 profily, priemer $\pm $ std)}{figure.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: 95\% CI cez 5 behov (nulová šírka = konzistentný deterministický výsledok).}}{54}{figure.6}\protected@file@percent }
+\newlabel{fig:by_n}{{6}{54}{Závislosť úspešnosti útoku od počtu útočných frame $N$. Pásma: 95\% CI cez 5 behov (nulová šírka = konzistentný deterministický výsledok)}{figure.6}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-E}3}Rýchlosť karantény}{54}{figure.7}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-F}}Výsledky: Baseline korektnosť}{54}{subsection.23.6}\protected@file@percent }
 \newlabel{sec:results_baseline}{{\mbox  {XXIII-F}}{54}{Výsledky: Baseline korektnosť}{subsection.23.6}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {19}{\ignorespaces False reject rate during baseline (valid frames)}}{54}{table.19}\protected@file@percent }
 \newlabel{tab:baseline}{{19}{54}{False reject rate during baseline (valid frames)}{table.19}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-G}}Výsledky: Latencia a priepustnosť}{54}{subsection.23.7}\protected@file@percent }
-\newlabel{sec:results_throughput}{{\mbox  {XXIII-G}}{54}{Výsledky: Latencia a priepustnosť}{subsection.23.7}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-G}1}Throughput benchmark (S6)}{54}{table.20}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Počet frame od začiatku útoku do prvej karantény (len R2 profily, priemer $\pm $ std).}}{55}{figure.7}\protected@file@percent }
+\newlabel{fig:quarantine}{{7}{55}{Počet frame od začiatku útoku do prvej karantény (len R2 profily, priemer $\pm $ std)}{figure.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-G}}Výsledky: Latencia a priepustnosť}{55}{subsection.23.7}\protected@file@percent }
+\newlabel{sec:results_throughput}{{\mbox  {XXIII-G}}{55}{Výsledky: Latencia a priepustnosť}{subsection.23.7}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Priepustnosť pri $N=50{,}000$ frame (priemer $\pm $ std cez 5 behov) a percentily latencie.}}{55}{figure.8}\protected@file@percent }
 \newlabel{fig:throughput}{{8}{55}{Priepustnosť pri $N=50{,}000$ frame (priemer $\pm $ std cez 5 behov) a percentily latencie}{figure.8}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {20}{\ignorespaces Throughput and latency at N=50,000 frames}}{55}{table.20}\protected@file@percent }
 \newlabel{tab:throughput}{{20}{55}{Throughput and latency at N=50,000 frames}{table.20}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Porovnanie latencie R1 (bez detektora) a R2 (s detektorom) na validných baseline frame.}}{55}{figure.9}\protected@file@percent }
-\newlabel{fig:overhead}{{9}{55}{Porovnanie latencie R1 (bez detektora) a R2 (s detektorom) na validných baseline frame}{figure.9}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-G}2}Overhead detektora na baseline frame}{55}{figure.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-G}3}Distribúcia latencie podľa scenárov}{55}{figure.10}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Distribúcia latencie podľa scenára a profilu (baseline vs.\ attack fáza, $N=500$).}}{56}{figure.10}\protected@file@percent }
-\newlabel{fig:latency}{{10}{56}{Distribúcia latencie podľa scenára a profilu (baseline vs.\ attack fáza, $N=500$)}{figure.10}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-G}1}Throughput benchmark (S6)}{55}{table.20}\protected@file@percent }
 \citation{RogawayNonceMisuse2004}
-\citation{BellareNonceMisuse2006}
+\citation{RFC5869}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Porovnanie latencie R1 (bez detektora) a R2 (s detektorom) na validných baseline frame.}}{56}{figure.9}\protected@file@percent }
+\newlabel{fig:overhead}{{9}{56}{Porovnanie latencie R1 (bez detektora) a R2 (s detektorom) na validných baseline frame}{figure.9}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-G}2}Overhead detektora na baseline frame}{56}{figure.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-G}3}Distribúcia latencie podľa scenárov}{56}{figure.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-H}}Diskusia a interpretácia výsledkov}{56}{subsection.23.8}\protected@file@percent }
+\newlabel{sec:discussion}{{\mbox  {XXIII-H}}{56}{Diskusia a interpretácia výsledkov}{subsection.23.8}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}1}Tézis 1: Nonce enforcement a HKDF izolácia ako dva piliere bezpečnosti}{56}{subsubsection.23.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}2}Tézis 2: ProtocolAnomalyDetector materiálne zvyšuje bezpečnosť}{56}{subsubsection.23.8.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Distribúcia latencie podľa scenára a profilu (baseline vs.\ attack fáza, $N=500$).}}{57}{figure.10}\protected@file@percent }
+\newlabel{fig:latency}{{10}{57}{Distribúcia latencie podľa scenára a profilu (baseline vs.\ attack fáza, $N=500$)}{figure.10}{}}
 \citation{NIST80053}
 \citation{DefenseInDepth}
 \citation{DefenseInDepth}
 \citation{NIST80094}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-H}}Diskusia a interpretácia výsledkov}{57}{subsection.23.8}\protected@file@percent }
-\newlabel{sec:discussion}{{\mbox  {XXIII-H}}{57}{Diskusia a interpretácia výsledkov}{subsection.23.8}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}1}Tézis 1: Deterministický nonce bez verifikácie nie je dostatočný}{57}{subsubsection.23.8.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}2}Tézis 2: ProtocolAnomalyDetector materiálne zvyšuje bezpečnosť}{57}{subsubsection.23.8.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}3}Tézis 3: Replay window a anomálna detekcia sú komplementárne}{57}{subsubsection.23.8.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}4}Tézis 4: AAD binding poskytuje ochranu nezávisle od režimu nonce}{57}{subsubsection.23.8.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}5}Tézis 5: Defense-in-depth cez karanténu}{57}{subsubsection.23.8.5}\protected@file@percent }
 \citation{LibsodiumDoc}
 \citation{Bernstein2012}
 \citation{OpenSSL}
 \citation{BoringSSL}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}3}Tézis 3: Replay window a anomálna detekcia sú komplementárne}{58}{subsubsection.23.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}4}Tézis 4: AAD binding poskytuje ochranu nezávisle od režimu nonce}{58}{subsubsection.23.8.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}5}Tézis 5: Defense-in-depth cez karanténu}{58}{subsubsection.23.8.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}6}Tézis 6: Overhead detektora je prijateľný}{58}{subsubsection.23.8.6}\protected@file@percent }
 \citation{DefenseInDepth}
 \citation{NIST80053}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {XXIII-H}6}Tézis 6: Overhead detektora je prijateľný}{58}{subsubsection.23.8.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-I}}Porovnanie s minimalistickými implementáciami}{58}{subsection.23.9}\protected@file@percent }
-\newlabel{sec:baseline_comparison}{{\mbox  {XXIII-I}}{58}{Porovnanie s minimalistickými implementáciami}{subsection.23.9}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {21}{\ignorespaces Odolnosť voči útočným scenárom podľa úrovne implementácie}}{58}{table.21}\protected@file@percent }
-\newlabel{tab:baseline_comparison}{{21}{58}{Odolnosť voči útočným scenárom podľa úrovne implementácie}{table.21}{}}
 \citation{RFC9325}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-I}}Porovnanie s minimalistickými implementáciami}{59}{subsection.23.9}\protected@file@percent }
+\newlabel{sec:baseline_comparison}{{\mbox  {XXIII-I}}{59}{Porovnanie s minimalistickými implementáciami}{subsection.23.9}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {21}{\ignorespaces Odolnosť voči útočným scenárom podľa úrovne implementácie}}{59}{table.21}\protected@file@percent }
+\newlabel{tab:baseline_comparison}{{21}{59}{Odolnosť voči útočným scenárom podľa úrovne implementácie}{table.21}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIII-J}}Zhrnutie experimentov}{59}{subsection.23.10}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Súhrnná tabuľka výsledkov experimentov: scenár $\times $ profil.}}{59}{figure.11}\protected@file@percent }
-\newlabel{fig:summary_table}{{11}{59}{Súhrnná tabuľka výsledkov experimentov: scenár $\times $ profil}{figure.11}{}}
 \citation{GarciaMIFARE2008}
 \citation{Espressif2024}
 \citation{RFC8439}
 \citation{XChaChaDraft}
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Súhrnná tabuľka výsledkov experimentov: scenár $\times $ profil.}}{60}{figure.11}\protected@file@percent }
+\newlabel{fig:summary_table}{{11}{60}{Súhrnná tabuľka výsledkov experimentov: scenár $\times $ profil}{figure.11}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {XXIV}Záver}{60}{section.24}\protected@file@percent }
+\newlabel{sec:conclusion}{{XXIV}{60}{Záver}{section.24}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-A}}Súhrn realizovaných prác}{60}{subsection.24.1}\protected@file@percent }
 \citation{RFC5869}
 \citation{SchneierKelsey1999}
 \citation{LibsodiumXChaChaDoc}
@@ -459,24 +466,22 @@
 \citation{AddressSanitizer}
 \citation{GoogleTest}
 \citation{DefenseInDepth}
-\@writefile{toc}{\contentsline {section}{\numberline {XXIV}Záver}{60}{section.24}\protected@file@percent }
-\newlabel{sec:conclusion}{{XXIV}{60}{Záver}{section.24}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-A}}Súhrn realizovaných prác}{60}{subsection.24.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-B}}Hlavné výsledky a závery}{60}{subsection.24.2}\protected@file@percent }
 \citation{STRIDE}
 \citation{GarciaMIFARE2008}
-\citation{RFC8446}
-\citation{RFC9325}
-\citation{NIST80057}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-B}}Hlavné výsledky a závery}{61}{subsection.24.2}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {22}{\ignorespaces Súhrn hlavných experimentálnych zistení}}{61}{table.22}\protected@file@percent }
 \newlabel{tab:findings}{{22}{61}{Súhrn hlavných experimentálnych zistení}{table.22}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-C}}Splnenie cieľov práce}{61}{subsection.24.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {23}{\ignorespaces Mapovanie cieľov práce na realizované výstupy}}{61}{table.23}\protected@file@percent }
-\newlabel{tab:goals-mapping}{{23}{61}{Mapovanie cieľov práce na realizované výstupy}{table.23}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-D}}Otvorené otázky a obmedzenia}{61}{subsection.24.4}\protected@file@percent }
 \citation{RFC8446}
 \citation{RFC9325}
+\citation{NIST80057}
+\citation{RFC8446}
+\citation{RFC9325}
 \citation{NIST80094}
+\@writefile{lot}{\contentsline {table}{\numberline {23}{\ignorespaces Mapovanie cieľov práce na realizované výstupy}}{62}{table.23}\protected@file@percent }
+\newlabel{tab:goals-mapping}{{23}{62}{Mapovanie cieľov práce na realizované výstupy}{table.23}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-E}}Možnosti rozšírenia}{62}{subsection.24.5}\protected@file@percent }
 \bibstyle{IEEEtran}
 \bibdata{bibliography}
 \bibcite{FIPS1981}{1}
@@ -489,9 +494,6 @@
 \bibcite{NIST80092}{8}
 \bibcite{STRIDE}{9}
 \bibcite{FIPS2013}{10}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-E}}Možnosti rozšírenia}{62}{subsection.24.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-F}}Záverečné zhodnotenie}{62}{subsection.24.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{References}{62}{section*.3}\protected@file@percent }
 \bibcite{NISTRBACModel}{11}
 \bibcite{SandhuRBAC1996}{12}
 \bibcite{OWASPAPI2023}{13}
@@ -512,6 +514,8 @@
 \bibcite{SQLiteSec}{28}
 \bibcite{Espressif2024}{29}
 \bibcite{LibsodiumDoc}{30}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XXIV-F}}Záverečné zhodnotenie}{63}{subsection.24.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{References}{63}{section*.3}\protected@file@percent }
 \bibcite{CppHttplib}{31}
 \bibcite{NlohmannJson}{32}
 \bibcite{YamlCpp}{33}
@@ -526,7 +530,7 @@
 \bibcite{AddressSanitizer}{42}
 \bibcite{OpenSSL}{43}
 \bibcite{BoringSSL}{44}
-\newlabel{LastPage}{{\protect \mbox  {XXIV-F}}{63}{Záverečné zhodnotenie}{page.63}{}}
-\gdef\lastpage@lastpage{63}
-\gdef\lastpage@lastpageHy{63}
-\gdef \@abspage@last{63}
+\newlabel{LastPage}{{\protect \mbox  {XXIV-F}}{64}{Záverečné zhodnotenie}{page.64}{}}
+\gdef\lastpage@lastpage{64}
+\gdef\lastpage@lastpageHy{64}
+\gdef \@abspage@last{64}

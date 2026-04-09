@@ -32,10 +32,10 @@ ALGO_LABELS = {"A1": "ChaCha20-Poly1305", "A2": "XChaCha20-Poly1305"}
 SCENARIO_TITLES = {
     "S1_replay": "S1: Replay Attack",
     "S2_tamper": "S2: Field Tampering (AAD)",
-    "S3a_fixed_nonce": "S3a: Fixed Nonce (Broken RNG)",
-    "S3b_wrong_nonce": "S3b: Wrong Nonce",
+    "S3a_fixed_nonce": "S3a: Nonce Enforcement (R2)",
+    "S3b_cross_reader": "S3b: Cross-Reader Key Isolation",
     "S4_seq_reset": "S4: Sequence Rollback",
-    "S5_tag_probe": "S5: Tag Probe (Brute-force)",
+    "S5_tag_probe": "S5: Tag Probe (Forgery Resistance)",
     "S6_throughput": "S6: Throughput Benchmark",
 }
 
@@ -62,7 +62,7 @@ def setup_style():
 def load_all(results_dir: Path) -> pd.DataFrame:
     """Load and concatenate all scenario CSVs into one DataFrame."""
     frames = []
-    for csv in sorted(results_dir.glob("s[1-6]*.csv")):
+    for csv in sorted(results_dir.glob("s[1-9]*.csv")):
         if csv.name.startswith("ref"):
             continue
         df = pd.read_csv(csv)
@@ -72,6 +72,8 @@ def load_all(results_dir: Path) -> pd.DataFrame:
         print(f"ERROR: No CSV files found in {results_dir}", file=sys.stderr)
         sys.exit(1)
     data = pd.concat(frames, ignore_index=True)
+    # Keep only scenarios listed in SCENARIO_TITLES.
+    data = data[data["scenario"].isin(SCENARIO_TITLES.keys())]
     # Derived columns.
     data["mode"] = data["profile"].str[-2:]  # R0, R1, R2
     data["algo"] = data["profile"].str[:2]   # A1, A2

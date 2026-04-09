@@ -1,9 +1,9 @@
 //! @file s3_rng_fault.cpp
-//! S3 RNG Fault scenario (two sub-scenarios):
-//! S3a — FixedNonceGenerator: same nonce for all frames (broken RNG).
+//! S3a — Nonce enforcement verification (fault injection):
+//!   FixedNonceGenerator(0xAA) produces the same nonce for every frame.
 //!   R0/R1: pass (no nonce verification). R2: quarantine nonce_mismatch.
-//! S3b — SeededNonceGenerator on deterministic-mode engine (wrong nonce).
-//!   R0/R1: pass. R2: quarantine nonce_mismatch.
+//!
+//! This is the only scenario that differentiates R0/R1 from R2 in nonce policy.
 
 #include <filesystem>
 #include <iostream>
@@ -14,7 +14,6 @@
 #include <crypto_lib/nonce_generator.hpp>
 #include "experiments/scenario_common.hpp"
 #include "experiments/scenario_runner.hpp"
-#include "experiments/seeded_nonce_generator.hpp"
 
 using namespace experiments;
 
@@ -72,22 +71,6 @@ class S3aFixedNonce final : public S3Base {
     }
 };
 
-//! S3b: wrong nonce (seeded random on deterministic-mode engine).
-class S3bWrongNonce final : public S3Base {
-  public:
-    std::string name() const override { return "S3b_wrong_nonce"; }
-
-    void setup(ExperimentContext& /*ctx*/, FrameFactory& /*factory*/,
-        const key_manager::KeyManager& km,
-        const ProfileConfig& profile) override {
-        auto cm = (profile.cipherMode == "chacha20")
-                      ? crypto_lib::aead::CipherMode::ChaCha20Poly1305
-                      : crypto_lib::aead::CipherMode::XChaCha20Poly1305;
-        _attackFactory = std::make_unique<FrameFactory>(km, profile,
-            std::make_unique<SeededNonceGenerator>(seedToArray(42 + 1), cm));
-    }
-};
-
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -97,7 +80,6 @@ int main(int argc, char** argv) {
     }
 
     S3aFixedNonce s3a;
-    S3bWrongNonce s3b;
     auto cfg = s3a.config();
     parseCliOverrides(argc, argv, cfg);
 
@@ -106,9 +88,8 @@ int main(int argc, char** argv) {
     metrics.writeHeader();
 
     runScenario(s3a, metrics, cfg);
-    runScenario(s3b, metrics, cfg);
 
     metrics.flush();
-    std::cerr << "[S3] Done. Output: results/s3_rng_fault.csv\n";
+    std::cerr << "[S3a] Done. Output: results/s3_rng_fault.csv\n";
     return 0;
 }

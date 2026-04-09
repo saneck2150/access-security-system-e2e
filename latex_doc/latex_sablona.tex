@@ -1450,7 +1450,9 @@ Anti-replay a čerstvosť správy (replay window, monotónne sekvencie) & S1, S4
 \midrule
 Associated Data (AAD) binding — viazanie kontextu na ciphertext & S2 & Odolnosť voči podvrhnutiu AAD (zmena čítačky/dverí pri zachovanom ciphertexte). \\
 \midrule
-Nonce misuse resistance --- absencia vs.\ prítomnosť enforcement-u & S3a, S3b & Chybné R0/R1 (bez verifikácie) vs.\ R2 (s detekciou odchýlky nonce). \\
+Nonce enforcement --- R0/R1 vs.\ R2 & S3a & R2 ako jediný vynucuje nonce politiku; poistka pre distribuovanú architektúru. \\
+\midrule
+HKDF per-reader kryptografická izolácia kľúčov & S3b & Cross-reader validácia: frame z kontextu inej čítačky je odmietnutý všetkými profilmi. \\
 \midrule
 Forgery resistance, protokolová anomálna detekcia, karanténa & S5, R2 & Odolnosť AEAD voči úmyselne poškodenému ciphertextu; rýchlosť karantény. \\
 \bottomrule
@@ -1595,7 +1597,7 @@ Google Test\cite{GoogleTest} & 1.14.0 & Unit a integračné testy. Používa sa 
 \subsection{Zdôvodnenie použitia knižnice libsodium}
 \label{sec:libsodium_justification}
 
-Všetky kryptografické operácie v prototypovom systéme --- AEAD šifrovanie, HMAC autentifikácia, derivácia kľúčov, generovanie nonce, porovnávanie tagov --- sa vykonávajú prostredníctvom knižnice libsodium\cite{LibsodiumDoc}. Keďže experimentálna analýza v kapitole~\ref{sec:experiments} meria vlastnosti týchto operácií (odolnosť voči manipulácii, replay, nonce misuse, výkonnosť), je potrebné zdôvodniť, prečo sú výsledky získané cez libsodium relevantné nielen pre konkrétnu implementáciu, ale aj pre hodnotenie podkladových kryptografických konštrukcií.
+Všetky kryptografické operácie v prototypovom systéme --- AEAD šifrovanie, HMAC autentifikácia, derivácia kľúčov, generovanie nonce, porovnávanie tagov --- sa vykonávajú prostredníctvom knižnice libsodium\cite{LibsodiumDoc}. Keďže experimentálna analýza v kapitole~\ref{sec:experiments} meria vlastnosti týchto operácií (odolnosť voči manipulácii, replay, cross-reader izoláciu, výkonnosť), je potrebné zdôvodniť, prečo sú výsledky získané cez libsodium relevantné nielen pre konkrétnu implementáciu, ale aj pre hodnotenie podkladových kryptografických konštrukcií.
 
 \subsubsection{Súlad so štandardmi}
 

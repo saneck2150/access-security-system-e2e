@@ -21,18 +21,18 @@ Scenario & Profile & Success \% & Quarantine & Reason & Anomaly \\
    & A2--R1 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\
    & A2--R2 & 0\% & Yes & \texttt{quarantined} & \texttt{nonce\_mismatch} \\
 \midrule
-  S3a: Fixed Nonce (Broken RNG) & A1--R0 & 100\% & No & \texttt{ok} & \texttt{--} \\
+  S3a: Nonce Enforcement (R2) & A1--R0 & 100\% & No & \texttt{ok} & \texttt{--} \\
    & A1--R1 & 100\% & No & \texttt{ok} & \texttt{--} \\
    & A1--R2 & 0\% & Yes & \texttt{quarantined} & \texttt{nonce\_mismatch} \\
    & A2--R0 & 100\% & No & \texttt{ok} & \texttt{--} \\
    & A2--R1 & 100\% & No & \texttt{ok} & \texttt{--} \\
    & A2--R2 & 0\% & Yes & \texttt{quarantined} & \texttt{nonce\_mismatch} \\
 \midrule
-  S3b: Wrong Nonce & A1--R0 & 100\% & No & \texttt{ok} & \texttt{--} \\
-   & A1--R1 & 100\% & No & \texttt{ok} & \texttt{--} \\
+  S3b: Cross-Reader Key Isolation & A1--R0 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\
+   & A1--R1 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\
    & A1--R2 & 0\% & Yes & \texttt{quarantined} & \texttt{nonce\_mismatch} \\
-   & A2--R0 & 100\% & No & \texttt{ok} & \texttt{--} \\
-   & A2--R1 & 100\% & No & \texttt{ok} & \texttt{--} \\
+   & A2--R0 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\
+   & A2--R1 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\
    & A2--R2 & 0\% & Yes & \texttt{quarantined} & \texttt{nonce\_mismatch} \\
 \midrule
   S4: Sequence Rollback & A1--R0 & 11\% & No & \texttt{replay} & \texttt{--} \\
@@ -42,7 +42,7 @@ Scenario & Profile & Success \% & Quarantine & Reason & Anomaly \\
    & A2--R1 & 11\% & No & \texttt{replay} & \texttt{--} \\
    & A2--R2 & 0\% & Yes & \texttt{quarantined} & \texttt{seq\_rollback} \\
 \midrule
-  S5: Tag Probe (Brute-force) & A1--R0 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\
+  S5: Tag Probe (Forgery Resistance) & A1--R0 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\
    & A1--R1 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\
    & A1--R2 & 0\% & Yes & \texttt{quarantined} & \texttt{--} \\
    & A2--R0 & 0\% & No & \texttt{decrypt\_failed} & \texttt{--} \\

@@ -29,7 +29,7 @@ V rámci práce boli realizované nasledujúce kroky:
 
   \item \textbf{Verifikácia kvality kódu.} Pred experimentmi bola vykonaná statická analýza (\texttt{clang-tidy}\cite{ClangTidy}: 0~bezpečnostných nálezov) a dynamická analýza (ASan\cite{AddressSanitizer}, UBSan, LSan: 0~nálezov za behu). Testovacia sada\cite{GoogleTest} obsahuje 44~testovacích prípadov pokrývajúcich kryptografiu, replay window, auditný log a rozhodovaciu logiku.
 
-  \item \textbf{Experimentálna analýza.} Navrhnutý a implementovaný bol C++ experimentálny harness, ktorý zdieľa produkčný kód a umožňuje reprodukovateľné testy. Šesť konfiguračných profilov (2~algoritmy $\times$ 3~nonce stratégie) bolo testovaných v šiestich scenároch (replay, AAD tampering, nonce misuse, seq rollback, tag brute-force, throughput benchmark). Každý scenár bežal 5-krát, celkový objem dát presahuje 2{,}8~milióna meraní.
+  \item \textbf{Experimentálna analýza.} Navrhnutý a implementovaný bol C++ experimentálny harness, ktorý zdieľa produkčný kód a umožňuje reprodukovateľné testy. Šesť konfiguračných profilov (2~algoritmy $\times$ 3~nonce stratégie) bolo testovaných v šiestich scenároch (replay, AAD tampering, cross-reader key isolation, seq rollback, tag forgery resistance, throughput benchmark). Každý scenár bežal 5-krát, celkový objem dát presahuje 2{,}8~milióna meraní.
 
   \item \textbf{Analýza a vizualizácia výsledkov.} Python pipeline spracúva CSV výstupy do siedmich grafov a troch LaTeX tabuliek s~chybovými pásmami a~intervalmi spoľahlivosti.
 \end{enumerate}
@@ -48,12 +48,12 @@ Experimentálna analýza potvrdila šesť hlavných tézisov:
 \toprule
 \textbf{Tézis} & \textbf{Zistenie} \\
 \midrule
-T1 & Deterministický nonce bez runtime verifikácie (R1) zlepšuje kvalitu generovania (nezávislosť od RNG), ale neposkytuje pridanú \emph{detekčnú schopnosť} oproti náhodnému nonce (R0). Výsledky S3a/S3b sú identické: 100\% úspešnosť útoku pre R0 aj R1. \\
-T2 & \texttt{ProtocolAnomalyDetector} (profily R2) zablokoval všetky testované útoky (0\% úspešnosť v S1--S5). V scenároch S3 a S4 bol jediným z testovaných mechanizmov, ktorý útok zastavil. \\
+T1 & R2 ako jediný vynucuje nonce politiku (S3a: R0/R1 100\% úspešnosť vs.\ R2 0\%) --- bezpečnostná poistka pre budúce škálovanie. HKDF per-reader derivácia zabraňuje cross-reader útokom (S3b: 0\% úspešnosť naprieč všetkými profilmi). \\
+T2 & \texttt{ProtocolAnomalyDetector} (profily R2) dosiahol 0\% úspešnosť naprieč všetkými testovanými scenármi (S1--S5). V S3a a S4 bol jediným mechanizmom, ktorý scenár úplne zastavil; v S3b a S5 pridáva operačnú eskaláciu (karanténu). \\
 T3 & Replay window a anomálna detekcia sú komplementárne. S4 odhaľuje štruktúrnu medzeru replay window (56 z 500 frame prejde), ktorú detektor uzatvára cez rollback detekciu. \\
 T4 & AAD binding poskytuje ochranu nezávisle od režimu nonce --- S2 ukazuje 0\% úspešnosť manipulácie hlavičky naprieč všetkými profilmi. \\
 T5 & Karanténa zariadení mení reakciu systému z reaktívnej (odmietnutie frame) na proaktívnu (izolácia zariadenia) --- realizácia defense-in-depth\cite{DefenseInDepth}. \\
-T6 & Overhead detektora (5--10\% pokles priepustnosti, ${\sim}3$--$5\,\mu$s na frame) je rádovo nepodstatný pre reálnu prevádzku ($<$10 udalostí/s). \\
+T6 & Overhead detektora (${\sim}19\%$ pokles priepustnosti, ${\sim}35\,\mu$s na frame) je rádovo nepodstatný pre reálnu prevádzku prístupového systému ($<$10 udalostí/s), hoci nie je zanedbateľný. \\
 \bottomrule
 \end{tabular}
 \end{table}
