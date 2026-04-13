@@ -16,7 +16,12 @@ function show(id) {
   if (id === "readers") loadReaders();
   if (id === "door_roles") loadDoorRoles();
   if (id === "cards") loadCards();
-  if (id === "audit") loadAudit();
+  if (id === "audit") {
+    loadAudit();
+    startAuditAutoRefresh();
+  } else {
+    stopAuditAutoRefresh();
+  }
 }
 
 /**
