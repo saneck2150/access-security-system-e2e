@@ -1,0 +1,319 @@
+% !TeX root=tukedip.tex
+% ==============================================================
+\section{Analýza}
+% ==============================================================
+
+\subsection{Analýza aktuálnych riešení a srovnávací základňa}
+
+\subsubsection{Existujúce riešenia v oblasti prístupových systémov}
+
+V~praxi existujú rôzne prístupy k~bezpečnosti prístupových systémov. Najjednoduchšie riešenia na báze ESP32 a~RC522 (napr.\ ESP-RFID\cite{ESPRIFD_Github}) prenášajú surové UID cez HTTP bez podpisu, bez anti-replay mechanizmu a~bez auditu. Legacy protokol Wiegand\cite{Wiegand_Zac2013} neposkytuje šifrovanie ani autentifikáciu --- je jednosmerný prenos identifikátora bez akejkoľvek kryptografickej väzby. Na opačnom konci spektra stoja priemyselné systémy s~proprietárnymi protokolmi\cite{HID_iCLASS,ASSA_Aperio} a~otvorený štandard OSDP v2\cite{SIA_OSDP} s~AES-128 Secure Channel. Tieto riešenia poskytujú rôznu úroveň ochrany. Prototyp tejto práce sa zameriava na konkrétne mechanizmy, ktoré v~jednoduchších riešeniach typicky chýbajú a~v~priemyselných nie sú verejne dokumentované na úrovni umožňujúcej nezávislé experimentálne overenie: per-reader deriváciu kľúčov (HKDF), runtime anomálnu detekciu s~karanténou a~tamper-evident audit.
+
+\subsubsection{RFC 8439 ako srovnávacia základňa}
+
+Hlavnou srovnávacou základňou tejto práce je štandardné nasadenie AEAD podľa RFC~8439\cite{RFC8439}. Tento štandard definuje algoritmus ChaCha20-Poly1305, formát AEAD operácie, použitie AAD (Additional Authenticated Data) a~požiadavky na nonce: nonce sa nesmie opakovať pod rovnakým kľúčom\cite{RFC5116}. Štandard však \textbf{nepredpisuje}, akým spôsobom má byť nonce generovaný (náhodne vs.\ deterministicky), neobsahuje odporúčania pre deriváciu kľúčov pre viacero zariadení, nedefinuje anti-replay mechanizmus na aplikačnej úrovni a~neobsahuje runtime detekciu zneužitia nonce.
+
+Práve tieto aspekty --- spôsob generovania nonce, derivácia kľúčov a~runtime detekcia anomálií --- sú predmetom modifikácií navrhnutých v~praktickej časti tejto práce. Výskum v~oblasti nonce-misuse resistance\cite{RogawayNonceMisuse2004,BellareNonceMisuse2006} ukazuje, že deterministická konštrukcia nonce znižuje závislosť na kvalite generátora náhodných čísiel a~umožňuje serverovú verifikáciu zhody nonce.
+
+Pre aspekty, ktoré RFC~8439 nepokrýva, slúžia ako ďalšie ориентiry:
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Derivácia kľúčov:} HKDF podľa RFC~5869\cite{RFC5869}, s~per-reader salt pre kryptografickú izoláciu zariadení.
+  \item \textbf{Anti-replay:} Sliding window mechanizmus, bežný v~protokoloch ako IPsec a~DTLS\cite{RFC5116}.
+  \item \textbf{Anomálna detekcia:} Princípy z~NIST SP~800-94\cite{NIST80094} aplikované na protokolovú úroveň.
+  \item \textbf{Tamper-evident audit:} Konštrukcia podľa Schneier a~Kelsey\cite{SchneierKelsey1999}.
+  \item \textbf{Rozšírený nonce (XChaCha20):} Libsodium/IETF draft\cite{XChaChaDraft,LibsodiumXChaChaDoc} pre 192-bitový nonce.
+\end{itemize}
+
+% ==============================================================
+
+\subsection{Bezpečnostné východiská a model hrozieb}
+
+Bezpečnostný návrh prístupového systému vychádza z~CIA triády\cite{ISO27001} --- dôvernosti, integrity a~dostupnosti --- a~rozširuje ju o~ďalšie ciele relevantné pre komunikáciu medzi zariadeniami a~serverom:
+
+\textbf{Dôvernosť} vyžaduje, aby útočník nemohol získať citlivé údaje (identifikátory kariet, prístupové tokeny) ani zo zachytenej komunikácie, ani z~databázy. Typickým riešením je šifrovanie komunikácie a~pseudonymizácia identifikátorov v~úložisku.
+
+\textbf{Integrita} vyžaduje detekciu akejkoľvek neoprávnenej zmeny --- či už v~prenášanej správe, v~metadátach autorizačného kontextu, alebo v~auditnej stope. Kryptografické mechanizmy (MAC, AEAD s~AAD, hash chain) zabezpečujú, že zmena je detekovaná bez ohľadu na to, kde k~nej došlo.
+
+\textbf{Dostupnosť} v~kontexte prístupových systémov znamená, že systém musí spoľahlivo reagovať na oprávnené požiadavky a~zároveň odolať pokusom o~zahltenie. Princíp fail-closed zabezpečuje, že pri neistote systém požiadavku zamietne namiesto povolenia prístupu.
+
+\textbf{Autentickosť} vyžaduje overenie pôvodu každej požiadavky. V~systémoch s~hardvérovými čítačkami je potrebné overiť, že požiadavka skutočne pochádza z~registrovaného zariadenia, nie od útočníka. HMAC s~tajným kľúčom je štandardným riešením na aplikačnej úrovni\cite{FIPS1981}.
+
+\textbf{Odolnosť voči replay} znamená, že zachytená platná požiadavka nemôže byť úspešne zopakovaná. Riešením sú monotónne sekvenčné čísla v~kombinácii so sliding window mechanizmom na strane servera.
+
+\textbf{Auditovateľnosť} vyžaduje, aby bolo možné po incidente spätne preukázať, čo sa stalo, a~odhaliť prípadnú manipuláciu s~históriou udalostí. Tamper-evident logovanie s~kryptografickým reťazením záznamov\cite{SchneierKelsey1999} zabezpečuje detekciu modifikácie, vloženia aj vymazania.
+
+\subsubsection{Bezpečnostné požiadavky ako merateľné tvrdenia}
+
+Pri návrhu bezpečnostného riešenia je užitočné formulovať požiadavky ako overiteľné tvrdenia. Napríklad:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \emph{Systém odmietne opakovanie tej istej požiadavky aj v prípade, že bola zachytená na sieti.}
+  \item \emph{Únik databázy nesmie priamo odhaliť surové identifikátory kariet.}
+  \item \emph{Po manipulácii s auditným záznamom je možné určiť prvé miesto nekonzistencie.}
+  \item \emph{Frame zašifrovaný kľúčom jednej čítačky nemôže byť úspešne overený v kontexte inej čítačky.}
+\end{itemize}
+
+Takto formulované požiadavky sa dajú priamo mapovať na konkrétne mechanizmy (anti-replay, HMAC hashovanie UID, hash chain, HKDF izolácia) a~poskytujú jasné kritériá, čo sa považuje za \uv{zvýšenie bezpečnosti}.
+
+\subsubsection{Model hrozieb STRIDE}
+
+Ako orientačný rámec slúži model STRIDE\cite{STRIDE}: Spoofing (podvrhnutie požiadavky --- riešené HMAC), Tampering (zmena dát alebo logov --- riešené AEAD a~audit hash chain), Repudiation (popieranie udalostí --- riešené auditom), Information disclosure (únik identifikátorov --- riešené hashovaním UID v~DB), Denial of service (čiastočne riešené limitmi a~validáciou). Tieto kategórie slúžia ako východisko pre identifikáciu relevantných útočných scenárov.
+
+\subsubsection{Špecifiká RFID/NFC v prístupových systémoch}
+
+RFID/NFC systémy čelia špecifickým hrozbám: skimming (neoprávnené čítanie UID), klonovanie kariet, relay útoky a~manipulácia komunikácie medzi čítačkou a~serverom\cite{GarciaMIFARE2008,VerdultMIFARE2015}. V~jednoduchších systémoch UID vystupuje ako identifikátor, nie ako kryptografický dôkaz identity. Toto riziko je možné kompenzovať silnejšou ochranou na komunikačnej a~serverovej vrstve: autentifikáciou zariadenia, šifrovaním a~integritou interných správ, anti-replay mechanizmom a~auditovateľnou históriou.
+
+Na komunikačnej vrstve sú relevantné útoky MITM (zachytenie a~úprava požiadaviek), replay (opakovanie platných požiadaviek) a~enumerácia (odvodenie existujúcich identifikátorov z~chybových odpovedí). Na serverovej strane hrozí neautorizovaný prístup k~databáze, manipulácia s~auditnou stopou a~zneužitie administrátorských oprávnení\cite{NIST80094,ISO27001}.
+
+% ==============================================================
+
+\subsection{Systémy kontroly prístupu a prístupové modely}
+
+\subsubsection{Fyzická vs. logická kontrola prístupu}
+
+Fyzická kontrola prístupu rieši otázku, kto smie vstúpiť na konkrétne miesto. Logická kontrola prístupu sa zaoberá oprávneniami v~informačných systémoch. V~moderných systémoch sa tieto oblasti prekrývajú: fyzická čítačka komunikuje so serverom, ktorý overuje oprávnenia podľa logických pravidiel. Moderné prístupové systémy sú na tomto priesečníku --- hardvérová čítačka je fyzický vstupný bod, no rozhodovanie a~audit sú plne digitálne.
+
+\subsubsection{Modely kontroly prístupu}
+
+V~literatúre existujú štyri základné modely:
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{DAC} (Discretionary Access Control): vlastník zdroja rozhoduje o~oprávneniach.
+  \item \textbf{MAC} (Mandatory Access Control): oprávnenia vyplývajú zo systémových pravidiel a~klasifikácie.
+  \item \textbf{RBAC} (Role-Based Access Control): oprávnenia sú naviazané na roly\cite{SaltzerSchroeder1975}.
+  \item \textbf{ABAC} (Attribute-Based Access Control): rozhodnutia na základe atribútov subjektu, objektu a~kontextu.
+\end{itemize}
+
+Pre fyzické prístupové systémy je najčastejšie používaný \textbf{RBAC}: karte je priradená rola, dveriam množina povolených rolí a~čítačke množina dverí. Prístup je povolený, ak rola karty patrí do priesečníku povolených rolí pre dané dvere cez danú čítačku. Tento model je dostatočne expresívny pre väčšinu fyzických prístupových scenárov a~priamo mapovateľný na relačnú databázovú štruktúru\cite{NIST80053}.
+
+\subsubsection{Princíp najmenej oprávnení}
+
+Princíp najmenej oprávnení\cite{SaltzerSchroeder1975} požaduje, aby subjekt mal iba tie oprávnenia, ktoré sú nevyhnutné pre jeho úlohu. V~prístupových systémoch sa tento princíp realizuje oddelením oprávnení: hardvérové zariadenie sa preukazuje iným typom poverenia než administrátor, každá čítačka má prístup iba k~dverám, ku ktorým je explicitne priradená, a~kompromitácia jedného zariadenia neodhaľuje oprávnenia ostatných.
+
+% ==============================================================
+
+\subsection{Kryptografické základy}
+
+\subsubsection{HMAC a hashovacie funkcie}
+
+MAC s využitím tajného kľúča zabezpečuje integritu a~autentickosť správy. HMAC je konkrétna konštrukcia MAC nad hashovacou funkciou, štandardizovaná vo FIPS~198-1\cite{FIPS1981,RFC2104}. V~prístupových systémoch sa HMAC typicky používa pre autentifikáciu požiadaviek od zariadení, pričom sa počíta nad jednoznačnou (kanonickou) reprezentáciou správy a~porovnáva konštantným časom. Kľúče pre rôzne účely sa oddeľujú pomocou HKDF\cite{RFC5869}.
+
+\subsubsection{Symetrické šifrovanie a AEAD}
+
+Symetrické šifrovanie je vhodné pre embedded zariadenia kvôli výkonu a~jednoduchosti správy kľúčov (na rozdiel od asymetrickej kryptografie nevyžaduje PKI). Samotné šifrovanie však nerieši integritu, preto sa v~moderných protokoloch používa AEAD (Authenticated Encryption with Associated Data), ktoré spája dôvernosť a~integritu do jednej operácie.
+
+\paragraph{ChaCha20 a Poly1305}
+
+ChaCha20 je prúdová šifra navrhnutá D.~J.~Bernsteinom\cite{Bernstein2012}. Poly1305 je jednorázový MAC. Ich kombinácia je štandardizovaná v~RFC~8439\cite{RFC8439,RFC5116}.
+
+Stav ChaCha20 je matica $4\times4$ 32-bitových slov. Základnou operáciou je quarter round QR$(a, b, c, d)$ --- ARX konštrukcia (Add-Rotate-XOR):
+\begin{align}
+a &\mathrel{+}= b;\quad d \mathrel{\oplus}= a;\quad d \lll 16 \nonumber \\
+c &\mathrel{+}= d;\quad b \mathrel{\oplus}= c;\quad b \lll 12 \nonumber \\
+a &\mathrel{+}= b;\quad d \mathrel{\oplus}= a;\quad d \lll 8  \nonumber \\
+c &\mathrel{+}= d;\quad b \mathrel{\oplus}= c;\quad b \lll 7  \nonumber
+\end{align}
+
+Dvadsať kôl (10 stĺpcových + 10 diagonálnych) transformuje stav na keystream blok, ktorý sa XOR-uje s~plaintext-om. Všetky operácie sú identicky časované (žiadne tabuľkové vyhľadávania), čo eliminuje timing side-channel útoky\cite{Bernstein2012}.
+
+Poly1305 je autentifikátor v~poli $\mathbb{F}_{2^{130}-5}$:
+\begin{equation}
+\text{tag} = \bigl((m_1 r^n + m_2 r^{n-1} + \cdots + m_n r) \bmod (2^{130}-5) + s\bigr) \bmod 2^{128}
+\end{equation}
+kde $r$ a $s$ sú odvodené z~prvého keystream bloku ChaCha20 (counter~$= 0$)\cite{RFC8439}.
+
+\paragraph{XChaCha20-Poly1305 a nonce manažment}
+
+AEAD konštrukcie sú citlivé na zneužitie nonce. XChaCha20-Poly1305 rozširuje nonce na 192 bitov, čo znižuje riziko kolízie pri náhodnom generovaní\cite{XChaChaDraft,LibsodiumXChaChaDoc}. ChaCha20-Poly1305 IETF (RFC~8439) používa 96-bitový nonce s~limitom ${\sim}2^{48}$ správ. Obe varianty sú vhodné pre prístupové systémy, pričom nonce môže byť generovaný náhodne alebo deterministicky pomocou HMAC.
+
+\paragraph{Associated Data (AAD)}
+
+AEAD podporuje Associated Authenticated Data: dáta, ktoré sa nešifrujú, ale ich integrita je kryptograficky chránená. V~prístupových protokoloch sa AAD typicky používa pre hlavičku správy --- metadáta ako identifikátor zariadenia, cieľové dvere alebo sekvenčné číslo sú kryptograficky viazané na šifrovaný obsah. Zmena akéhokoľvek z~týchto polí spôsobí zlyhanie overenia tagu.
+
+\paragraph{Porovnanie s AES-GCM}
+
+AES-GCM je dominantnou AEAD konštrukciou v~TLS~1.3 a~podnikových systémoch. Tabuľka~\ref{tab:chacha-vs-aesgcm} porovnáva obe konštrukcie z~hľadiska vlastností relevantných pre embedded nasadenie. Pre platformy bez hardvérovej akcelerácie AES (napr.~ESP32\cite{Espressif2024}) je ChaCha20-Poly1305 konzistentne bezpečná voľba vďaka konštantnočasovej ARX konštrukcii\cite{Bernstein2012}.
+
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3}
+\centering
+\caption{Porovnanie ChaCha20-Poly1305 a AES-GCM}
+\label{tab:chacha-vs-aesgcm}
+\small
+\begin{tabular}{p{3.2cm} p{4.5cm} p{4.5cm}}
+\toprule
+\textbf{Vlastnosť} & \textbf{ChaCha20-Poly1305} & \textbf{AES-GCM} \\
+\midrule
+Veľkosť nonce & 96b (IETF) / 192b (XChaCha20) & 96b \\
+Nonce reuse & Únik XOR plaintextov (two-time pad) & Kritické: extrahovateľný GHASH kľúč\cite{RFC5116} \\
+Softvér bez HW & Konštantný čas (ARX)\cite{Bernstein2012} & Timing side-channel bez AES-NI \\
+HW akcelerácia & AVX2/SSSE3 (SIMD) & AES-NI (Intel/ARM) \\
+Vhodnosť pre IoT & Vysoká & Iba s HW akcelerátorom \\
+Štandardizácia & RFC~8439, TLS~1.3 & RFC~5116, TLS~1.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Nonce stratégie a ich bezpečnostné modely}
+
+V~literatúre a~praxi existujú tri základné stratégie generovania nonce pre AEAD:
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Náhodný nonce} --- závisí na kvalite RNG; pri krátkom nonce (96~b) hrozí kolízia pri vysokom počte správ.
+  \item \textbf{Deterministický nonce} --- $\text{HMAC}(K_{\text{nonce}}, \text{context})$; eliminuje závislosť na RNG.
+  \item \textbf{Deterministický s~runtime verifikáciou} --- rovnaký HMAC nonce, ale server overuje zhodu s~očakávanou hodnotou; pri odchýlke zakaranténuje zariadenie.
+\end{itemize}
+
+Formálne sa AEAD bezpečnosť definuje kombináciou IND-CPA (dôvernosť) a~INT-CTXT (integrita)\cite{RFC5116}. Štandardný model (nAE) predpokladá unikátne nonce. Deterministická konštrukcia túto podmienku zabezpečuje bez závislosti na RNG; runtime verifikácia navyše aktívne vynucuje nonce politiku na serveri. Ide o~praktický kompromis medzi nAE a~plnou nonce-misuse resistance\cite{RogawayNonceMisuse2004,BellareNonceMisuse2006}.
+
+\subsubsection{HKDF a domain separation}
+
+Z~jedného master secret sa pomocou HKDF\cite{RFC5869} odvádzajú podkľúče pre rôzne účely s~rôznymi \texttt{info} parametrami (domain separation). Typické derivácie v~prístupovom systéme zahŕňajú: kľúč pre AEAD šifrovanie, kľúč pre generovanie nonce, kľúč pre auditný hash chain a~pepper pre pseudonymizáciu identifikátorov. Verzovanie kľúčov umožňuje rotáciu s~prechodným obdobím dual-acceptance\cite{NIST80057}.
+
+% ==============================================================
+
+\subsection{Zásady návrhu bezpečných protokolov}
+
+Pri praktickom bezpečnostnom protokole o~výsledku často rozhodne nie výber algoritmu, ale obyčajná implementačná voľba: nejednoznačný formát, nevhodná chybová hláška alebo príliš dôverčivý parser\cite{SaltzerSchroeder1975}.
+
+\subsubsection{Fail-closed správanie}
+
+Ak zlyhá autentifikácia, validácia vstupu, anti-replay kontrola alebo interná konzistencia dát, výsledkom musí byť zamietnutie požiadavky\cite{NIST80053}. Systém neusiluje o~\uv{záchranu} nejednoznačnej situácie --- tento prístup je menej pohodlný pri ladení, no bezpečnejší v~prevádzke. V~prístupových systémoch je fail-closed obzvlášť dôležitý, pretože nesprávne povolenie prístupu má vyššiu cenu než nesprávne zamietnutie.
+
+\subsubsection{Jednoznačná serializácia a validácia vstupu}
+
+Pri podpisovaní je kritické, aby všetky strany pracovali s~rovnakou reprezentáciou dát\cite{RFC8439}. Ak by odosielateľ podpisoval dáta v~inom formáte než príjemca, mohlo by dôjsť k~chybnému odmietnutiu alebo k~obídeniu podpisu. Vstupná správa sa odporúča spracovať v~dvoch krokoch: syntaktická validácia (správny formát, maximálna veľkosť) a~semantická validácia (povinné polia, rozsahy, typy)\cite{NIST80053}. Až po úspešnej validácii sa vykonávajú náročnejšie operácie (dešifrovanie, databázové dotazy).
+
+\subsubsection{Mapovanie bezpečnostných cieľov na mechanizmy}
+
+V~bezpečnom prístupovom systéme sa jednotlivé bezpečnostné ciele realizujú konkrétnymi kryptografickými a~protokolovými mechanizmami\cite{DefenseInDepth}:
+
+\textbf{Autentickosť požiadavky} je zabezpečená pomocou HMAC s~tajným kľúčom\cite{FIPS1981}. Každá požiadavka od zariadenia obsahuje kryptografický podpis, ktorý server overí pred akýmkoľvek ďalším spracovaním. Bez platného podpisu je požiadavka okamžite zamietnutá (fail-closed), čím sa bráni spoofingu.
+
+\textbf{Integrita metadát} (identifikátor zariadenia, cieľové dvere, sekvenčné číslo) je chránená mechanizmom AEAD AAD\cite{RFC5116}. Metadáta vstupujú do AEAD operácie ako Associated Authenticated Data --- zmena ktoréhokoľvek poľa spôsobí zlyhanie overenia autentifikačného tagu, aj keď šifrovaný obsah zostane neporušený.
+
+\textbf{Dôvernosť} zabezpečuje AEAD šifrovanie\cite{RFC8439}. Obsah správy (identifikátor karty, akcia) je šifrovaný a~bez správneho kľúča ho nie je možné prečítať.
+
+\textbf{Ochrana proti replay} funguje na dvoch úrovniach: monotónne sekvenčné číslo na strane zariadenia a~sliding window na strane servera\cite{NIST80053}. Zachytená platná požiadavka nemôže byť úspešne zopakovaná.
+
+\textbf{Súkromie identifikátorov} v~databáze je zabezpečené pseudonymizáciou --- namiesto surových identifikátorov sa ukladá HMAC hash s~pepperom odvodeným z~master kľúča\cite{ISO27001}. Únik databázy tak priamo neodhalí identifikátory kariet.
+
+\textbf{Detekcia manipulácie auditnej stopy} používa HMAC hash chain\cite{SchneierKelsey1999}: každý záznam obsahuje HMAC predošlého záznamu. Audit anchor chráni proti truncation útoku. Verifikácia prebieha rekonštrukciou reťaze a~kontrolou konzistencie voči anchoru.
+
+\subsubsection{Kompromisy medzi bezpečnosťou a použiteľnosťou}
+
+Prístupové systémy musia byť použiteľné: rýchla odozva, nízky počet falošných zamietnutí a~jednoduchá správa oprávnení\cite{SaltzerSchroeder1975}. To vytvára kompromisy. Napríklad príliš úzka anti-replay window môže spôsobovať zamietnutia pri nestabilnej sieti; príliš široká window zas predlžuje časové okno, počas ktorého je zachytená požiadavka potenciálne zopakovateľná. Bezpečnostné parametre (veľkosť okna, časová tolerancia) by mali byť konfigurovateľné a~odvodené od prevádzkových podmienok\cite{NIST80053}.
+
+% ==============================================================
+
+\subsection{Správa kryptografických kľúčov}
+
+Aj jednoduchý systém potrebuje vedieť, odkiaľ sa kľúče berú, na čo slúžia, kedy sa menia a čo sa stane po incidente\cite{NIST80057}.
+
+\subsubsection{Oddelenie kľúčov podľa účelu}
+
+Dobrá prax je používať odlišné kľúče pre odlišné účely: kľúč pre HW autentifikáciu (HMAC), kľúč pre AEAD šifrovanie, kľúč pre audit hash chain a~pepper pre hashovanie identifikátorov. Použitie jedného kľúča pre viac účelov môže viesť k~cross-protocol útokom. Podkľúče sa odvodia z~hlavného tajomstva pomocou HKDF\cite{RFC5869}.
+
+\subsubsection{Verzovanie a rotácia kľúčov}
+
+Každé zariadenie má priradenú verziu kľúča. Pri rotácii sa nastaví nová verzia a~server môže dočasne akceptovať aj predchádzajúcu verziu (\emph{allow-previous}), aby sa minimalizoval výpadok pri prechode\cite{NIST80057}.
+
+\subsubsection{Ukladanie kľúčov a provisioning}
+
+V~jednoduchších nasadeniach sa kľúče ukladajú v~konfiguračných súboroch alebo v~NVS pamäti zariadenia. V~produkčnom prostredí sa odporúča použiť HSM alebo vault\cite{NIST80057}. Provisioning zariadení typicky používa predzdieľané tajomstvo (PSK) alebo bootstrap protokol na báze certifikátov.
+
+\subsubsection{Kompromitácia a postup obnovy}
+
+Aj pri dobrej implementácii treba počítať s~kompromitáciou zariadenia\cite{NIST80057}. Incident plán by mal riešiť rýchle zablokovanie kompromitovaného zariadenia (karanténa), rotáciu kľúčov a~identifikáciu udalostí, ktoré mohli byť ovplyvnené kompromitáciou.
+
+% ==============================================================
+
+\subsection{Ochrana súkromia identifikátorov}
+
+Surové identifikátory kariet by sa v~databáze nemali ukladať v~čitateľnej forme. Štandardným riešením je pseudonymizácia: namiesto surového UID sa ukladá $\text{HMAC}(K_{\text{pepper}}, \text{UID})$, kde pepper je odvodený z~master key cez HKDF\cite{RFC5869}. Pri rotácii pepperu sa HMAC hodnoty aktualizujú. Únik databázy tak priamo neodhalí identifikátory kariet\cite{ISO27001}.
+
+% ==============================================================
+
+\subsection{Tamper-evident audit log}
+
+Audit v~prístupovom systéme nemá slúžiť iba na to, aby si administrátor pozrel, kto prišiel ku dverám. Má byť zdrojom dôkazu po incidente\cite{SchneierKelsey1999,NIST80092}. Základné typy útokov na logy: modifikácia záznamu, vloženie falošnej udalosti, vymazanie/truncation a~zmena poradia.
+
+\subsubsection{Hash chain s HMAC}
+
+Štandardným riešením je HMAC hash chain\cite{SchneierKelsey1999}: každý záznam obsahuje HMAC hash predošlého záznamu:
+\begin{equation}
+H_i = \mathrm{HMAC}(K_{audit}, \mathrm{encode}(record_i) \parallel H_{i-1})
+\end{equation}
+kde $K_{audit}$ je tajný auditný kľúč odvodený cez HKDF. Zmena záznamu spôsobí nekonzistenciu v~následných hodnotách.
+
+\subsubsection{Audit anchor a ochrana proti truncation}
+
+Hash chain sama o~sebe nezabráni útoku, pri ktorom útočník odstráni posledných $n$ záznamov a~ponechá konzistentný prefix. Riešením je audit anchor: periodicky sa ukladá hodnota $H_i$ a~index $i$ do samostatnej štruktúry. Pri verifikácii sa kontroluje, že audit log obsahuje všetky záznamy minimálne po posledný anchor.
+
+\subsubsection{Forward integrity}
+
+Pojem \emph{forward integrity}\cite{SchneierKelsey1999} znamená, že aj pri kompromitácii kľúča v~čase $t$ by útočník nemal byť schopný spätne upraviť staršie záznamy. Jednoduchý hash chain s~fixným kľúčom poskytuje detekciu modifikácie, ale pri kompromitácii kľúča možno vytvoriť alternatívnu históriu. Pre produkčný systém by bolo vhodné zvážiť evolúciu kľúča po epochách.
+
+\subsubsection{Verifikácia}
+
+Verifikácia prebieha offline alebo cez admin panel: načítanie záznamov, rekonštrukcia reťaze, kontrola konzistencie $H_i$ a~kontrola anchor proti truncation. Výstupom je index prvého miesta, kde reťaz zlyhá.
+
+% ==============================================================
+
+\subsection{Bezpečnosť vstavaného zariadenia}
+
+Embedded zariadenie (čítačka) je z~bezpečnostného hľadiska typicky najzraniteľnejším komponentom prístupového systému\cite{NIST80094}: útočník k~nemu môže mať fyzický prístup a~firmvér obsahuje tajomstvá potrebné pre komunikáciu so serverom.
+
+\subsubsection{Ukladanie tajomstiev na zariadení}
+
+Tajné kľúče (napr.~HMAC pre autentifikáciu) sú na embedded zariadeniach typicky uložené v~NVS (Non-Volatile Storage) alebo v~secure element\cite{NIST80094}. Pri kompromitácii zariadenia sa predpokladá, že tajomstvo je odhalené\cite{NIST80053}. Bezpečnostný návrh preto nekladie celú bezpečnosť na stranu zariadenia: server overuje každú požiadavku nezávisle a~pri anomáliách môže zariadenie zakaranténovať. Rotácia kľúčov umožňuje obmedziť dopad kompromitácie\cite{NIST80057}.
+
+\subsubsection{Monotónne počítadlá a trvácnosť stavu}
+
+Zariadenie udržiava monotónne sekvenčné počítadlo v~perzistentnom úložisku, ktoré prežíva reštart. Monotónnosť je kritická: ak by sa počítadlo resetovalo, útočník by mohol znovu použiť staré platné hodnoty\cite{NIST80053}. Platformy ako ESP32 podporujú atomické zápisy do NVS, čo znižuje riziko korupcie pri výpadku napájania\cite{Espressif2024}.
+
+\subsubsection{Fyzické útoky a Wi-Fi konfigurácia}
+
+Fyzický prístup k~čítačke umožňuje extrakciu firmvéru, odpočúvanie zberníc alebo pripojenie na debugging rozhranie\cite{NIST80094}. Tieto riziká sa kompenzujú na serverovej strane: server nikdy nedôveruje zariadeniu viac, než dovoľuje overenie autentifikácie a~anti-replay kontrola\cite{SaltzerSchroeder1975}. Wi-Fi konfigurácia (SSID, heslo, adresa servera) je uložená v~perzistentnom úložisku; pre produkčné nasadenie sa odporúča WPA3 a~certifikátová autentifikácia\cite{RFC8446}.
+
+% ==============================================================
+
+\subsection{Bezpečnosť transportnej vrstvy}
+
+V~jednoduchších nasadeniach je požiadavka od zariadenia autentifikovaná (integrita a~pôvod cez HMAC), ale dôvernosť prenosu identifikátorov na úrovni HTTP nemusí byť kryptograficky chránená. TLS túto medzeru uzatvára na transportnej úrovni.
+
+\subsubsection{Prečo nestačí iba TLS}
+
+TLS (Transport Layer Security) chráni komunikáciu medzi dvoma koncovými bodmi, no samo o~sebe neposkytuje ochranu proti replay na aplikačnej úrovni, autentifikáciu zariadenia voči serveru (bez klientských certifikátov), ani integritu interných metadát viazanú na obsah správy. Preto sú HMAC podpis, anti-replay sekvencie a~AEAD frame komplementárne k~TLS, nie jeho náhradou\cite{RFC8446,RFC9325}.
+
+\subsubsection{Praktické nasadenie TLS v IoT}
+
+Na embedded platformách je TLS realizovateľné cez knižnice ako mbedTLS\cite{RFC8446}. Hlavné výzvy: správa certifikátov na zariadeniach s~obmedzenou pamäťou, certificate pinning (ochrana pred MITM aj pri kompromitovanom CA) a~mTLS (vzájomná autentifikácia server--zariadenie)\cite{RFC9325}. V~systémoch s~predzdieľanými symetrickými tajomstvami je HMAC autentifikácia pragmatickým ekvivalentom mTLS bez nutnosti PKI infraštruktúry\cite{FIPS1981}.
+
+% ==============================================================
+
+\subsection{Súvisiace prístupy a postavenie navrhovaného riešenia}
+
+Prístupové systémy v~praxi existujú v~rôznych topológiách: centralizované (server rozhoduje, čítačka len zbiera) vs.\ distribuované (kontrolér pri dverách rozhoduje lokálne), online vs.\ offline režim, cloud vs.\ on-premise nasadenie.
+
+\subsubsection{Komunikačné protokoly: Wiegand a OSDP}
+
+Historicky najrozšírenejším rozhraním medzi čítačkou a~kontrolérom je protokol Wiegand. Ide o~jednosmerný, nešifrovaný prenos identifikátora po dvoch vodičoch (Data0, Data1). Wiegand neposkytuje autentifikáciu, integritu ani ochranu proti replay --- útočník s~fyzickým prístupom k~vedeniu môže zachytiť UID a~neskôr ho zopakovať. Napriek tomu zostáva v~mnohých inštaláciách nasadený kvôli jednoduchosti a~spätnej kompatibilite.
+
+Modernejšou alternatívou je OSDP v2 (Open Supervised Device Protocol)\cite{NIST80098}, ktorý pridáva Secure Channel s~AES-128 šifrovaním, MAC autentifikáciou a~sekvenčnými číslami. OSDP v2 rieši väčšinu nedostatkov Wiegand, no jeho nasadenie vyžaduje podporu na oboch stranách (čítačka aj kontrolér) a~správu symetrických kľúčov.
+
+\subsubsection{Postavenie navrhovaného riešenia}
+
+Navrhované riešenie spadá do kategórie \emph{centralizovaný, online, on-premise}\cite{NIST_PACS2018}: server vyhodnocuje každú požiadavku v~reálnom čase, čo umožňuje plnohodnotnú anti-replay ochranu a~runtime anomálnu detekciu. Výhodou centralizovaného prístupu je jednoduchšia správa politík a~kľúčov; nevýhodou je závislosť na dostupnosti servera.
+
+V~porovnaní s~Wiegand\cite{Wiegand_Zac2013} navrhovaný prístup poskytuje kryptografickú autentifikáciu (HMAC), integritu (AEAD + AAD) a~anti-replay ochranu. V~porovnaní s~OSDP v2\cite{SIA_OSDP} pridáva HKDF per-reader deriváciu kľúčov (izolácia medzi čítačkami), deterministický nonce s~runtime verifikáciou a~tamper-evident audit s~HMAC hash chain --- mechanizmy, ktoré v~štandardnom OSDP nie sú prítomné\cite{DefenseInDepth,SaltzerSchroeder1975}.
+
+% ==============================================================
+
+\subsection{Zhrnutie teoretických východísk}
+
+Bezpečnosť prístupového systému stojí na previazaných vrstvách: autentifikácia požiadaviek je zbytočná bez anti-replay ochrany; anti-replay bez autentifikácie umožňuje útočníkovi generovať nové požiadavky; AEAD bez AAD nezabezpečuje integritu metadát; audit bez kryptografického reťazenia nemá dôkazovú hodnotu po incidente. Žiadny jednotlivý mechanizmus neposkytuje úplnú ochranu --- systém je bezpečný len ako celok\cite{DefenseInDepth,NIST80053}.
+
+\subsubsection{Predpoklady a zvyškové riziko}
+
+Každý bezpečnostný návrh implicitne stojí na predpokladoch\cite{NIST80053}. Typicky sa predpokladá, že server je lepšie chránený než čítačka a~že administrátorské rozhranie je prístupné iba autorizovaným osobám. Aj pri splnení predpokladov ostáva zvyškové riziko (residual risk): kompromitácia jednej čítačky, dlhodobý DoS alebo insider útok. Dôležité je, aby systém v~takom prípade zlyhal bezpečne (fail-closed) a~poskytol auditné stopy pre analýzu\cite{SchneierKelsey1999}.
+
+Vrstvené zabezpečenie (defense-in-depth)\cite{DefenseInDepth} znamená, že systém nestojí na jednom mechanizme. Autentifikácia chráni pôvod požiadavky, anti-replay chráni pred opakovaním, AEAD chráni správy a~integritu metadát, tamper-evident audit chráni dôveryhodnosť histórie a~anomálna detekcia eskaluje reakciu pri opakovaných incidentoch. Konkrétne prepojenie medzi týmito teoretickými konceptmi a~experimentálnym overením je súčasťou praktickej časti práce.

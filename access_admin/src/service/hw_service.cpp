@@ -1,5 +1,8 @@
+#include <chrono>
 #include <mutex>
+#include <thread>
 
+#include <httplib.h>
 #include <access_admin/app_state.hpp>
 #include <access_admin/http_utils.hpp>
 #include <access_admin/service/hw_service.hpp>
@@ -265,32 +268,59 @@ bool parseHwUidRequest(const json& j, HwUidRequest& req) {
 ServiceResult processHwUid(AppState& app, const HwUidRequest& req) {
     const uint64_t ts = nowUnixMs();
 
-    std::lock_guard<std::mutex> lk(app.m);
+    // Build frame under lock, then release before HTTP call to avoid deadlock.
+    std::vector<uint8_t> frameBytes;
+    uint32_t kv;
+    uint64_t seq;
+    {
+        std::lock_guard<std::mutex> lk(app.m);
 
-    const uint32_t kv = app.store->currentKeyVersionForReader(req.reader_id);
-    if (kv == 0) {
-        pushHwEvent(app, "hw uid: unknown_reader", req.reader_id, req.door_id);
-        return okResult({{"allow", false}, {"reason", "unknown_reader"}});
+        kv = app.store->currentKeyVersionForReader(req.reader_id);
+        if (kv == 0) {
+            pushHwEvent(app, "hw uid: unknown_reader", req.reader_id, req.door_id);
+            return okResult({{"allow", false}, {"reason", "unknown_reader"}});
+        }
+
+        seq = req.hw_seq;
+        pushHwEvent(app, "uid=" + req.uid, req.reader_id, req.door_id, seq);
+
+        frameBytes = buildEncryptedFrameBytes(app.keyManager,
+            req.reader_id, req.door_id, seq, kv, ts,
+            req.uid, req.action,
+            app.cfg.experiment.keyDerivationMode,
+            app.cfg.experiment.aadMode,
+            app.cfg.experiment.cipherMode,
+            app.cfg.experiment.nonceMode);
     }
+    // Mutex released — safe to make HTTP call or call engine.
 
-    // Use hw_seq from hardware (monotonic counter) for replay protection
-    const uint64_t seq = req.hw_seq;
-    pushHwEvent(app, "uid=" + req.uid, req.reader_id, req.door_id, seq);
-
-    const auto frameBytes = buildEncryptedFrameBytes(app.keyManager,
-        req.reader_id,
-        req.door_id,
-        seq,
-        kv,
-        ts,
-        req.uid,
-        req.action,
-        app.cfg.experiment.keyDerivationMode,
-        app.cfg.experiment.aadMode,
-        app.cfg.experiment.cipherMode,
-        app.cfg.experiment.nonceMode);
-
-    const auto r = app.engine->handleFrameBytes(frameBytes, app.replayByReader);
+    access_decision::DecisionResult r;
+    if (app.cfg.admin.decisionMode == "remote") {
+        std::string body(frameBytes.begin(), frameBytes.end());
+        for (int attempt = 0; attempt < 3; ++attempt) {
+            // Fresh client per attempt: avoids stale keep-alive sockets.
+            // Uses 127.0.0.1 explicitly (not "localhost" which may resolve to ::1).
+            httplib::Client cli(app.cfg.admin.decisionUrl);
+            cli.set_connection_timeout(2);
+            cli.set_read_timeout(5);
+            auto httpRes = cli.Post("/api/decision/frame", body, "application/octet-stream");
+            if (httpRes && httpRes->status == 200) {
+                auto j = nlohmann::json::parse(httpRes->body);
+                r.allow = j.value("allow", false);
+                r.reason = j.value("reason", "remote_error");
+                break;
+            }
+            if (attempt < 2) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } else {
+                r.allow = false;
+                r.reason = "remote_unavailable";
+            }
+        }
+    } else {
+        std::lock_guard<std::mutex> lk(app.m);
+        r = app.engine->handleFrameBytes(frameBytes, app.replayByReader);
+    }
 
     return okResult(buildHwResponse(r.allow, r.reason, req.reader_id, req.door_id, seq, kv));
 }

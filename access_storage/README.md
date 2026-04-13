@@ -45,9 +45,16 @@ SQLite-based persistent storage for access control data and tamper-evident audit
 │  └─────────────────┘     └──────────────┘                       │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│                         SQLite3                                  │
+│                   SQLite3 (WAL mode, busy_timeout=5s)            │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+## SQLite Configuration
+
+On open, the store sets:
+- `PRAGMA journal_mode=WAL` — allows concurrent reads with one writer
+- `PRAGMA busy_timeout=5000` — waits up to 5s instead of immediate SQLITE_BUSY
+- `PRAGMA foreign_keys=ON` — enforces referential integrity
 
 ## Database Schema
 

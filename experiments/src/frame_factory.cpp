@@ -15,6 +15,7 @@ namespace {
 constexpr size_t kOffsetReaderId = 5;
 constexpr size_t kOffsetDoorId = 9;
 constexpr size_t kOffsetSeq = 21;
+constexpr size_t kOffsetNonce = 33;
 constexpr size_t kOffsetCtLen = 57;
 constexpr size_t kOffsetCt = 61;
 
@@ -135,6 +136,18 @@ std::vector<uint8_t> FrameFactory::tamperCiphertext(
     const uint32_t ctLen = readLe32(&copy[kOffsetCtLen]);
     for (uint32_t i = 0; i < ctLen && (kOffsetCt + i) < copy.size() - 16; ++i) {
         copy[kOffsetCt + i] ^= 0xFF;
+    }
+    return copy;
+}
+
+std::vector<uint8_t> FrameFactory::tamperNonce(
+    const std::vector<uint8_t>& frameBytes) {
+    auto copy = frameBytes;
+    if (copy.size() < kOffsetNonce + 24) {
+        throw std::runtime_error("tamperNonce: frame too short");
+    }
+    for (size_t i = 0; i < 24; ++i) {
+        copy[kOffsetNonce + i] ^= 0xFF;
     }
     return copy;
 }

@@ -1,0 +1,53 @@
+This is BibTeX, Version 0.99d (TeX Live 2023/Debian)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: tukedip.aux
+The style file: plainnat.bst
+A level-1 auxiliary file: uvod.aux
+A level-1 auxiliary file: formulacia.aux
+A level-1 auxiliary file: analyza.aux
+A level-1 auxiliary file: jadroprace.aux
+A level-1 auxiliary file: zaver.aux
+A level-1 auxiliary file: literatura.aux
+A level-1 auxiliary file: prilohy.aux
+Database file #1: bibliography.bib
+You've used 37 entries,
+            2773 wiz_defined-function locations,
+            832 strings with 12261 characters,
+and the built_in function-call counts, 14723 in all, are:
+= -- 1332
+> -- 732
+< -- 38
++ -- 259
+- -- 222
+* -- 934
+:= -- 2224
+add.period$ -- 139
+call.type$ -- 37
+change.case$ -- 184
+chr.to.int$ -- 37
+cite$ -- 74
+duplicate$ -- 683
+empty$ -- 1327
+format.name$ -- 269
+if$ -- 3178
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 9
+newline$ -- 220
+num.names$ -- 148
+pop$ -- 476
+preamble$ -- 1
+purify$ -- 147
+quote$ -- 0
+skip$ -- 571
+stack$ -- 0
+substring$ -- 309
+swap$ -- 101
+text.length$ -- 11
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 407
+warning$ -- 0
+while$ -- 133
+width$ -- 0
+write$ -- 519

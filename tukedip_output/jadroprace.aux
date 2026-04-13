@@ -1,0 +1,145 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Jadro práce}{40}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Praktická implementácia navrhnutého systému}{40}{subsection.3.1}\protected@file@percent }
+\citation{Espressif2024}
+\citation{ISO14443}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Architektúra implementácie}{41}{subsubsection.3.1.1}\protected@file@percent }
+\citation{NIST80053}
+\citation{LibsodiumDoc}
+\citation{RFC8439}
+\citation{FIPS1981}
+\citation{RFC5869}
+\citation{LibsodiumAudit}
+\@writefile{lot}{\contentsline {table}{\numberline {3\,--\,1}{\ignorespaces Hlavné vrstvy implementácie a ich úloha v prototype}}{43}{table.3.1}\protected@file@percent }
+\newlabel{tab:impl_layers}{{3\,--\,1}{43}{Hlavné vrstvy implementácie a ich úloha v prototype}{table.3.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Modulárna štruktúra a externé závislosti}{43}{subsubsection.3.1.2}\protected@file@percent }
+\citation{XChaChaDraft,LibsodiumXChaChaDoc}
+\citation{RFC8439}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}AEAD šifrovanie interného frame}{44}{subsubsection.3.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Voľba algoritmu}{44}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Konštrukcia nonce}{45}{section*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Náhodný nonce.}{45}{section*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Deterministický HMAC nonce.}{45}{section*.15}\protected@file@percent }
+\citation{BellareNonceMisuse2006}
+\citation{RFC5116}
+\@writefile{toc}{\contentsline {paragraph}{Rozdiel medzi deterministickým nonce bez a~s~verifikáciou.}{46}{section*.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{AAD väzba hlavičky}{46}{section*.17}\protected@file@percent }
+\citation{NIST80057}
+\citation{RFC5869}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}Derivácia kľúčov a domain separation}{47}{subsubsection.3.1.4}\protected@file@percent }
+\citation{RFC5869}
+\citation{NIST80057}
+\@writefile{lot}{\contentsline {table}{\numberline {3\,--\,2}{\ignorespaces Prehľad HKDF derivácie kľúčov z master secret}}{48}{table.3.2}\protected@file@percent }
+\newlabel{tab:hkdf-keys}{{3\,--\,2}{48}{Prehľad HKDF derivácie kľúčov z master secret}{table.3.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.5}Anti-replay mechanizmus}{49}{subsubsection.3.1.5}\protected@file@percent }
+\citation{NIST80094}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.6}Detektor protokolových anomálií}{50}{subsubsection.3.1.6}\protected@file@percent }
+\newlabel{sec:anomaly_detector}{{3.1.6}{50}{Detektor protokolových anomálií}{subsubsection.3.1.6}{}}
+\citation{SchneierKelsey1999}
+\@writefile{lot}{\contentsline {table}{\numberline {3\,--\,3}{\ignorespaces Konfigurácia \texttt  {ProtocolAnomalyDetector} a reakcia na anomálie}}{51}{table.3.3}\protected@file@percent }
+\newlabel{tab:anomaly-config}{{3\,--\,3}{51}{Konfigurácia \texttt {ProtocolAnomalyDetector} a reakcia na anomálie}{table.3.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.7}Ďalšie bezpečnostné mechanizmy}{51}{subsubsection.3.1.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Ochrana identifikátorov kariet.}{51}{section*.18}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Tamper-evident audit.}{51}{section*.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{RBAC a väzba čítačka--dvere.}{51}{section*.20}\protected@file@percent }
+\citation{ClangTidy}
+\citation{AddressSanitizer}
+\citation{GoogleTest}
+\@writefile{toc}{\contentsline {paragraph}{Konfigurácia.}{52}{section*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Verifikácia kvality kódu pred experimentmi}{52}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Experimentálna analýza bezpečnostných profilov}{52}{subsection.3.3}\protected@file@percent }
+\newlabel{sec:experiments}{{3.3}{52}{Experimentálna analýza bezpečnostných profilov}{subsection.3.3}{}}
+\citation{STRIDE}
+\citation{RFC5869}
+\citation{RogawayNonceMisuse2004,BellareNonceMisuse2006}
+\@writefile{lot}{\contentsline {table}{\numberline {3\,--\,4}{\ignorespaces Mapovanie STRIDE kategórií hrozieb na experimentálne scenáre}}{53}{table.3.4}\protected@file@percent }
+\newlabel{tab:stride-scenarios}{{3\,--\,4}{53}{Mapovanie STRIDE kategórií hrozieb na experimentálne scenáre}{table.3.4}{}}
+\citation{RFC8439}
+\citation{XChaChaDraft}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Matica konfiguračných profilov}{54}{subsubsection.3.3.1}\protected@file@percent }
+\newlabel{sec:profile_matrix}{{3.3.1}{54}{Matica konfiguračných profilov}{subsubsection.3.3.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3\,--\,5}{\ignorespaces Matica konfiguračných profilov (algoritmus $\times $ režim nonce)}}{54}{table.3.5}\protected@file@percent }
+\newlabel{tab:profile_matrix}{{3\,--\,5}{54}{Matica konfiguračných profilov (algoritmus $\times $ režim nonce)}{table.3.5}{}}
+\citation{NIST80053}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Architektúra experimentálneho harnessu}{55}{subsubsection.3.3.2}\protected@file@percent }
+\newlabel{sec:harness}{{3.3.2}{55}{Architektúra experimentálneho harnessu}{subsubsection.3.3.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Hlavné komponenty}{55}{section*.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Fázy experimentu}{56}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Reprodukovateľnosť}{56}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Vzťah harnessu k produkčnému systému}{57}{section*.25}\protected@file@percent }
+\citation{NIST80098}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Popis útokových scenárov}{58}{subsubsection.3.3.3}\protected@file@percent }
+\newlabel{sec:scenarios}{{3.3.3}{58}{Popis útokových scenárov}{subsubsection.3.3.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{S1: Replay útok}{58}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{S2: Manipulácia poľa v hlavičke (AAD tampering)}{58}{section*.27}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{S3a: Overenie nonce enforcement politiky}{58}{section*.28}\protected@file@percent }
+\citation{RogawayNonceMisuse2004}
+\citation{RFC5869}
+\@writefile{toc}{\contentsline {paragraph}{S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation)}{59}{section*.29}\protected@file@percent }
+\citation{RFC5116}
+\@writefile{toc}{\contentsline {paragraph}{S4: Rollback sekvenčného čísla}{60}{section*.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{S5: Opakované neplatné ciphertexty (AEAD tag verification)}{60}{section*.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{S6: Throughput benchmark}{61}{section*.32}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{S7: Nonce tamper (MITM na kanáli)}{61}{section*.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Metodika zberu a spracovania dát}{61}{subsubsection.3.3.4}\protected@file@percent }
+\newlabel{sec:methodology}{{3.3.4}{61}{Metodika zberu a spracovania dát}{subsubsection.3.3.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Zber dát}{61}{section*.34}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Odvodzované metriky}{62}{section*.35}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Štatistická robustnosť}{62}{section*.36}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.5}Výsledky: Úspešnosť útokov}{63}{subsubsection.3.3.5}\protected@file@percent }
+\newlabel{sec:results_attacks}{{3.3.5}{63}{Výsledky: Úspešnosť útokov}{subsubsection.3.3.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{Celkový prehľad}{63}{section*.37}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3\,--\,2}{\ignorespaces Úspešnosť útokov podľa scenára a profilu (priemer cez 5 behov). Zelené bunky: útok zablokovaný (0\%). Červené bunky: útok úspešný.}}{63}{figure.3.2}\protected@file@percent }
+\newlabel{fig:heatmap}{{3\,--\,2}{63}{Úspešnosť útokov podľa scenára a profilu (priemer cez 5 behov). Zelené bunky: útok zablokovaný (0\%). Červené bunky: útok úspešný}{figure.3.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3\,--\,6}{\ignorespaces Úspešnosť útoku a reakcia detektora podľa scenára a nonce stratégie}}{63}{table.3.6}\protected@file@percent }
+\newlabel{tab:scenario-summary}{{3\,--\,6}{63}{Úspešnosť útoku a reakcia detektora podľa scenára a nonce stratégie}{table.3.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{Závislosť od počtu útočných frame}{64}{section*.38}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Rýchlosť karantény}{64}{section*.39}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.6}Výsledky: Baseline korektnosť}{65}{subsubsection.3.3.6}\protected@file@percent }
+\newlabel{sec:results_baseline}{{3.3.6}{65}{Výsledky: Baseline korektnosť}{subsubsection.3.3.6}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.7}Výsledky: Latencia a priepustnosť}{65}{subsubsection.3.3.7}\protected@file@percent }
+\newlabel{sec:results_throughput}{{3.3.7}{65}{Výsledky: Latencia a priepustnosť}{subsubsection.3.3.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3\,--\,3}{\ignorespaces Priepustnosť pri $N=50{,}000$ frame (priemer $\pm $ std cez 5 behov) a percentily latencie.}}{65}{figure.3.3}\protected@file@percent }
+\newlabel{fig:throughput}{{3\,--\,3}{65}{Priepustnosť pri $N=50{,}000$ frame (priemer $\pm $ std cez 5 behov) a percentily latencie}{figure.3.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Throughput benchmark (S6)}{65}{table.3.7}\protected@file@percent }
+\citation{RogawayNonceMisuse2004,RFC5869}
+\@writefile{lot}{\contentsline {table}{\numberline {3\,--\,7}{\ignorespaces Priepustnosť a latencia pri N=50,000 frame}}{66}{table.3.7}\protected@file@percent }
+\newlabel{tab:throughput}{{3\,--\,7}{66}{Priepustnosť a latencia pri N=50,000 frame}{table.3.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{Overhead detektora na baseline frame}{66}{section*.41}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.8}Diskusia a interpretácia výsledkov}{66}{subsubsection.3.3.8}\protected@file@percent }
+\newlabel{sec:discussion}{{3.3.8}{66}{Diskusia a interpretácia výsledkov}{subsubsection.3.3.8}{}}
+\citation{NIST80053,DefenseInDepth}
+\citation{DefenseInDepth}
+\citation{NIST80094}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.9}Porovnanie s minimalistickými implementáciami}{67}{subsubsection.3.3.9}\protected@file@percent }
+\newlabel{sec:baseline_comparison}{{3.3.9}{67}{Porovnanie s minimalistickými implementáciami}{subsubsection.3.3.9}{}}
+\citation{DefenseInDepth,NIST80053}
+\@writefile{lot}{\contentsline {table}{\numberline {3\,--\,8}{\ignorespaces Odolnosť voči útočným scenárom podľa úrovne implementácie}}{68}{table.3.8}\protected@file@percent }
+\newlabel{tab:baseline_comparison}{{3\,--\,8}{68}{Odolnosť voči útočným scenárom podľa úrovne implementácie}{table.3.8}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.10}Zhrnutie experimentov}{68}{subsubsection.3.3.10}\protected@file@percent }
+\@setckpt{jadroprace}{
+\setcounter{page}{70}
+\setcounter{equation}{5}
+\setcounter{enumi}{8}
+\setcounter{enumii}{0}
+\setcounter{enumiii}{0}
+\setcounter{enumiv}{0}
+\setcounter{footnote}{0}
+\setcounter{mpfootnote}{0}
+\setcounter{part}{0}
+\setcounter{section}{3}
+\setcounter{subsection}{3}
+\setcounter{subsubsection}{10}
+\setcounter{paragraph}{0}
+\setcounter{subparagraph}{0}
+\setcounter{figure}{3}
+\setcounter{table}{8}
+\setcounter{parentequation}{0}
+\setcounter{float@type}{4}
+\setcounter{NAT@ctr}{0}
+\setcounter{section@level}{3}
+\setcounter{Item}{25}
+\setcounter{Hfootnote}{0}
+\setcounter{bookmark@seq@number}{74}
+}

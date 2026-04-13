@@ -37,6 +37,7 @@ SCENARIO_TITLES = {
     "S4_seq_reset": "S4: Sequence Rollback",
     "S5_tag_probe": "S5: Tag Probe (Forgery Resistance)",
     "S6_throughput": "S6: Throughput Benchmark",
+    "S7_nonce_tamper": "S7: Nonce Tamper (MITM)",
 }
 
 
@@ -94,15 +95,16 @@ def compute_attack_success_rate(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def compute_attack_success_agg(data: pd.DataFrame) -> pd.DataFrame:
-    """Per (scenario, profile, attack_n): mean/std of success_rate across runs."""
+    """Per (scenario, profile, attack_n): mean/std/min/max of success_rate across runs."""
     per_run = compute_attack_success_rate(data)
     agg = per_run.groupby(["scenario", "profile", "attack_n"])["success_rate"].agg(
-        ["mean", "std", "count"]
+        ["mean", "std", "count", "min", "max"]
     ).reset_index()
-    agg.columns = ["scenario", "profile", "attack_n", "sr_mean", "sr_std", "n_runs"]
+    agg.columns = ["scenario", "profile", "attack_n", "sr_mean", "sr_std", "n_runs",
+                    "sr_min", "sr_max"]
     agg["sr_std"] = agg["sr_std"].fillna(0)
-    # 95% confidence interval half-width.
-    agg["sr_ci95"] = 1.96 * agg["sr_std"] / np.sqrt(agg["n_runs"])
+    # Range bands (min/max across runs).
+    agg["sr_ci95"] = 1.96 * agg["sr_std"] / np.sqrt(agg["n_runs"])  # kept for compat
     return agg
 
 
@@ -248,8 +250,8 @@ def plot_attack_success_by_n(data: pd.DataFrame, out: Path):
                     marker="o", markersize=4, label=profile,
                     color=PROFILE_PALETTE[profile])
             ax.fill_between(d["attack_n"],
-                            (d["sr_mean"] - d["sr_ci95"]).clip(0, 1),
-                            (d["sr_mean"] + d["sr_ci95"]).clip(0, 1),
+                            d["sr_min"].clip(0, 1),
+                            d["sr_max"].clip(0, 1),
                             alpha=0.15, color=PROFILE_PALETTE[profile])
         ax.set_title(SCENARIO_TITLES.get(scenario, scenario))
         ax.set_xlabel("Attack Frames (N)")

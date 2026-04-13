@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 
+#include <httplib.h>
 #include <access_core/protocol_anomaly_detector.hpp>
 #include <access_decision/engine.hpp>
 #include <access_storage/sqlite_access_store.hpp>
@@ -21,7 +22,11 @@ namespace admin {
 //! Central application state holding all server components.
 //! Thread-safe via mutex for concurrent HTTP request handling.
 struct AppState {
-    std::mutex m;  //! Protects all mutable state.
+    std::mutex m;  //! Protects all mutable state (admin API on port 8080).
+    std::mutex engineMutex;  //! Protects DecisionEngine (decision endpoint on port 8081).
+
+    //! Persistent HTTP client for decision service (port 8081, keep-alive).
+    std::unique_ptr<httplib::Client> decisionClient;
 
     config_loader::Config cfg{};  //! Server configuration.
     std::string dbPath;           //! SQLite database path.
@@ -38,6 +43,7 @@ struct AppState {
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> replayByReader;
     //! Last sequence number per reader for hardware scanner.
     std::unordered_map<uint32_t, uint64_t> lastSeqByReader;
+
 
     //! Constructs AppState with configuration.
     //! @param [in] c   Server configuration.

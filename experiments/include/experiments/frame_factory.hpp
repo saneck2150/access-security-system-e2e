@@ -58,6 +58,9 @@ class FrameFactory {
     static std::vector<uint8_t> tamperCiphertext(
         const std::vector<uint8_t>& frameBytes);
 
+    //! XOR nonce bytes with 0xFF — simulates MITM nonce tampering in transit.
+    static std::vector<uint8_t> tamperNonce(const std::vector<uint8_t>& frameBytes);
+
     //! Modifies seq at bytes [21..28].
     static std::vector<uint8_t> tamperSeq(
         const std::vector<uint8_t>& frameBytes, uint64_t newSeq);

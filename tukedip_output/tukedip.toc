@@ -1,0 +1,116 @@
+\babel@toc {nil}{}\relax 
+\contentsline {section}{Úvod}{18}{section*.7}%
+\contentsline {section}{\numberline {1}Formulácia úlohy}{20}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Úloha~1: Analyzovať aktuálny stav moderných prístupových systémov}{20}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Úloha~2: Analyzovať problematiku bezpečnosti šifrovacích algoritmov}{20}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Úloha~3: Navrhnúť model prístupového systému}{21}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}Úloha~4: Vyhodnotiť účinnosť algoritmov a~navrhnúť modifikácie}{21}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}Úloha~5: Vypracovať dokumentáciu podľa štandardov KPI}{22}{subsection.1.5}%
+\contentsline {subsection}{\numberline {1.6}Podmienky a~obmedzenia riešenia}{22}{subsection.1.6}%
+\contentsline {section}{\numberline {2}Analýza}{23}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Analýza aktuálnych riešení a srovnávací základňa}{23}{subsection.2.1}%
+\contentsline {subsubsection}{\numberline {2.1.1}Existujúce riešenia v oblasti prístupových systémov}{23}{subsubsection.2.1.1}%
+\contentsline {subsubsection}{\numberline {2.1.2}RFC 8439 ako srovnávacia základňa}{23}{subsubsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.2}Bezpečnostné východiská a model hrozieb}{24}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Bezpečnostné požiadavky ako merateľné tvrdenia}{25}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Model hrozieb STRIDE}{26}{subsubsection.2.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.3}Špecifiká RFID/NFC v prístupových systémoch}{26}{subsubsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.3}Systémy kontroly prístupu a prístupové modely}{26}{subsection.2.3}%
+\contentsline {subsubsection}{\numberline {2.3.1}Fyzická vs. logická kontrola prístupu}{26}{subsubsection.2.3.1}%
+\contentsline {subsubsection}{\numberline {2.3.2}Modely kontroly prístupu}{27}{subsubsection.2.3.2}%
+\contentsline {subsubsection}{\numberline {2.3.3}Princíp najmenej oprávnení}{27}{subsubsection.2.3.3}%
+\contentsline {subsection}{\numberline {2.4}Kryptografické základy}{28}{subsection.2.4}%
+\contentsline {subsubsection}{\numberline {2.4.1}HMAC a hashovacie funkcie}{28}{subsubsection.2.4.1}%
+\contentsline {subsubsection}{\numberline {2.4.2}Symetrické šifrovanie a AEAD}{28}{subsubsection.2.4.2}%
+\contentsline {paragraph}{ChaCha20 a Poly1305}{28}{section*.8}%
+\contentsline {paragraph}{XChaCha20-Poly1305 a nonce manažment}{29}{section*.9}%
+\contentsline {paragraph}{Associated Data (AAD)}{29}{section*.10}%
+\contentsline {paragraph}{Porovnanie s AES-GCM}{29}{section*.11}%
+\contentsline {subsubsection}{\numberline {2.4.3}Nonce stratégie a ich bezpečnostné modely}{30}{subsubsection.2.4.3}%
+\contentsline {subsubsection}{\numberline {2.4.4}HKDF a domain separation}{31}{subsubsection.2.4.4}%
+\contentsline {subsection}{\numberline {2.5}Zásady návrhu bezpečných protokolov}{31}{subsection.2.5}%
+\contentsline {subsubsection}{\numberline {2.5.1}Fail-closed správanie}{31}{subsubsection.2.5.1}%
+\contentsline {subsubsection}{\numberline {2.5.2}Jednoznačná serializácia a validácia vstupu}{31}{subsubsection.2.5.2}%
+\contentsline {subsubsection}{\numberline {2.5.3}Mapovanie bezpečnostných cieľov na mechanizmy}{32}{subsubsection.2.5.3}%
+\contentsline {subsubsection}{\numberline {2.5.4}Kompromisy medzi bezpečnosťou a použiteľnosťou}{32}{subsubsection.2.5.4}%
+\contentsline {subsection}{\numberline {2.6}Správa kryptografických kľúčov}{33}{subsection.2.6}%
+\contentsline {subsubsection}{\numberline {2.6.1}Oddelenie kľúčov podľa účelu}{33}{subsubsection.2.6.1}%
+\contentsline {subsubsection}{\numberline {2.6.2}Verzovanie a rotácia kľúčov}{33}{subsubsection.2.6.2}%
+\contentsline {subsubsection}{\numberline {2.6.3}Ukladanie kľúčov a provisioning}{33}{subsubsection.2.6.3}%
+\contentsline {subsubsection}{\numberline {2.6.4}Kompromitácia a postup obnovy}{34}{subsubsection.2.6.4}%
+\contentsline {subsection}{\numberline {2.7}Ochrana súkromia identifikátorov}{34}{subsection.2.7}%
+\contentsline {subsection}{\numberline {2.8}Tamper-evident audit log}{34}{subsection.2.8}%
+\contentsline {subsubsection}{\numberline {2.8.1}Hash chain s HMAC}{34}{subsubsection.2.8.1}%
+\contentsline {subsubsection}{\numberline {2.8.2}Audit anchor a ochrana proti truncation}{35}{subsubsection.2.8.2}%
+\contentsline {subsubsection}{\numberline {2.8.3}Forward integrity}{35}{subsubsection.2.8.3}%
+\contentsline {subsubsection}{\numberline {2.8.4}Verifikácia}{35}{subsubsection.2.8.4}%
+\contentsline {subsection}{\numberline {2.9}Bezpečnosť vstavaného zariadenia}{35}{subsection.2.9}%
+\contentsline {subsubsection}{\numberline {2.9.1}Ukladanie tajomstiev na zariadení}{35}{subsubsection.2.9.1}%
+\contentsline {subsubsection}{\numberline {2.9.2}Monotónne počítadlá a trvácnosť stavu}{36}{subsubsection.2.9.2}%
+\contentsline {subsubsection}{\numberline {2.9.3}Fyzické útoky a Wi-Fi konfigurácia}{36}{subsubsection.2.9.3}%
+\contentsline {subsection}{\numberline {2.10}Bezpečnosť transportnej vrstvy}{36}{subsection.2.10}%
+\contentsline {subsubsection}{\numberline {2.10.1}Prečo nestačí iba TLS}{36}{subsubsection.2.10.1}%
+\contentsline {subsubsection}{\numberline {2.10.2}Praktické nasadenie TLS v IoT}{37}{subsubsection.2.10.2}%
+\contentsline {subsection}{\numberline {2.11}Súvisiace prístupy a postavenie navrhovaného riešenia}{37}{subsection.2.11}%
+\contentsline {subsubsection}{\numberline {2.11.1}Komunikačné protokoly: Wiegand a OSDP}{37}{subsubsection.2.11.1}%
+\contentsline {subsubsection}{\numberline {2.11.2}Postavenie navrhovaného riešenia}{38}{subsubsection.2.11.2}%
+\contentsline {subsection}{\numberline {2.12}Zhrnutie teoretických východísk}{38}{subsection.2.12}%
+\contentsline {subsubsection}{\numberline {2.12.1}Predpoklady a zvyškové riziko}{38}{subsubsection.2.12.1}%
+\contentsline {section}{\numberline {3}Jadro práce}{40}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Praktická implementácia navrhnutého systému}{40}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Architektúra implementácie}{41}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}Modulárna štruktúra a externé závislosti}{43}{subsubsection.3.1.2}%
+\contentsline {subsubsection}{\numberline {3.1.3}AEAD šifrovanie interného frame}{44}{subsubsection.3.1.3}%
+\contentsline {paragraph}{Voľba algoritmu}{44}{section*.12}%
+\contentsline {paragraph}{Konštrukcia nonce}{45}{section*.13}%
+\contentsline {paragraph}{Náhodný nonce.}{45}{section*.14}%
+\contentsline {paragraph}{Deterministický HMAC nonce.}{45}{section*.15}%
+\contentsline {paragraph}{Rozdiel medzi deterministickým nonce bez a~s~verifikáciou.}{46}{section*.16}%
+\contentsline {paragraph}{AAD väzba hlavičky}{46}{section*.17}%
+\contentsline {subsubsection}{\numberline {3.1.4}Derivácia kľúčov a domain separation}{47}{subsubsection.3.1.4}%
+\contentsline {subsubsection}{\numberline {3.1.5}Anti-replay mechanizmus}{49}{subsubsection.3.1.5}%
+\contentsline {subsubsection}{\numberline {3.1.6}Detektor protokolových anomálií}{50}{subsubsection.3.1.6}%
+\contentsline {subsubsection}{\numberline {3.1.7}Ďalšie bezpečnostné mechanizmy}{51}{subsubsection.3.1.7}%
+\contentsline {paragraph}{Ochrana identifikátorov kariet.}{51}{section*.18}%
+\contentsline {paragraph}{Tamper-evident audit.}{51}{section*.19}%
+\contentsline {paragraph}{RBAC a väzba čítačka--dvere.}{51}{section*.20}%
+\contentsline {paragraph}{Konfigurácia.}{52}{section*.21}%
+\contentsline {subsection}{\numberline {3.2}Verifikácia kvality kódu pred experimentmi}{52}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Experimentálna analýza bezpečnostných profilov}{52}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Matica konfiguračných profilov}{54}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Architektúra experimentálneho harnessu}{55}{subsubsection.3.3.2}%
+\contentsline {paragraph}{Hlavné komponenty}{55}{section*.22}%
+\contentsline {paragraph}{Fázy experimentu}{56}{section*.23}%
+\contentsline {paragraph}{Reprodukovateľnosť}{56}{section*.24}%
+\contentsline {paragraph}{Vzťah harnessu k produkčnému systému}{57}{section*.25}%
+\contentsline {subsubsection}{\numberline {3.3.3}Popis útokových scenárov}{58}{subsubsection.3.3.3}%
+\contentsline {paragraph}{S1: Replay útok}{58}{section*.26}%
+\contentsline {paragraph}{S2: Manipulácia poľa v hlavičke (AAD tampering)}{58}{section*.27}%
+\contentsline {paragraph}{S3a: Overenie nonce enforcement politiky}{58}{section*.28}%
+\contentsline {paragraph}{S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation)}{59}{section*.29}%
+\contentsline {paragraph}{S4: Rollback sekvenčného čísla}{60}{section*.30}%
+\contentsline {paragraph}{S5: Opakované neplatné ciphertexty (AEAD tag verification)}{60}{section*.31}%
+\contentsline {paragraph}{S6: Throughput benchmark}{61}{section*.32}%
+\contentsline {paragraph}{S7: Nonce tamper (MITM na kanáli)}{61}{section*.33}%
+\contentsline {subsubsection}{\numberline {3.3.4}Metodika zberu a spracovania dát}{61}{subsubsection.3.3.4}%
+\contentsline {paragraph}{Zber dát}{61}{section*.34}%
+\contentsline {paragraph}{Odvodzované metriky}{62}{section*.35}%
+\contentsline {paragraph}{Štatistická robustnosť}{62}{section*.36}%
+\contentsline {subsubsection}{\numberline {3.3.5}Výsledky: Úspešnosť útokov}{63}{subsubsection.3.3.5}%
+\contentsline {paragraph}{Celkový prehľad}{63}{section*.37}%
+\contentsline {paragraph}{Závislosť od počtu útočných frame}{64}{section*.38}%
+\contentsline {paragraph}{Rýchlosť karantény}{64}{section*.39}%
+\contentsline {subsubsection}{\numberline {3.3.6}Výsledky: Baseline korektnosť}{65}{subsubsection.3.3.6}%
+\contentsline {subsubsection}{\numberline {3.3.7}Výsledky: Latencia a priepustnosť}{65}{subsubsection.3.3.7}%
+\contentsline {paragraph}{Throughput benchmark (S6)}{65}{table.3.7}%
+\contentsline {paragraph}{Overhead detektora na baseline frame}{66}{section*.41}%
+\contentsline {subsubsection}{\numberline {3.3.8}Diskusia a interpretácia výsledkov}{66}{subsubsection.3.3.8}%
+\contentsline {subsubsection}{\numberline {3.3.9}Porovnanie s minimalistickými implementáciami}{67}{subsubsection.3.3.9}%
+\contentsline {subsubsection}{\numberline {3.3.10}Zhrnutie experimentov}{68}{subsubsection.3.3.10}%
+\contentsline {section}{\numberline {4}Záver (zhodnotenie riešenia)}{70}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Obmedzenia a budúca práca}{71}{subsection.4.1}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam použitej literatúry}{73}{subsection.4.1}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam príloh}{78}{section*.43}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha A}{79}{section*.45}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha B}{80}{section*.46}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha C}{81}{section*.47}%

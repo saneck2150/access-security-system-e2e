@@ -17,6 +17,8 @@ SqliteAccessStore::SqliteAccessStore(const std::string& path) {
     if (sqlite3_open(path.c_str(), &_db) != SQLITE_OK) {
         throw std::runtime_error("sqlite3_open failed");
     }
+    execOrThrow(_db, "PRAGMA journal_mode=WAL;");
+    execOrThrow(_db, "PRAGMA busy_timeout=5000;");
     execOrThrow(_db, "PRAGMA foreign_keys=ON;");
 }
 

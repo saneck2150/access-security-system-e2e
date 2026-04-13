@@ -140,28 +140,43 @@ Business logic separated from HTTP routing.
 | POST | `/api/hw/uid` | Process card scan from hardware reader |
 | POST | `/api/access/check` | Check access with raw frame |
 
+### Decision Service (port 8081)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/decision/frame` | Process raw AEAD frame bytes, return `{allow, reason}` |
+
+Runs on a **separate port** (main port + 1, default 8081) in a dedicated thread. Accepts `application/octet-stream` body (raw frame bytes). Used by:
+- `hw_service` in remote mode (`decision_mode: "remote"`)
+- E2E experiment harness (`--e2e=http://127.0.0.1:8081`)
+
+Uses its own mutex (`engineMutex`) to avoid contention with admin API on port 8080. Exceptions are caught and returned as `{"allow": false, "reason": "internal_error"}`.
+
 ## Dataflow: Hardware Card Scan
 
 ```
-1. ESP32 POST /api/hw/uid
+1. ESP32 POST :8080/api/hw/uid
    {"uid": "...", "reader_id": 1, "door_id": 1}
            │
            ▼
-2. hw_service.processHwUid()
+2. hw_service.processHwUid() [port 8080, under app.m]
    - Validate reader exists
-   - Build encrypted frame
-   - Run through DecisionEngine
+   - Build encrypted AEAD frame
+   - Release mutex
            │
            ▼
-3. engine->handleFrameBytes()
-   - Decrypt and validate
-   - Check replay window
-   - Lookup card role
-   - Check door permission
-   - Log to audit
+3. POST frame bytes → :8081/api/decision/frame [separate port, engineMutex]
            │
            ▼
-4. Response
+4. DecisionEngine.handleFrameBytes()
+   - AEAD decrypt and validate
+   - Replay window check
+   - R2: nonce_mismatch / seq_rollback check
+   - Card HMAC lookup + RBAC
+   - Tamper-evident audit append (SQLite WAL mode)
+           │
+           ▼
+5. Response
    {"allow": true, "reason": "ok", ...}
 ```
 

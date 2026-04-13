@@ -94,6 +94,14 @@ void AppState::openOrCreate() {
     engine = std::make_unique<access_decision::DecisionEngine>(
         store.get(), std::move(hasher), audit.get(), keyManager, fhCfg, &events, &anomalyDetector);
 
+    // Persistent client for decision service (separate port, keep-alive).
+    if (cfg.admin.decisionMode == "remote") {
+        decisionClient = std::make_unique<httplib::Client>(cfg.admin.decisionUrl);
+        decisionClient->set_connection_timeout(5);
+        decisionClient->set_read_timeout(5);
+        decisionClient->set_keep_alive(true);
+    }
+
     events.push(
         {.ts_unix_ms = nowUnixMs(), .kind = "admin", .message = "storage opened: " + dbPath});
 }

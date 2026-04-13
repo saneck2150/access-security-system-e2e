@@ -1,0 +1,220 @@
+% !TeX encoding = UTF-8
+% !TeX spellcheck = sk_SK
+\documentclass[]{tukediphc}
+%% -----------------------------------------------------------------
+%% Diplomová práca — Oleksandr Mykhailyshyn
+%% Šablóna TUKE FEI (tukediphc.cls, pdflatex, UTF-8)
+%% -----------------------------------------------------------------
+\usepackage[pdftex]{graphicx}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg,.mps}
+\graphicspath{{figures/}{plots/}}
+
+\usepackage{lmodern,textcase}
+\usepackage[slovak]{babel}
+\def\refname{Zoznam použitej literatúry}
+%% Slovak quotation marks — babel 'slovak' option may not define \uv in all distributions
+\providecommand{\uv}[1]{\quotedblbase#1\textquotedblleft}
+\usepackage{latexsym}
+\usepackage{dcolumn}
+\usepackage{hhline}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{nicefrac}
+\usepackage{upgreek}
+\usepackage[final]{showkeys}
+\usepackage[slovak,noprefix]{nomencl}
+\makeglossary
+
+%% Additional packages needed by thesis content
+\usepackage{booktabs}       % \toprule, \midrule, \bottomrule
+\let\labelindent\relax
+\usepackage{enumitem}       % [leftmargin=*,itemsep=2pt]
+\usepackage{array}          % p{} columns
+\usepackage{textcomp}       % \texttimes
+\usepackage{verbatim}       % verbatim environments
+\usepackage{float}          % [H] float placement
+
+%% \lll redefined as binary operator (rotation in ChaCha20 formulas)
+\usepackage{amssymb}
+\let\lllRel\lll
+\renewcommand{\lll}{\mathbin{\lllRel}}
+
+%% Numbered citations
+\usepackage[numbers]{natbib}
+
+%% Hyperlinks
+\usepackage[pdftex,unicode=true,bookmarksnumbered=true,
+bookmarksopen=true,pdfmenubar=true,pdfview=Fit,linktocpage=true,
+pageanchor=true,bookmarkstype=toc,pdfpagemode=UseOutlines,
+pdfstartpage=1]{hyperref}
+\hypersetup{%
+pdfcreator={pdfLaTeX},
+pdfkeywords={kontrola prístupu, RFID, NFC, AEAD, ChaCha20-Poly1305},
+pdftitle={Zvýšenie bezpečnosti vybraných šifrovacích algoritmov v prístupových systémoch},
+pdfauthor={Oleksandr Mykhailyshyn},
+pdfsubject={Diplomová práca}
+}
+
+%% ====================================================================
+%%  METADATA
+%% ====================================================================
+\dippraca{Diplomová práca}
+%%
+\nazov{Zvýšenie bezpečnosti vybraných šifrovacích algoritmov v~prístupových systémoch}
+\podnazov{}
+\jazyk{Slovenský}
+\title{Enhancing Security of Selected Encryption Algorithms in Access Control Systems}
+\autor{Oleksandr Mykhailyshyn}
+\veduciprace{TODO --- doplniť vedúceho práce}
+%\konzultanta{TODO}
+\titul{Bc}
+\univerzita{Technická univerzita v~Košiciach}
+\fakulta{Fakulta elektrotechniky a informatiky}
+\skratkafakulty{FEI}
+\katedra{Katedra počítačov a informatiky}
+\skratkakatedry{KPI}
+\odbor{TODO --- doplniť študijný odbor}
+\specializacia{}
+%%
+\abstrakt{%
+Diplomová práca sa zaoberá návrhom, implementáciou a~experimentálnym overením bezpečnostných mechanizmov pre systém kontroly fyzického prístupu na báze RFID/NFC. Ako základ slúži štandardné nasadenie AEAD podľa RFC~8439 (ChaCha20-Poly1305); práca navrhuje modifikácie spôsobu jeho nasadenia --- deterministickú konštrukciu nonce pomocou HMAC a~runtime verifikáciu s~anomálnou detekciou --- a~experimentálne overuje ich prínos. Prototyp pozostáva z~hardvérovej čítačky (ESP32, RC522), serverovej aplikácie v~jazyku C++20 a~lokálneho úložiska SQLite. Systém implementuje viacvrstvovú ochranu: HMAC-SHA-256 autentifikáciu hardvérových požiadaviek, interný AEAD frame s~väzbou hlavičky (AAD binding), HKDF deriváciu kľúčov pre každú čítačku, anti-replay sliding window, detektor protokolových anomálií s~karanténou a~tamper-evident auditný log s~HMAC hash chain. Architektúra oddeľuje spracovanie požiadaviek od rozhodovacej logiky prostredníctvom HTTP rozhrania medzi dvoma nezávislými službami, čo umožňuje nezávislé testovanie bezpečnostných vlastností AEAD vrstvy. Experimentálna analýza porovnáva šesť konfiguračných profilov (dva AEAD algoritmy krát tri stratégie generovania nonce) v~siedmich scenároch: replay, manipulácia hlavičky, nonce enforcement, cross-reader izolácia kľúčov, rollback sekvenčného čísla, verifikácia AEAD tagu a~nonce tamper simulujúci útok na kanáli. Výsledky ukazujú, že profily s~deterministickým nonce a~runtime detektorom (R2) dosahujú nulovú úspešnosť útoku naprieč všetkými scenármi. Štandardné nasadenie AEAD s~náhodným nonce (R0) slúži ako srovnávacia základňa; deterministická konštrukcia nonce (R1) eliminuje závislosť na kvalite generátora náhodných čísiel, no bez runtime verifikácie neposkytuje pridanú detekčnú schopnosť. Overhead detektora nepresahuje 19\% priepustnosti, čo je rádovo nepodstatné pre reálnu prevádzku prístupového systému s~typickou záťažou pod 10 udalostí za sekundu. Práca demonštruje, že aj na cenovo dostupnom embedded hardvéri je možné implementovať viacvrstvovú kryptografickú ochranu s~merateľným prínosom oproti štandardnému nasadeniu AEAD.}
+%%
+\klucoveslova{kontrola prístupu, RFID, NFC, kryptografia, AEAD, ChaCha20-Poly1305, XChaCha20-Poly1305, anomálna detekcia, HMAC, HKDF, anti-replay, audit log}
+%%
+\abstrakte{%
+The thesis presents the design, implementation, and experimental evaluation of security mechanisms for an RFID/NFC physical access control system. The baseline is the standard AEAD deployment per RFC~8439 (ChaCha20-Poly1305); the work proposes modifications to the deployment mode --- deterministic HMAC-based nonce construction and runtime verification with anomaly detection --- and experimentally evaluates their contribution. The prototype consists of a~hardware reader (ESP32, RC522), a~C++20 server application, and a~local SQLite storage. The system implements multi-layered protection: HMAC-SHA-256 hardware request authentication, an internal AEAD frame with header binding (AAD), HKDF per-reader key derivation, an anti-replay sliding window, a~protocol anomaly detector with device quarantine capability, and a~tamper-evident audit log based on an HMAC hash chain. The architecture separates request processing from the decision logic via an HTTP interface between two independent services, enabling independent testing of the AEAD layer security properties. The experimental analysis compares six configuration profiles (two AEAD algorithms times three nonce generation strategies) across seven scenarios: replay, header manipulation, nonce enforcement, cross-reader key isolation, sequence number rollback, AEAD tag verification, and nonce tampering simulating a~channel attack. The results show that profiles with a~deterministic nonce and a~runtime detector (R2) achieve a~zero attack success rate across all scenarios, with a~detector overhead not exceeding 19\% of throughput --- negligible for the real-world workload of an access control system.}
+%%
+\keywords{access control, RFID, NFC, cryptography, AEAD, ChaCha20-Poly1305, XChaCha20-Poly1305, anomaly detection, HMAC, HKDF, anti-replay, audit log}
+%%
+\datumodovzdania{TODO.TODO.2026}
+\datumobhajoby{TODO.TODO.2026}
+\mesto{Košice}
+\pocetstran{\pageref{page:posledna}}
+\kategoria{Záverečná práca}
+
+%% ====================================================================
+\begin{document}
+\renewcommand{\figurename}{Obrázok}
+\renewcommand{\tablename}{Tabuľka}
+\renewcommand{\contentsname}{Obsah}
+\renewcommand{\listfigurename}{Zoznam obrázkov}
+\renewcommand{\listtablename}{Zoznam tabuliek}
+\renewcommand\theHfigure{\theHsection.\arabic{figure}}
+\renewcommand\theHtable{\theHsection.\arabic{table}}
+\bibliographystyle{plainnat}
+
+%% Prevent words from overflowing into margins (overfull hbox).
+\emergencystretch=1.5em
+\tolerance=1000
+
+\prvastrana
+
+\titulnastrana
+
+\abstraktsk
+
+\abstrakteng
+
+\kabstrakt
+
+\zadanieprace
+
+\cestnevyhlasenie
+
+\podakovanie
+Ďakujem vedúcemu diplomovej práce za odborné vedenie, cenné rady a~trpezlivú podporu počas
+celého procesu vypracovania tejto práce.
+\kpodakovania
+
+\predhovor
+Diplomová práca sa zaoberá návrhom a~experimentálnym overením bezpečnostných mechanizmov pre systém kontroly prístupu. Práca vznikla na Katedre počítačov a~informatiky Fakulty elektrotechniky a~informatiky Technickej univerzity v~Košiciach. Motiváciou bolo zvýšenie dôveryhodnosti komunikácie medzi čítačkou a~serverom v~prostredí, kde fyzická aj informačná bezpečnosť konvergujú.
+\kpredhovoru
+
+\thispagestyle{empty}
+\tableofcontents
+\newpage
+
+\thispagestyle{empty}
+{	\makeatletter
+	\renewcommand{\l@figure}{\@dottedtocline{1}{1.5em}{3.5em}}
+	\makeatother
+	\listoffigures}
+\newpage
+
+\thispagestyle{empty}
+\listoftables
+\newpage
+
+\thispagestyle{empty}
+\printglossary
+\newpage
+
+%% Zoznam skratiek (namiesto slovníka termínov)
+\slovnikterminov
+
+\begin{description}[style=nextline,leftmargin=3cm,labelwidth=2.8cm]
+\item[AEAD] Authenticated Encryption with Associated Data
+\item[ABAC] Attribute-Based Access Control
+\item[AAA] Authentication, Authorization, Accounting
+\item[ARX] Add-Rotate-XOR
+\item[CIA] Confidentiality, Integrity, Availability
+\item[DAC] Discretionary Access Control
+\item[DoS] Denial of Service
+\item[ESP32] mikrokontrolér Espressif Systems ESP32
+\item[FEI] Fakulta elektrotechniky a informatiky
+\item[FIPS] Federal Information Processing Standard
+\item[GDPR] General Data Protection Regulation
+\item[HKDF] HMAC-based Key Derivation Function
+\item[HMAC] Hash-based Message Authentication Code
+\item[HSM] Hardware Security Module
+\item[IoT] Internet of Things
+\item[KPI] Katedra počítačov a informatiky
+\item[LSan] LeakSanitizer
+\item[MAC] Message Authentication Code
+\item[MITM] Man-in-the-Middle (útok)
+\item[mTLS] mutual Transport Layer Security
+\item[NFC] Near Field Communication
+\item[NIST] National Institute of Standards and Technology
+\item[NVS] Non-Volatile Storage
+\item[OSDP] Open Supervised Device Protocol
+\item[OTA] Over-The-Air (bezdrôtová aktualizácia)
+\item[OWASP] Open Web Application Security Project
+\item[PKI] Public Key Infrastructure
+\item[PSK] Pre-Shared Key
+\item[RBAC] Role-Based Access Control
+\item[RC522] čítačka RFID kariet (NXP Semiconductors)
+\item[RFC] Request for Comments
+\item[RFID] Radio Frequency Identification
+\item[SIMD] Single Instruction, Multiple Data
+\item[SQLite] odľahčená relačná databáza (serverless)
+\item[STRIDE] Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege
+\item[TLS] Transport Layer Security
+\item[TUKE] Technická univerzita v Košiciach
+\item[UBSan] UndefinedBehaviorSanitizer
+\item[UID] Unique Identifier
+\end{description}
+
+\kslovnikterminov
+%
+\include{uvod}
+%
+\include{formulacia}
+%
+\include{analyza}
+%
+\include{jadroprace}
+%
+\include{zaver}
+%
+\include{literatura}
+%
+\include{prilohy}
+%
+% zivotopis autora
+\newpage
+\phantomsection
+\protect\label{page:posledna}
+\curriculumvitae
+TODO --- doplniť životopis autora.
+\kcurriculumvitae
+
+\end{document}

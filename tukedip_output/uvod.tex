@@ -1,0 +1,13 @@
+% !TeX root=tukedip.tex
+\section*{Úvod}
+\addcontentsline{toc}{section}{Úvod}
+
+Systémy kontroly fyzického prístupu patria medzi prvky infraštruktúry, pri ktorých sa fyzická a~informačná bezpečnosť stretávajú v~jednom bode. Hoci sa na prvý pohľad jedná o~jednoduché rozhodnutie --- otvoriť alebo neotvoriť dvere --- v~pozadí stojí identifikácia používateľa, vyhodnotenie oprávnení, kryptografická ochrana komunikácie a~auditovateľnosť udalostí.
+
+V~súčasnosti sa v~praxi stále bežne používajú jednoduchšie riešenia na báze prenosu surového UID karty bez kryptografickej ochrany, často v~kombinácii s~protokolom Wiegand, ktorý neposkytuje autentifikáciu ani ochranu proti replay útokom. Priemyselné systémy tieto nedostatky riešia proprietárnymi protokolmi, ktorých bezpečnostné vlastnosti nie sú verejne overiteľné. Otvorený štandard OSDP v2 pridáva šifrovanú komunikáciu, no nepokrýva pokročilé mechanizmy ako per-reader deriváciu kľúčov či runtime detekciu anomálií.
+
+Cieľom tejto práce je navrhnúť a~experimentálne overiť modifikácie štandardného nasadenia AEAD algoritmu ChaCha20-Poly1305 podľa RFC~8439, ktoré zvýšia odolnosť prístupového systému voči vybraným triedam útokov. Konkrétne ide o~deterministickú konštrukciu nonce, runtime verifikáciu s~anomálnou detekciou a~karanténou zariadení, a~per-reader deriváciu kľúčov pomocou HKDF. Ako metóda overenia slúži experimentálne porovnanie šiestich konfiguračných profilov v~siedmich útokových a~výkonnostných scenároch, kde štandardné nasadenie podľa RFC~8439 (náhodný nonce, bez detekcie) tvorí srovnávaciu základňu.
+
+Práca vychádza z~funkčného prototypu postaveného na platforme ESP32 s~čítačkou RC522, serverovej aplikácii v~jazyku C++20 a~lokálnom úložisku SQLite. Architektúra oddeľuje spracovanie hardvérových požiadaviek od rozhodovacej logiky prostredníctvom HTTP rozhrania, čo umožňuje nezávislé testovanie bezpečnostných vlastností AEAD vrstvy. Práca nadväzuje na existujúce výskumy v~oblasti nonce-misuse resistance a~bezpečného nasadenia AEAD konštrukcií a~dopĺňa ich o~praktickú implementáciu a~merateľné experimentálne výsledky v~kontexte embedded prístupového systému.
+
+Štruktúra práce je nasledovná: kapitola~1 formuluje ciele a~obmedzenia, kapitola~2 analyzuje existujúce riešenia a~teoretické východiská, kapitola~3 opisuje implementáciu prototypu a~experimentálnu analýzu a~kapitola~4 zhŕňa výsledky a~odporúčania pre ďalší vývoj.

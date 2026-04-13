@@ -46,6 +46,8 @@ AdminConfig loadAdmin(const YAML::Node& node) {
         readValue<std::string>(node, "hw_shared_secret_hex", cfg.hwSharedSecretHex);
     cfg.maxUploadBytes = readValue<size_t>(node, "max_upload_bytes", cfg.maxUploadBytes);
     cfg.maxEvents = readValue<size_t>(node, "max_events", cfg.maxEvents);
+    cfg.decisionMode = readValue<std::string>(node, "decision_mode", cfg.decisionMode);
+    cfg.decisionUrl = readValue<std::string>(node, "decision_url", cfg.decisionUrl);
     return cfg;
 }
 

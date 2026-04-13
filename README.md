@@ -10,7 +10,7 @@ This branch extends `main` with a **reproducible experimental harness** and **Py
 
 | Addition | Description |
 |----------|-------------|
-| `experiments/` | C++ harness — six scenario binaries (S1–S6) that run the full DecisionEngine pipeline directly, without HTTP, and record per-frame metrics to CSV |
+| `experiments/` | C++ harness — seven scenario binaries (S1–S7) that run the DecisionEngine pipeline (in-process or E2E via HTTP) and record per-frame metrics to CSV |
 | `analysis/analyze.py` | Python script that loads all CSVs and produces publication-quality plots + LaTeX tables |
 | `Latex_doc/` | Thesis document source (Slovak) |
 
@@ -21,12 +21,13 @@ This branch extends `main` with a **reproducible experimental harness** and **Py
 | **S1** Replay | Replay a captured valid frame | Anti-replay window rejects on all profiles; R2 quarantines on `seq_reuse` |
 | **S2** Tamper | Modify `door_id` in frame bytes | AAD binding causes `decrypt_failed` on all profiles |
 | **S3a** Fixed nonce | Reuse the same nonce for every frame | R2 detects `nonce_mismatch` and quarantines; R0/R1 do not detect |
-| **S3b** Wrong nonce | Use nonce from a different reader key | R2 detects `nonce_mismatch` and quarantines; R0/R1 do not detect |
+| **S3b** Cross-reader | Frame encrypted with different reader's HKDF key | All profiles reject (key isolation); R2 quarantines via `nonce_mismatch` |
 | **S4** Seq reset | Roll back sequence number | ReplayWindow rejects on all; R2 additionally quarantines on `seq_rollback` |
 | **S5** Tag probe | Corrupt ciphertext bytes | `decrypt_failed` on all profiles; R2 quarantines after 5 consecutive failures |
 | **S6** Throughput | Valid frames at varying load | Measures frames/sec per profile; XChaCha20 vs ChaCha20 overhead |
+| **S7** Nonce tamper | Valid frame with nonce XOR-flipped in transit (MITM) | `decrypt_failed` on all profiles; R2 quarantines via `nonce_mismatch` before AEAD |
 
-**Key result (Thesis T1):** R1 (deterministic nonce without server-side verification) provides the same detection capability as R0 (random nonce). Deterministic nonce generation improves nonce quality but does not add detection unless paired with server-side verification (R2).
+**Key result (Thesis T1):** R2 enforces nonce policy as the only profile differentiating nonce strategies (S3a). HKDF per-reader key derivation provides cryptographic isolation across all profiles (S3b). Nonce tamper in transit is caught by AEAD on all profiles; R2 detects it proactively (S7).
 
 ## Features
 
@@ -43,31 +44,34 @@ This branch extends `main` with a **reproducible experimental harness** and **Py
 ## Architecture
 
 ```
-┌──────────────┐  HMAC-signed HTTP   ┌───────────────────────────────────────┐
-│  ESP32       │ ──────────────────▶ │              Server                   │
-│  + MFRC522   │  uid, reader_id,    │                                       │
-│              │  door_id, hw_seq    │  hw_service → build encrypted frame   │
-│  hw_seq++    │                     │       │                               │
-│  HMAC sign   │                     │       ▼                               │
-└──────────────┘                     │  DecisionEngine (access_decision)     │
-                                     │    │                                  │
-                                     │    ├─ FrameHandler (access_core)      │
-                                     │    │    ├─ reader/door binding check  │
-                                     │    │    ├─ replay window              │
-                                     │    │    └─ AEAD decrypt (A1 or A2)    │
-                                     │    │                                  │
-                                     │    ├─ ProtocolAnomalyDetector (R2)    │
-                                     │    │    ├─ quarantine check           │
-                                     │    │    ├─ seq_rollback check         │
-                                     │    │    └─ nonce_mismatch check       │
-                                     │    │                                  │
-                                     │    ├─ HMAC(uid, pepper) lookup        │
-                                     │    ├─ RBAC role check                 │
-                                     │    └─ tamper-evident audit append     │
-                                     │                                       │
-                                     │  SQLite  │  Web UI  │  EventBus       │
-                                     └───────────────────────────────────────┘
+                                     ┌───────────────────────────────┐
+┌──────────────┐  HMAC-signed HTTP   │     Port 8080 (frontend)      │
+│  ESP32       │ ──────────────────▶ │  /api/hw/uid                  │
+│  + MFRC522   │  uid, reader_id,    │    hw_service:                │
+│              │  door_id, hw_seq    │      verify HMAC              │
+│  hw_seq++    │                     │      build AEAD frame         │
+│  HMAC sign   │                     │          │                    │
+└──────────────┘                     │          │ POST frame bytes   │
+                                     │          ▼                    │
+                                     │  Admin API, Web UI, EventBus │
+                                     └──────────┬────────────────────┘
+                                                │ HTTP (localhost)
+                                     ┌──────────▼────────────────────┐
+                                     │     Port 8081 (decision)      │
+                                     │  /api/decision/frame          │
+                                     │    DecisionEngine             │
+                                     │      ├─ replay window         │
+                                     │      ├─ AEAD decrypt (A1/A2)  │
+                                     │      ├─ AnomalyDetector (R2)  │
+                                     │      ├─ HMAC(uid) lookup      │
+                                     │      ├─ RBAC role check       │
+                                     │      └─ audit append          │
+                                     │                               │
+                                     │  SQLite (WAL mode)            │
+                                     └───────────────────────────────┘
 ```
+
+One process, two ports. `hw_service` on port 8080 builds the AEAD frame and POSTs it to the DecisionService on port 8081. The decision endpoint is also used by E2E experiments (`--e2e` flag). SQLite uses WAL mode + busy_timeout for concurrent access safety.
 
 ## Experimental Profile Matrix
 
@@ -138,44 +142,37 @@ cmake ..
 cmake --build . -j$(nproc)
 ```
 
-#### 2. Run all six scenarios
+#### 2. Run all scenarios (in-process)
 
-Run from the `build/` directory. Each binary writes one CSV to `build/results/`.
-
-```bash
-cd build
-mkdir -p results
-
-./experiments/s1_replay/s1_replay
-./experiments/s2_tamper/s2_tamper
-./experiments/s3_rng_fault/s3_rng_fault
-./experiments/s4_seq_reset/s4_seq_reset
-./experiments/s5_tag_probe/s5_tag_probe
-./experiments/s6_throughput/s6_throughput
-```
-
-Expected output files:
-
-| File | Rows (approx) | Description |
-|------|--------------|-------------|
-| `results/s1_replay.csv` | ~24 000 | Replay attack results |
-| `results/s2_tamper.csv` | ~24 000 | AAD tampering results |
-| `results/s3_rng_fault.csv` | ~48 000 | Nonce misuse S3a + S3b |
-| `results/s4_seq_reset.csv` | ~24 000 | Sequence rollback results |
-| `results/s5_tag_probe.csv` | ~24 000 | Ciphertext tampering results |
-| `results/s6_throughput.csv` | ~1 980 000 | Throughput benchmark (5 runs × 6 profiles × steps 1k–50k) |
-
-S6 is the slowest (~10–20 min depending on hardware).
-
-#### Optional: CLI overrides
-
-Each binary accepts `--seed=N`, `--warmup=N`, `--baseline=N`, `--runs=N`:
+Run from the project root. Each binary writes one CSV to `results/`.
 
 ```bash
-./experiments/s1_replay/s1_replay --seed=123 --runs=10
+cd build/experiments
+for s in s1_replay s2_tamper s3_rng_fault s3_cross_reader s4_seq_reset s5_tag_probe s7_nonce_tamper; do
+    ./$s
+done
+./s6_throughput   # slowest (~10–20 min)
 ```
 
-Changing `--seed` changes the nonce/key sequences but not the attack structure. Use the same seed across all scenarios for consistent comparison.
+#### 3. Run E2E experiments (through HTTP endpoint)
+
+Start server, then run scenarios with `--e2e` flag. The `run_e2e.sh` script automates this for all 6 profiles:
+
+```bash
+# From project root
+./experiments/run_e2e.sh
+```
+
+Results are written to `build/experiments/results_e2e/`.
+
+#### CLI overrides
+
+Each binary accepts `--seed=N`, `--warmup=N`, `--baseline=N`, `--runs=N`, `--e2e=URL`, `--profile=A1-R0`:
+
+```bash
+./build/experiments/s1_replay --seed=123 --runs=10
+./build/experiments/s7_nonce_tamper --e2e=http://localhost:8080 --profile=A2-R2
+```
 
 #### 3. Run Python analysis
 

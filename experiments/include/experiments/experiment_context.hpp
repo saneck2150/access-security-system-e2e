@@ -41,7 +41,10 @@ class ExperimentContext {
         uint32_t keyVersion,
         const std::vector<std::string>& cardIds);
 
-    //! Processes a frame through the full engine pipeline.
+    //! Sets E2E mode: processFrame will POST frames to this URL instead of local engine.
+    void setE2eUrl(const std::string& url) { _e2eUrl = url; }
+
+    //! Processes a frame through the full engine pipeline (or HTTP in E2E mode).
     //! @return Decision result (allow/deny + reason).
     access_decision::DecisionResult processFrame(std::span<const uint8_t> frameBytes);
 
@@ -70,6 +73,7 @@ class ExperimentContext {
     access_core::ProtocolAnomalyDetector _detector;
     std::unique_ptr<access_decision::DecisionEngine> _engine;
     std::unordered_map<uint32_t, protocol::replay::ReplayWindow> _replayWindows;
+    std::string _e2eUrl;  //!< If non-empty, POST frames here instead of local engine.
 
     access_core::FrameHandlerConfig buildFhConfig(const ProfileConfig& profile);
 };

@@ -30,6 +30,10 @@ struct RunConfig {
     uint32_t runs = 5;
     uint64_t warmupSeqStart = 10000;
     uint64_t baselineSeqStart = 20000;
+    //! If non-empty, run in E2E mode: POST frames to this URL instead of in-process engine.
+    std::string e2eUrl;
+    //! If non-empty, run only this profile (e.g. "A1-R0"). Empty = all profiles.
+    std::string profileFilter;
 };
 
 //! State computed by the runner and passed to buildTrialFrame().

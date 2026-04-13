@@ -14,12 +14,18 @@ namespace experiments {
 using Clock = std::chrono::steady_clock;
 
 void runScenario(IScenario& scenario, MetricsCollector& metrics, const RunConfig& cfg) {
-    const auto mk = makeMasterKey();
+    // In E2E mode, use the server's master key (from file) instead of the harness default.
+    const auto mk = cfg.e2eUrl.empty()
+        ? makeMasterKey()
+        : key_manager::loadMasterKeyHexFile("secrets/master_key.hex");
     const auto profiles = allProfiles();
     const auto scenarioName = scenario.name();
     const auto trialPhase = scenario.trialPhaseName();
 
     for (const auto& profile : profiles) {
+        if (!cfg.profileFilter.empty() && profile.label != cfg.profileFilter) {
+            continue;
+        }
         std::cerr << '[' << scenarioName << "] Profile: " << profile.label << '\n';
 
         key_manager::KeyManager km(mk,
@@ -31,6 +37,9 @@ void runScenario(IScenario& scenario, MetricsCollector& metrics, const RunConfig
                     "/tmp/exp_" + scenarioName + "_" + profile.label + ".db";
                 ExperimentContext ctx(profile, mk, dbPath,
                     cfg.readerId, cfg.doorId, cfg.keyVersion, {cfg.cardId});
+                if (!cfg.e2eUrl.empty()) {
+                    ctx.setE2eUrl(cfg.e2eUrl);
+                }
                 FrameFactory factory(km, profile,
                     makeNonceGen(profile, km, cfg.seed + run, cfg.readerId, cfg.keyVersion));
 
@@ -116,6 +125,10 @@ void parseCliOverrides(int argc, char** argv, RunConfig& cfg) {
             cfg.baseline = static_cast<uint32_t>(std::stoul(val));
         } else if (key == "--runs") {
             cfg.runs = static_cast<uint32_t>(std::stoul(val));
+        } else if (key == "--e2e") {
+            cfg.e2eUrl = val;
+        } else if (key == "--profile") {
+            cfg.profileFilter = val;
         }
     }
 }

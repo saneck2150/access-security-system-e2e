@@ -20,6 +20,7 @@ target_link_libraries(experiments_common PUBLIC
     key_manager
     runtime_events
     nlohmann_json::nlohmann_json
+    cpp_httplib
 )
 
 function(add_scenario name)
@@ -34,3 +35,4 @@ add_scenario(s3_cross_reader)
 add_scenario(s4_seq_reset)
 add_scenario(s5_tag_probe)
 add_scenario(s6_throughput)
+add_scenario(s7_nonce_tamper)

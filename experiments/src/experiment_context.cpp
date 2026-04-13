@@ -2,6 +2,9 @@
 
 #include <stdexcept>
 
+#include <httplib.h>
+#include <nlohmann/json.hpp>
+
 namespace experiments {
 
 ExperimentContext::ExperimentContext(const ProfileConfig& profile,
@@ -39,6 +42,18 @@ ExperimentContext::ExperimentContext(const ProfileConfig& profile,
 
 access_decision::DecisionResult ExperimentContext::processFrame(
     std::span<const uint8_t> frameBytes) {
+    if (!_e2eUrl.empty()) {
+        // E2E mode: POST frame bytes to remote DecisionService.
+        httplib::Client cli(_e2eUrl);
+        cli.set_connection_timeout(5);
+        std::string body(reinterpret_cast<const char*>(frameBytes.data()), frameBytes.size());
+        auto res = cli.Post("/api/decision/frame", body, "application/octet-stream");
+        if (res && res->status == 200) {
+            auto j = nlohmann::json::parse(res->body);
+            return {j.value("allow", false), j.value("reason", "remote_error")};
+        }
+        return {false, "remote_unavailable"};
+    }
     return _engine->handleFrameBytes(frameBytes, _replayWindows);
 }
 

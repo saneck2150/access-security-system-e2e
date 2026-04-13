@@ -1,0 +1,12 @@
+\babel@toc {nil}{}\relax 
+\contentsline {table}{\numberline {1\,--\,1}{\ignorespaces Prepojenie úloh zadania s~kapitolami práce}}{22}{table.1.1}%
+\contentsline {table}{\numberline {2\,--\,1}{\ignorespaces Porovnanie ChaCha20-Poly1305 a AES-GCM}}{30}{table.2.1}%
+\contentsline {table}{\numberline {3\,--\,1}{\ignorespaces Hlavné vrstvy implementácie a ich úloha v prototype}}{43}{table.3.1}%
+\contentsline {table}{\numberline {3\,--\,2}{\ignorespaces Prehľad HKDF derivácie kľúčov z master secret}}{48}{table.3.2}%
+\contentsline {table}{\numberline {3\,--\,3}{\ignorespaces Konfigurácia \texttt {ProtocolAnomalyDetector} a reakcia na anomálie}}{51}{table.3.3}%
+\contentsline {table}{\numberline {3\,--\,4}{\ignorespaces Mapovanie STRIDE kategórií hrozieb na experimentálne scenáre}}{53}{table.3.4}%
+\contentsline {table}{\numberline {3\,--\,5}{\ignorespaces Matica konfiguračných profilov (algoritmus $\times $ režim nonce)}}{54}{table.3.5}%
+\contentsline {table}{\numberline {3\,--\,6}{\ignorespaces Úspešnosť útoku a reakcia detektora podľa scenára a nonce stratégie}}{63}{table.3.6}%
+\contentsline {table}{\numberline {3\,--\,7}{\ignorespaces Priepustnosť a latencia pri N=50,000 frame}}{66}{table.3.7}%
+\contentsline {table}{\numberline {3\,--\,8}{\ignorespaces Odolnosť voči útočným scenárom podľa úrovne implementácie}}{68}{table.3.8}%
+\contentsline {table}{\numberline {4\,--\,1}{\ignorespaces Súhrn hlavných experimentálnych zistení}}{71}{table.4.1}%

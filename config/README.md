@@ -53,6 +53,10 @@ HTTP admin API settings.
 | `admin_token` | string | `""` | Bearer token for authentication |
 | `max_upload_bytes` | int | `20000000` | Maximum upload size (~20MB) |
 | `max_events` | int | `1024` | Event buffer capacity |
+| `decision_mode` | string | `"remote"` | `"local"` = in-process, `"remote"` = POST frame to port+1 |
+| `decision_url` | string | `"http://127.0.0.1:8081"` | DecisionService host (port 8081 = main port + 1) |
+
+**Note:** The server always starts two HTTP listeners: port 8080 (admin API, hw endpoint) and port 8081 (DecisionService). In `"remote"` mode, `hw_service` POSTs the AEAD frame to port 8081 via HTTP. SQLite uses WAL mode + 5s busy_timeout for concurrent access.
 
 ## Usage
 
