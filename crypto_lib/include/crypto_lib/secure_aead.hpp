@@ -13,10 +13,8 @@ namespace crypto_lib::aead {
 
 //! AEAD cipher variant to use.
 enum class CipherMode {
-    //! 192-bit nonce (24 bytes). Algorithm A2.
-    XChaCha20Poly1305,
-    //! 96-bit nonce (12 bytes, IETF RFC 8439). Algorithm A1.
-    ChaCha20Poly1305,
+    XChaCha20Poly1305,  //!< 192-bit nonce (24 bytes). Algorithm A2.
+    ChaCha20Poly1305,   //!< 96-bit nonce (12 bytes, IETF RFC 8439). Algorithm A1.
 };
 
 //! 256-bit AEAD encryption key.

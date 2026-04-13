@@ -2,6 +2,9 @@
  * @fileoverview Audit log viewing and verification functions.
  */
 
+/** @type {number|null} Audit auto-refresh interval ID. */
+let auditIntervalId = null;
+
 /**
  * Fetches and displays audit log entries in the audit table.
  * Shows: id, timestamp, reader, door, seq, allow/deny, reason, card_hmac, action.
@@ -18,6 +21,24 @@ async function loadAudit() {
   }
   html += "</table>";
   document.getElementById("audit_table").innerHTML = html;
+}
+
+/**
+ * Starts auto-refresh of the audit log (every 1000ms).
+ */
+function startAuditAutoRefresh() {
+  if (auditIntervalId) return;
+  auditIntervalId = setInterval(loadAudit, 1000);
+}
+
+/**
+ * Stops the audit auto-refresh interval.
+ */
+function stopAuditAutoRefresh() {
+  if (auditIntervalId) {
+    clearInterval(auditIntervalId);
+    auditIntervalId = null;
+  }
 }
 
 /**

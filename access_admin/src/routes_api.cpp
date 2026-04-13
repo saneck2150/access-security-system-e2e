@@ -302,6 +302,9 @@ void registerRoutes(httplib::Server& svr, AppState& app) {
             sendResult(res, errorResult(e.what(), kHttpBadRequest));
         }
     });
+
+    // Decision Service endpoint is registered on a separate port (decisionSvr in main.cpp).
+    // This avoids mutex contention with admin API handlers on the main server.
 }
 
 void registerAllRoutes(httplib::Server& svr, AppState& app) {

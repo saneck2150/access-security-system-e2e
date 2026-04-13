@@ -10,19 +10,14 @@
 #include <string>
 #include <unordered_map>
 
-//! Protocol-level anomaly detection with per-reader quarantine (R2 profiles).
 namespace access_core {
 
 //! Types of protocol anomalies detected by the runtime monitor.
 enum class AnomalyType : uint8_t {
-    //! Same sequence number seen twice from one reader.
-    seq_reuse,
-    //! Sequence far below highest seen (possible key compromise).
-    seq_rollback,
-    //! Received nonce differs from expected HMAC-derived nonce.
-    nonce_mismatch,
-    //! Too many consecutive AEAD authentication failures.
-    tag_fail_streak,
+    seq_reuse,        //!< Same sequence number seen twice from one reader.
+    seq_rollback,     //!< Sequence far below highest seen (possible key compromise).
+    nonce_mismatch,   //!< Received nonce differs from expected HMAC-derived nonce.
+    tag_fail_streak,  //!< Too many consecutive AEAD authentication failures.
 };
 
 //! Returns a human-readable string for an anomaly type.
@@ -32,22 +27,16 @@ const char* anomalyTypeToString(AnomalyType t);
 
 //! Configuration for the ProtocolAnomalyDetector.
 struct DetectorConfig {
-    //! Master switch (true only for R2 profiles).
-    bool enabled = false;
-    //! Seq gap triggering seq_rollback quarantine.
-    uint64_t rollbackThreshold = 100;
-    //! Consecutive AEAD failures before quarantine.
-    uint32_t tagFailStreakLimit = 5;
+    bool enabled = false;               //!< Master switch (true only for R2 profiles).
+    uint64_t rollbackThreshold = 100;   //!< Seq gap triggering seq_rollback quarantine.
+    uint32_t tagFailStreakLimit = 5;     //!< Consecutive AEAD failures before quarantine.
 };
 
 //! Information about a quarantined reader.
 struct QuarantineInfo {
-    //! When the reader was quarantined.
-    uint64_t ts_unix_ms = 0;
-    //! Which anomaly triggered quarantine.
-    AnomalyType reason{};
-    //! Additional context (e.g., "seq=42 maxSeen=999").
-    std::string detail;
+    uint64_t ts_unix_ms = 0;  //!< When the reader was quarantined.
+    AnomalyType reason{};     //!< Which anomaly triggered quarantine.
+    std::string detail;       //!< Additional context (e.g., "seq=42 maxSeen=999").
 };
 
 //! Per-reader runtime anomaly detection and quarantine (R2 mode).
@@ -132,12 +121,9 @@ class ProtocolAnomalyDetector {
 
     //! Per-reader tracked state.
     struct ReaderState {
-        //! Highest sequence number observed.
-        uint64_t maxSeenSeq = 0;
-        //! Current AEAD failure streak.
-        uint32_t consecutiveTagFails = 0;
-        //! Set when quarantined.
-        std::optional<QuarantineInfo> quarantine;
+        uint64_t maxSeenSeq = 0;           //!< Highest sequence number observed.
+        uint32_t consecutiveTagFails = 0;  //!< Current AEAD failure streak.
+        std::optional<QuarantineInfo> quarantine;  //!< Set when quarantined.
     };
 
     std::unordered_map<uint32_t, ReaderState> _readers;

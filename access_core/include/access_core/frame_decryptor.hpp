@@ -13,25 +13,19 @@
 #include <protocol_lib/frame.hpp>
 #include <protocol_lib/packet.hpp>
 
-//! AEAD decryption, timestamp validation, and AAD binding for access frames.
 namespace access_core {
 
 //! Configuration for FrameDecryptor.
 struct DecryptorConfig {
-    //! Max allowed timestamp skew in ms (0 = disabled).
-    uint64_t maxSkewMs = 0;
-    //! "full" = header as AAD; "none" = empty AAD.
-    std::string aadMode = "full";
+    uint64_t maxSkewMs = 0;        //!< Max allowed timestamp skew in ms (0 = disabled).
+    std::string aadMode = "full";  //!< "full" = header as AAD; "none" = empty AAD.
 };
 
 //! Result of frame decryption attempt.
 struct DecryptResult {
-    //! True if decryption succeeded.
-    bool success = false;
-    //! Error code if failed.
-    std::string error;
-    //! Decrypted data (if successful).
-    std::vector<uint8_t> plaintext;
+    bool success = false;            //!< True if decryption succeeded.
+    std::string error;               //!< Error code if failed.
+    std::vector<uint8_t> plaintext;  //!< Decrypted data (if successful).
 };
 
 //! Decrypts frames using AEAD and validates timestamps.

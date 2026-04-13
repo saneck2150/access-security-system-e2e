@@ -1,5 +1,4 @@
 #pragma once
-
 #include <cstdint>
 #include <string>
 
@@ -30,6 +29,10 @@ struct AdminConfig {
     size_t maxUploadBytes = 20 * 1024 * 1024;
     //! Maximum events to keep in circular buffer.
     size_t maxEvents = 1024;
+    //! Decision processing mode: "local" (in-process) or "remote" (HTTP forward).
+    std::string decisionMode = "local";
+    //! URL for remote DecisionService (used when decisionMode == "remote").
+    std::string decisionUrl = "http://127.0.0.1:8081";
 };
 
 //! Key management configuration.

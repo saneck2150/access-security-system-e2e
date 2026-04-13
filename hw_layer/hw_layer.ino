@@ -8,6 +8,7 @@
 
 // ---- Hardware objects ----
 MFRC522 rfid(HW_PIN_SS, HW_PIN_RST);
+WiFiClient wifiClient;
 
 // ---- Persistent storage ----
 Preferences prefs;
@@ -164,14 +165,13 @@ static bool postUidToServer(const String& uid, bool& allowOut) {
     String("}");
 
   HTTPClient http;
-  WiFiClient client;
 
   Serial.print("POST ");
   Serial.println(HW_SERVER_URL);
   Serial.print("Body: ");
   Serial.println(body);
 
-  http.begin(client, HW_SERVER_URL);
+  http.begin(wifiClient, HW_SERVER_URL);
   http.addHeader("Content-Type", "application/json");
 
   // Compute and add HMAC signature if secret is configured
@@ -188,6 +188,7 @@ static bool postUidToServer(const String& uid, bool& allowOut) {
   int code = http.POST(body);
   String resp = (code > 0) ? http.getString() : "";
   http.end();
+  wifiClient.stop();
 
   Serial.print("HTTP ");
   Serial.println(code);

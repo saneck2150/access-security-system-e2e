@@ -2,6 +2,33 @@
 
 A secure, cryptographically-verified physical access control system for doors and card readers. Hardware layer: ESP32 + MFRC522 over Wi-Fi. Server: C++20, HTTP REST API, SQLite, libsodium.
 
+## Branch: analytical
+
+This branch extends `main` with a **reproducible experimental harness** and **Python analysis pipeline** for the thesis security evaluation. It does not change any production server or firmware code — all additions are isolated to the `experiments/` and `analysis/` modules.
+
+### What this branch adds
+
+| Addition | Description |
+|----------|-------------|
+| `experiments/` | C++ harness — seven scenario binaries (S1–S7) that run the DecisionEngine pipeline (in-process or E2E via HTTP) and record per-frame metrics to CSV |
+| `analysis/analyze.py` | Python script that loads all CSVs and produces publication-quality plots + LaTeX tables |
+| `Latex_doc/` | Thesis document source (Slovak) |
+
+### Experimental claims tested
+
+| Scenario | Attack | What is validated |
+|----------|--------|-------------------|
+| **S1** Replay | Replay a captured valid frame | Anti-replay window rejects on all profiles; R2 quarantines on `seq_reuse` |
+| **S2** Tamper | Modify `door_id` in frame bytes | AAD binding causes `decrypt_failed` on all profiles |
+| **S3a** Fixed nonce | Reuse the same nonce for every frame | R2 detects `nonce_mismatch` and quarantines; R0/R1 do not detect |
+| **S3b** Cross-reader | Frame encrypted with different reader's HKDF key | All profiles reject (key isolation); R2 quarantines via `nonce_mismatch` |
+| **S4** Seq reset | Roll back sequence number | ReplayWindow rejects on all; R2 additionally quarantines on `seq_rollback` |
+| **S5** Tag probe | Corrupt ciphertext bytes | `decrypt_failed` on all profiles; R2 quarantines after 5 consecutive failures |
+| **S6** Throughput | Valid frames at varying load | Measures frames/sec per profile; XChaCha20 vs ChaCha20 overhead |
+| **S7** Nonce tamper | Valid frame with nonce XOR-flipped in transit (MITM) | `decrypt_failed` on all profiles; R2 quarantines via `nonce_mismatch` before AEAD |
+
+**Key result (Thesis T1):** R2 enforces nonce policy as the only profile differentiating nonce strategies (S3a). HKDF per-reader key derivation provides cryptographic isolation across all profiles (S3b). Nonce tamper in transit is caught by AEAD on all profiles; R2 detects it proactively (S7).
+
 ## Features
 
 - **Dual-algorithm AEAD** — ChaCha20-Poly1305 (RFC 8439) and XChaCha20-Poly1305, selectable per deployment profile
@@ -17,31 +44,34 @@ A secure, cryptographically-verified physical access control system for doors an
 ## Architecture
 
 ```
-┌──────────────┐  HMAC-signed HTTP   ┌───────────────────────────────────────┐
-│  ESP32       │ ──────────────────▶ │              Server                   │
-│  + MFRC522   │  uid, reader_id,    │                                       │
-│              │  door_id, hw_seq    │  hw_service → build encrypted frame   │
-│  hw_seq++    │                     │       │                               │
-│  HMAC sign   │                     │       ▼                               │
-└──────────────┘                     │  DecisionEngine (access_decision)     │
-                                     │    │                                  │
-                                     │    ├─ FrameHandler (access_core)      │
-                                     │    │    ├─ reader/door binding check  │
-                                     │    │    ├─ replay window              │
-                                     │    │    └─ AEAD decrypt (A1 or A2)    │
-                                     │    │                                  │
-                                     │    ├─ ProtocolAnomalyDetector (R2)    │
-                                     │    │    ├─ quarantine check           │
-                                     │    │    ├─ seq_rollback check         │
-                                     │    │    └─ nonce_mismatch check       │
-                                     │    │                                  │
-                                     │    ├─ HMAC(uid, pepper) lookup        │
-                                     │    ├─ RBAC role check                 │
-                                     │    └─ tamper-evident audit append     │
-                                     │                                       │
-                                     │  SQLite  │  Web UI  │  EventBus       │
-                                     └───────────────────────────────────────┘
+                                     ┌───────────────────────────────┐
+┌──────────────┐  HMAC-signed HTTP   │     Port 8080 (frontend)      │
+│  ESP32       │ ──────────────────▶ │  /api/hw/uid                  │
+│  + MFRC522   │  uid, reader_id,    │    hw_service:                │
+│              │  door_id, hw_seq    │      verify HMAC              │
+│  hw_seq++    │                     │      build AEAD frame         │
+│  HMAC sign   │                     │          │                    │
+└──────────────┘                     │          │ POST frame bytes   │
+                                     │          ▼                    │
+                                     │  Admin API, Web UI, EventBus │
+                                     └──────────┬────────────────────┘
+                                                │ HTTP (localhost)
+                                     ┌──────────▼────────────────────┐
+                                     │     Port 8081 (decision)      │
+                                     │  /api/decision/frame          │
+                                     │    DecisionEngine             │
+                                     │      ├─ replay window         │
+                                     │      ├─ AEAD decrypt (A1/A2)  │
+                                     │      ├─ AnomalyDetector (R2)  │
+                                     │      ├─ HMAC(uid) lookup      │
+                                     │      ├─ RBAC role check       │
+                                     │      └─ audit append          │
+                                     │                               │
+                                     │  SQLite (WAL mode)            │
+                                     └───────────────────────────────┘
 ```
+
+One process, two ports. `hw_service` on port 8080 builds the AEAD frame and POSTs it to the DecisionService on port 8081. The decision endpoint is also used by E2E experiments (`--e2e` flag). SQLite uses WAL mode + busy_timeout for concurrent access safety.
 
 ## Experimental Profile Matrix
 
@@ -68,6 +98,7 @@ All profiles share the same AAD binding, HKDF key derivation, anti-replay window
 | `runtime_events` | Thread-safe circular event buffer for real-time UI streaming |
 | `access_admin` | HTTP server, REST API, web UI, hardware endpoint |
 | `hw_layer` | ESP32/Arduino firmware: card scan, HMAC signing, hw_seq persistence |
+| `experiments` | Reproducible C++ experimental harness for security profile analysis |
 
 ## Quick Start
 
@@ -100,6 +131,96 @@ ctest --output-on-failure
 ```
 
 Web UI: `http://localhost:8080/static/index.html`
+
+### Run Experiments (full reproduction)
+
+#### 1. Build experiment binaries
+
+```bash
+mkdir -p build && cd build
+cmake ..
+cmake --build . -j$(nproc)
+```
+
+#### 2. Run all scenarios (in-process)
+
+Run from the project root. Each binary writes one CSV to `results/`.
+
+```bash
+cd build/experiments
+for s in s1_replay s2_tamper s3_rng_fault s3_cross_reader s4_seq_reset s5_tag_probe s7_nonce_tamper; do
+    ./$s
+done
+./s6_throughput   # slowest (~10–20 min)
+```
+
+#### 3. Run E2E experiments (through HTTP endpoint)
+
+Start server, then run scenarios with `--e2e` flag. The `run_e2e.sh` script automates this for all 6 profiles:
+
+```bash
+# From project root
+./experiments/run_e2e.sh
+```
+
+Results are written to `build/experiments/results_e2e/`.
+
+#### CLI overrides
+
+Each binary accepts `--seed=N`, `--warmup=N`, `--baseline=N`, `--runs=N`, `--e2e=URL`, `--profile=A1-R0`:
+
+```bash
+./build/experiments/s1_replay --seed=123 --runs=10
+./build/experiments/s7_nonce_tamper --e2e=http://localhost:8080 --profile=A2-R2
+```
+
+#### 3. Run Python analysis
+
+```bash
+# From repo root — create venv once
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pandas matplotlib seaborn numpy
+
+# Run analysis (reads from build/results/, writes to analysis/plots/)
+python3 analysis/analyze.py --results-dir build/results --output-dir analysis/plots
+```
+
+#### 4. Outputs
+
+**Plots** (saved to `analysis/plots/` as 300 dpi PNG):
+
+| File | Content |
+|------|---------|
+| `attack_success_heatmap.png` | Attack success rate per scenario × profile |
+| `attack_success_by_n.png` | Success rate vs. attack step count |
+| `quarantine_speed.png` | Frames to quarantine per scenario (R2 profiles) |
+| `latency_boxplot.png` | Per-frame latency distribution |
+| `throughput.png` | S6 throughput (frames/sec) per profile |
+| `detector_overhead.png` | R2 vs R0/R1 latency overhead |
+| `scenario_summary_table.png` | Summary table figure |
+
+**LaTeX tables** (also in `analysis/plots/`):
+
+| File | Content |
+|------|---------|
+| `table_summary.tex` | Main results summary |
+| `table_throughput.tex` | S6 throughput stats |
+| `table_baseline.tex` | Baseline false-reject rates |
+
+**Console summary** — printed after plots, shows key metrics:
+```
+=== Key Metrics ===
+  Max false reject rate (baseline): 0.0000%
+
+  S1: Replay Attack:
+    ✓ A1-R0: 0% success
+    ✓ A1-R1: 0% success
+    ...
+  S6: Throughput at N=50,000:
+    A1-R0: 42,300 ± 800 fps
+    ...
+```
 
 ## Configuration
 

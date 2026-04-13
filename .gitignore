@@ -7,3 +7,5 @@ data/access.db
 build_san/
 analysis/.venv
 analysis/plots/
+results/
+data/*

@@ -22,23 +22,16 @@ namespace access_decision {
 class IAccessStore;
 }
 
-//! Frame handling: parsing, replay detection, key rotation, and AEAD decryption.
 namespace access_core {
 
 //! Configuration for FrameHandler behavior.
 struct FrameHandlerConfig {
-    //! Enable replay attack detection.
-    bool antiReplayEnabled = true;
-    //! Size of sliding replay window.
-    size_t replayWindowSize = 256;
-    //! Maximum ciphertext length.
-    uint32_t maxCtLen = 4096;
-    //! Max timestamp skew (0 = disabled).
-    uint64_t maxSkewMs = 0;
-    //! Accept previous key version.
-    bool allowPreviousKeyVersion = true;
-    //! Verify reader-door authorization.
-    bool enforceReaderDoorBinding = true;
+    bool antiReplayEnabled = true;         //!< Enable replay attack detection.
+    size_t replayWindowSize = 256;         //!< Size of sliding replay window.
+    uint32_t maxCtLen = 4096;              //!< Maximum ciphertext length.
+    uint64_t maxSkewMs = 0;                //!< Max timestamp skew (0 = disabled).
+    bool allowPreviousKeyVersion = true;   //!< Accept previous key version.
+    bool enforceReaderDoorBinding = true;  //!< Verify reader-door authorization.
 
     //! Key derivation mode: "hkdf" (per-reader HKDF) or "direct" (master key as AEAD key).
     //! Populated at runtime from ExperimentConfig, not loaded directly from YAML.
@@ -59,14 +52,10 @@ struct FrameHandlerConfig {
 
 //! Result of frame handling operation.
 struct HandleResult {
-    //! True if frame is valid.
-    bool allow = false;
-    //! Result code (e.g., "ok", "replay").
-    std::string reason;
-    //! Decrypted payload (if successful).
-    std::vector<uint8_t> plaintext;
-    //! Parsed frame header.
-    protocol::packet::Header header;
+    bool allow = false;               //!< True if frame is valid.
+    std::string reason;               //!< Result code (e.g., "ok", "replay").
+    std::vector<uint8_t> plaintext;   //!< Decrypted payload (if successful).
+    protocol::packet::Header header;  //!< Parsed frame header.
 };
 
 //! Handles encrypted frames from readers with full validation.
