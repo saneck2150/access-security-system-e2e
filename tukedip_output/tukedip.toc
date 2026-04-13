@@ -92,25 +92,25 @@
 \contentsline {paragraph}{S5: Opakované neplatné ciphertexty (AEAD tag verification)}{60}{section*.31}%
 \contentsline {paragraph}{S6: Throughput benchmark}{61}{section*.32}%
 \contentsline {paragraph}{S7: Nonce tamper (MITM na kanáli)}{61}{section*.33}%
-\contentsline {subsubsection}{\numberline {3.3.4}Metodika zberu a spracovania dát}{61}{subsubsection.3.3.4}%
-\contentsline {paragraph}{Zber dát}{61}{section*.34}%
+\contentsline {subsubsection}{\numberline {3.3.4}Metodika zberu a spracovania dát}{62}{subsubsection.3.3.4}%
+\contentsline {paragraph}{Zber dát}{62}{section*.34}%
 \contentsline {paragraph}{Odvodzované metriky}{62}{section*.35}%
 \contentsline {paragraph}{Štatistická robustnosť}{62}{section*.36}%
 \contentsline {subsubsection}{\numberline {3.3.5}Výsledky: Úspešnosť útokov}{63}{subsubsection.3.3.5}%
 \contentsline {paragraph}{Celkový prehľad}{63}{section*.37}%
-\contentsline {paragraph}{Závislosť od počtu útočných frame}{64}{section*.38}%
-\contentsline {paragraph}{Rýchlosť karantény}{64}{section*.39}%
+\contentsline {paragraph}{Závislosť od počtu útočných frame}{65}{section*.38}%
+\contentsline {paragraph}{Rýchlosť karantény}{65}{section*.39}%
 \contentsline {subsubsection}{\numberline {3.3.6}Výsledky: Baseline korektnosť}{65}{subsubsection.3.3.6}%
-\contentsline {subsubsection}{\numberline {3.3.7}Výsledky: Latencia a priepustnosť}{65}{subsubsection.3.3.7}%
-\contentsline {paragraph}{Throughput benchmark (S6)}{65}{table.3.7}%
-\contentsline {paragraph}{Overhead detektora na baseline frame}{66}{section*.41}%
-\contentsline {subsubsection}{\numberline {3.3.8}Diskusia a interpretácia výsledkov}{66}{subsubsection.3.3.8}%
-\contentsline {subsubsection}{\numberline {3.3.9}Porovnanie s minimalistickými implementáciami}{67}{subsubsection.3.3.9}%
-\contentsline {subsubsection}{\numberline {3.3.10}Zhrnutie experimentov}{68}{subsubsection.3.3.10}%
-\contentsline {section}{\numberline {4}Záver (zhodnotenie riešenia)}{70}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Obmedzenia a budúca práca}{71}{subsection.4.1}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam použitej literatúry}{73}{subsection.4.1}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam príloh}{78}{section*.43}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha A}{79}{section*.45}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha B}{80}{section*.46}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha C}{81}{section*.47}%
+\contentsline {subsubsection}{\numberline {3.3.7}Výsledky: Latencia a priepustnosť}{66}{subsubsection.3.3.7}%
+\contentsline {paragraph}{Throughput benchmark (S6)}{66}{table.3.7}%
+\contentsline {paragraph}{Overhead detektora na baseline frame}{67}{section*.41}%
+\contentsline {subsubsection}{\numberline {3.3.8}Diskusia a interpretácia výsledkov}{67}{subsubsection.3.3.8}%
+\contentsline {subsubsection}{\numberline {3.3.9}Porovnanie s minimalistickými implementáciami}{68}{subsubsection.3.3.9}%
+\contentsline {subsubsection}{\numberline {3.3.10}Zhrnutie experimentov}{69}{subsubsection.3.3.10}%
+\contentsline {section}{\numberline {4}Záver (zhodnotenie riešenia)}{71}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Obmedzenia a budúca práca}{72}{subsection.4.1}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam použitej literatúry}{74}{subsection.4.1}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam príloh}{79}{section*.43}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha A}{80}{section*.45}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha B}{81}{section*.46}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha C}{82}{section*.47}%

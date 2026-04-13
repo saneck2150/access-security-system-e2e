@@ -243,7 +243,7 @@ Tabuľka~\ref{tab:anomaly-config} sumarizuje typy anomálií a~reakcie detektora
 Pred experimentálnym vyhodnotením bola vykonaná verifikácia kódovej bázy:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
-  \item \textbf{Statická analýza (clang-tidy\cite{ClangTidy}):} 24 kontrol vrátane bezpečnostných pravidiel (certifikácie CERT, bugprone, modernize). Výsledok: 0 nálezov po opravách.
+  \item \textbf{Statická analýza (clang-tidy\cite{ClangTidy}):} 16 kategórií kontrol (wildcards \texttt{bugprone-*}, \texttt{cert-*}, \texttt{clang-analyzer-*}, \texttt{performance-*} pokrývajúce viac ako 250 jednotlivých pravidiel, doplnené o~konkrétne pravidlá z~\texttt{cppcoreguidelines}, \texttt{misc}, \texttt{modernize} a~\texttt{readability}). Výsledok: 0 nálezov po opravách.
   \item \textbf{Dynamická analýza (sanitizers\cite{AddressSanitizer}):} ASan (pamäťové chyby), UBSan (nedefinované správanie), LSan (úniky pamäte). Výsledok: 0 nálezov za behu testov.
   \item \textbf{Testovacia sada (Google Test\cite{GoogleTest}):} 44 testovacích prípadov pokrývajúcich kryptografiu, replay window, anomálny detektor (18 testov), auditný log a~rozhodovaciu logiku. Všetky testy úspešné.
 \end{itemize}
@@ -376,7 +376,7 @@ Každá iterácia prebieha v troch fázach:
 Harness je \emph{kontrolovaný experimentálny mini-systém}, nie plná replika produkčného systému. Zdieľa s produkčným kódom kryptografickú vrstvu (\texttt{crypto\_lib}), deriváciu kľúčov (\texttt{key\_manager}), rozhodovaciu logiku (\texttt{DecisionEngine}), anti-replay mechanizmus (\texttt{ReplayWindow}) a anomálny detektor (\texttt{ProtocolAnomalyDetector}). Zámerne sú vynechané vrstvy, ktoré nie sú predmetom merania:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
-  \item \textbf{HTTP transport a HMAC autentifikácia požiadavky} --- harness volá \texttt{DecisionEngine::process()} priamo, bez sieťového overhead-u. Tým sa izoluje latencia kryptografických a rozhodovacích operácií od variability sieťového zásobníka.
+  \item \textbf{HTTP transport a HMAC autentifikácia požiadavky} --- harness volá \texttt{DecisionEngine::handleFrameBytes()} priamo, bez sieťového overhead-u. Tým sa izoluje latencia kryptografických a rozhodovacích operácií od variability sieťového zásobníka.
   \item \textbf{Kontrola čerstvosti (\texttt{maxSkewMs = 0})} --- overenie časovej pečiatky je v harness vypnuté, aby sa predišlo kontaminácii výsledkov efektmi časovej synchronizácie. Experimenty sa zameriavajú na nonce, replay a detektor, nie na hodiny.
   \item \textbf{Perzistentný auditný log} --- harness používa in-memory audit sink namiesto HMAC hash chain s~SQLite perzistenciou. Auditná integrita je testovaná samostatne v~unit testoch; v~experimentoch by perzistentný zápis pridával I/O latenciu nesúvisiacu s meranými mechanizmami.
 \end{itemize}
@@ -402,7 +402,7 @@ Scenár vytvorí validný frame a následne zmení \texttt{door\_id} v binárnej
 
 \paragraph{S3a: Overenie nonce enforcement politiky}
 
-Scenár injektuje chybu do generovania nonce: \texttt{FixedNonceGenerator(0xAA)} produkuje rovnaký nonce pre každý frame bez ohľadu na kontext a sekvenciu. Cieľom je overiť, či a ako jednotlivé nonce režimy reagujú na porušenie deterministického nonce invariantu.
+Scenár injektuje chybu do generovania nonce: trieda \texttt{FixedNonceGenerator} napĺňa celý nonce bajtom 0xAA, čím produkuje rovnaký nonce pre každý frame bez ohľadu na kontext a sekvenciu. Cieľom je overiť, či a ako jednotlivé nonce režimy reagujú na porušenie deterministického nonce invariantu.
 
 \textit{Očakávané správanie:} R0/R1 nemajú verifikáciu nonce --- engine použije nonce z hlavičky frame na dešifrovanie bez ďalšej kontroly. AEAD dešifrovanie uspeje (kľúč je správny, nonce je len vstupný parameter). R2 rekonštruuje očakávaný nonce z rovnakého kľúča a kontextu a porovná ho s hodnotou v hlavičke; pri nesúlade vyvolá \texttt{nonce\_mismatch} s okamžitou karanténou.
 
@@ -547,7 +547,7 @@ Baseline fáza (200 validných frame pred každým útokom) vykazuje \textbf{nul
 
 \textbf{Porovnanie algoritmov:} A2 (XChaCha20) dosahuje mierne vyššiu priepustnosť ako A1 (ChaCha20), čo je prekvapivý výsledok. Príčinou je pravdepodobne optimalizácia libsodium pre XChaCha20 cestu.
 
-\textbf{Overhead detektora:} Porovnanie R1 a~R2 umožňuje izolovať overhead anomálneho detektora. Rozdiel je ${\sim}17\%$ (A2--R1: 6\,326~fps vs.\ A2--R2: 5\,361~fps). Overhead pochádza z:
+\textbf{Overhead detektora:} Porovnanie R1 a~R2 umožňuje izolovať overhead anomálneho detektora. Rozdiel je ${\sim}15$--$19\%$ v~závislosti od algoritmu (A1--R1: 6\,537~fps vs.\ A1--R2: 5\,276~fps, t.j.\ $-19{,}3\%$; A2--R1: 6\,326~fps vs.\ A2--R2: 5\,361~fps, t.j.\ $-15{,}3\%$). Overhead pochádza z:
 \begin{itemize}[leftmargin=*,itemsep=1pt]
   \item výpočtu očakávaného nonce (HKDF derivácia + HMAC),
   \item porovnania nonce v konštantnom čase (\texttt{sodium\_memcmp}),
@@ -556,7 +556,7 @@ Baseline fáza (200 validných frame pred každým útokom) vykazuje \textbf{nul
 
 \paragraph{Overhead detektora na baseline frame}
 
-Porovnanie R1 a~R2 na validných baseline frame (S1--S7) izoluje overhead detektora: medián latencie R2 je o~${\sim}35\,\mu$s vyšší, čo zodpovedá dodatočnej HKDF derivácii nonce kľúča, HMAC výpočtu a~aktualizácii stavu detektora. Distribúcia latencie podľa scenárov ukazuje aj rozdiel medzi baseline a~attack fázou: pri S1 (replay) je attack latencia nižšia, pretože replay window odmietne frame skôr bez pokusu o~dešifrovanie; pri S2 a~S5 je attack latencia vyššia pre R2, pretože detektor vykonáva dodatočné kontroly pred zamietnutím.
+Porovnanie R1 a~R2 na validných baseline frame (S1--S7) izoluje overhead detektora: medián latencie R2 je o~${\sim}25$--$35\,\mu$s vyšší (A1: ${\sim}35\,\mu$s, A2: ${\sim}24\,\mu$s), čo zodpovedá dodatočnej HKDF derivácii nonce kľúča, HMAC výpočtu a~aktualizácii stavu detektora. Distribúcia latencie podľa scenárov ukazuje aj rozdiel medzi baseline a~attack fázou: pri S1 (replay) je attack latencia nižšia, pretože replay window odmietne frame skôr bez pokusu o~dešifrovanie; pri S2 a~S5 je attack latencia vyššia pre R2, pretože detektor vykonáva dodatočné kontroly pred zamietnutím.
 
 \subsubsection{Diskusia a interpretácia výsledkov}
 \label{sec:discussion}
@@ -620,7 +620,7 @@ Prechod z~B0 na A1-R0 je kvalitatívny skok; R2 uzatvára zvyšné medzery (S3a,
   \item \textbf{Replay window a detektor sú komplementárne:} S4 odhaľuje štruktúrnu medzeru replay window, ktorú detektor uzatvára.
   \item \textbf{AAD binding je fundamentálna ochrana:} Funguje nezávisle od nonce režimu.
   \item \textbf{Karanténa pridáva proaktívnu izoláciu zariadení:} Kvalitativne odlišná od per-frame odmietnutia.
-  \item \textbf{Overhead detektora (${\sim}17\%$):} Pri reálnej záťaži prístupového systému ($<$10 udalostí/s) rádovo nepodstatný; pri vyššej záťaži by mal byť zohľadnený.
+  \item \textbf{Overhead detektora (${\sim}15$--$19\%$):} Pri reálnej záťaži prístupového systému ($<$10 udalostí/s) rádovo nepodstatný; pri vyššej záťaži by mal byť zohľadnený.
   \item \textbf{Výsledky sú reprodukovateľné:} Všetkých 5 behov (seedy 42--46) poskytlo zhodné výsledky attack success rate. Bezpečnostné mechanizmy sú invariantné voči hodnotám nonce --- 5 behov tu neplní úlohu štatistického vzorku, ale overenia konzistencie výsledkov.
 \end{enumerate}
 

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.4.6)  13 APR 2026 00:53
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.4.6)  13 APR 2026 21:24
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1177,9 +1177,9 @@ T1/lmr/m/n/12 ): ak prijatý nonce nezodpovedá
  []
 
 [50] [51]
-Underfull \hbox (badness 1264) in paragraph at lines 246--247
-[]\T1/lmr/bx/n/12 Statická analýza (clang-tidy[[]]): \T1/lmr/m/n/12 24 kontrol 
-vrátane bezpe£nostných
+Underfull \hbox (badness 5548) in paragraph at lines 246--247
+[]\T1/lmr/bx/n/12 Statická analýza (clang-tidy[[]]): \T1/lmr/m/n/12 16 kategóri
+í kontrol (wildcards
  []
 
 
@@ -1280,9 +1280,9 @@ _lib\T1/lmr/m/n/12 ), deriváciu k©ú£ov
  []
 
 
-Underfull \hbox (badness 1028) in paragraph at lines 379--380
-\T1/lmr/m/n/12 latencia kryptografických a rozhodovacích operácií od variabilit
-y sie´ového
+Underfull \hbox (badness 2359) in paragraph at lines 379--380
+\T1/lmtt/m/n/12 DecisionEngine::handleFrameBytes() \T1/lmr/m/n/12 priamo, bez s
+ie´ového overhead-u.
  []
 
 [57]
@@ -1291,18 +1291,24 @@ Underfull \hbox (badness 3009) in paragraph at lines 399--400
 olitiky ---
  []
 
+
+Underfull \hbox (badness 1360) in paragraph at lines 405--406
+\T1/lmr/m/n/12 generovania nonce: trieda \T1/lmtt/m/n/12 FixedNonceGenerator \T
+1/lmr/m/n/12 nap¨¬a celý nonce bajtom
+ []
+
 [58]
 Underfull \hbox (badness 7397) in paragraph at lines 413--414
  []\T1/lmr/bx/n/12 S3b: Izolácia k©ú£ov medzi £íta£kami (HKDF key isolation)[]
  []
 
-
+[59]
 Underfull \hbox (badness 3460) in paragraph at lines 422--423
 []\T1/lmr/m/it/12 O£akávané správanie: \T1/lmr/m/n/12 V²etky profily odmietajú 
 100% úto£ných frame
  []
 
-[59]
+
 Overfull \hbox (4.98769pt too wide) in paragraph at lines 442--443
 []\T1/lmr/m/it/12 O£akávané správanie: \T1/lmr/m/n/12 AEAD overenie zlyhá pre v
 ²etky profily (\T1/lmtt/m/n/12 decrypt_failed\T1/lmr/m/n/12 ).
@@ -1313,37 +1319,35 @@ Overfull \hbox (4.98769pt too wide) in paragraph at lines 442--443
 Package enumitem Warning: Negative labelwidth. This does not make much
 (enumitem)                sense, on input line 481.
 
-
+[62]
 Underfull \hbox (badness 4156) in paragraph at lines 498--499
  []\T1/lmr/bx/n/12 Celkový preh©ad[] \T1/lmr/m/n/12 Obrázok []3--2[] zobrazuje 
 úspe²nos´ útokov pre v²etky
  []
 
-[62]
 <plots/attack_success_heatmap.png, id=950, 729.927pt x 327.3831pt>
 File: plots/attack_success_heatmap.png Graphic file (type png)
 <use plots/attack_success_heatmap.png>
 Package pdftex.def Info: plots/attack_success_heatmap.png  used on input line 5
 02.
 (pdftex.def)             Requested size: 426.79134pt x 191.42592pt.
- (./plots/scenario_summary.tex
+(./plots/scenario_summary.tex
 Overfull \hbox (5.0661pt too wide) in paragraph at lines 6--21
  [][] 
  []
 
-) [63 <./plots/attack_success_heatmap.png>]
+) [63 <./plots/attack_success_heatmap.png>] [64]
 Overfull \hbox (8.37357pt too wide) in paragraph at lines 525--526
 \T1/lmr/m/n/12 frame_idx = 4, £o zodpovedá nakonfigurovanému limitu \T1/lmtt/m/
 n/12 tag_fail_streak_limit \T1/lmr/m/n/12 = 5
  []
 
-[64]
-<plots/throughput.png, id=966, 1005.2757pt x 356.2911pt>
+<plots/throughput.png, id=964, 1005.2757pt x 356.2911pt>
 File: plots/throughput.png Graphic file (type png)
 <use plots/throughput.png>
 Package pdftex.def Info: plots/throughput.png  used on input line 539.
 (pdftex.def)             Requested size: 426.79134pt x 151.26677pt.
- (./plots/throughput_table.tex)
+[65] (./plots/throughput_table.tex)
 Underfull \hbox (badness 5893) in paragraph at lines 548--549
 []\T1/lmr/bx/n/12 Porovnanie algoritmov: \T1/lmr/m/n/12 A2 (XChaCha20) dosahuje
  mierne vy²²iu
@@ -1355,23 +1359,21 @@ Underfull \hbox (badness 1394) in paragraph at lines 548--549
 nou je
  []
 
-[65 <./plots/throughput.png>] [66] [67]
+[66 <./plots/throughput.png>] [67] [68]
 Underfull \hbox (badness 1221) in paragraph at lines 614--615
 \T1/lmr/m/n/12 analýza siedmich scenárov naprie£ ²iestimi konfigura£nými profil
 mi potvrdila
  []
 
-[68]) [69]
+[69]) [70]
 \openout2 = `zaver.aux'.
 
  (./zaver.tex
-Underfull \hbox (badness 1281) in paragraph at lines 24--25
-[]|\T1/lmr/m/n/10.95 Overhead detektora ($[]\OT1/lmr/m/n/10.95 17%$\T1/lmr/m/n/
-10.95 , $[]\OT1/lmr/m/n/10.95 35 \OML/lmm/m/it/10.95 ^^V$\T1/lmr/m/n/10.95 s na
- frame) je rádovo
+Underfull \hbox (badness 2027) in paragraph at lines 24--25
+\T1/lmr/m/n/10.95 od AEAD algoritmu) je rádovo nepodstatný pre reálnu
  []
 
-[70
+[71
 
 
 
@@ -1381,7 +1383,7 @@ Underfull \hbox (badness 2478) in paragraph at lines 33--206
 integráciu
  []
 
-[71] [72]
+[72] [73]
 \openout2 = `literatura.aux'.
 
  (./literatura.tex (./tukedip.bbl
@@ -1402,7 +1404,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 51--56
  _ manual _ en .
  []
 
-[73
+[74
 
 
 
@@ -1424,7 +1426,7 @@ Underfull \hbox (badness 1412) in paragraph at lines 120--125
 nd
  []
 
-[74]
+[75]
 Underfull \hbox (badness 1590) in paragraph at lines 146--151
 []\T1/lmr/m/n/12 libsodium contributors.  XChaCha20-Poly1305 construction -- li
 bsodium
@@ -1453,7 +1455,7 @@ Underfull \hbox (badness 2050) in paragraph at lines 171--177
 pps . nsa . gov / iaarchive /
  []
 
-[75]
+[76]
 Underfull \hbox (badness 10000) in paragraph at lines 185--190
 []\T1/lmr/m/n/12 Private Internet Access and NCC Group.  Libsodium Security
  []
@@ -1469,20 +1471,20 @@ Underfull \hbox (badness 10000) in paragraph at lines 185--190
  . com / blog /
  []
 
-[76])) [77]
+[77])) [78]
 \openout2 = `prilohy.aux'.
 
- (./prilohy.tex [78
+ (./prilohy.tex [79
 
 
 
-] [79] [80])
+] [80] [81])
 Underfull \hbox (badness 2538) in paragraph at lines 30--210
 \T1/lmr/m/n/12 Konfigura£né profily definujú experimentálnu maticu A1/A2 $\OMS/
 lmsy/m/n/12 ^^B$ \T1/lmr/m/n/12 R0/R1/R2.
  []
 
-[81] [82
+[82] [83
 
 
 ] (./tukedip.aux (./uvod.aux) (./formulacia.aux) (./analyza.aux)
@@ -1495,15 +1497,12 @@ L3 programming layer <2024-01-22>
 
 LaTeX Warning: There were undefined references.
 
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
 Package rerunfilecheck Info: File `tukedip.out' has not changed.
 (rerunfilecheck)             Checksum: 1856980716334EA7756442D412F01592;21428.
  ) 
 Here is how much of TeX's memory you used:
- 13292 strings out of 476182
- 205897 string characters out of 5795596
+ 13293 strings out of 476182
+ 205904 string characters out of 5795596
  1935975 words of memory out of 5000000
  34699 multiletter control sequences out of 15000+600000
  649328 words of font info for 114 fonts, out of 8000000 for 9000
@@ -1523,10 +1522,10 @@ ublic/lm/lmtk10.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt10.pfb></usr/sh
 are/texmf/fonts/type1/public/lm/lmtt12.pfb></usr/share/texlive/texmf-dist/fonts
 /type1/public/amsfonts/symbols/msam10.pfb></usr/share/texlive/texmf-dist/fonts/
 type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on tukedip.pdf (82 pages, 904199 bytes).
+Output written on tukedip.pdf (83 pages, 905538 bytes).
 PDF statistics:
- 1287 PDF objects out of 1440 (max. 8388607)
- 1141 compressed objects within 12 object streams
- 288 named destinations out of 1000 (max. 500000)
+ 1293 PDF objects out of 1440 (max. 8388607)
+ 1146 compressed objects within 12 object streams
+ 289 named destinations out of 1000 (max. 500000)
  664 words of extra memory for PDF output out of 10000 (max. 10000000)
 

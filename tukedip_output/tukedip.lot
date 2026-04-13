@@ -6,7 +6,7 @@
 \contentsline {table}{\numberline {3\,--\,3}{\ignorespaces Konfigurácia \texttt {ProtocolAnomalyDetector} a reakcia na anomálie}}{51}{table.3.3}%
 \contentsline {table}{\numberline {3\,--\,4}{\ignorespaces Mapovanie STRIDE kategórií hrozieb na experimentálne scenáre}}{53}{table.3.4}%
 \contentsline {table}{\numberline {3\,--\,5}{\ignorespaces Matica konfiguračných profilov (algoritmus $\times $ režim nonce)}}{54}{table.3.5}%
-\contentsline {table}{\numberline {3\,--\,6}{\ignorespaces Úspešnosť útoku a reakcia detektora podľa scenára a nonce stratégie}}{63}{table.3.6}%
+\contentsline {table}{\numberline {3\,--\,6}{\ignorespaces Úspešnosť útoku a reakcia detektora podľa scenára a nonce stratégie}}{64}{table.3.6}%
 \contentsline {table}{\numberline {3\,--\,7}{\ignorespaces Priepustnosť a latencia pri N=50,000 frame}}{66}{table.3.7}%
-\contentsline {table}{\numberline {3\,--\,8}{\ignorespaces Odolnosť voči útočným scenárom podľa úrovne implementácie}}{68}{table.3.8}%
-\contentsline {table}{\numberline {4\,--\,1}{\ignorespaces Súhrn hlavných experimentálnych zistení}}{71}{table.4.1}%
+\contentsline {table}{\numberline {3\,--\,8}{\ignorespaces Odolnosť voči útočným scenárom podľa úrovne implementácie}}{69}{table.3.8}%
+\contentsline {table}{\numberline {4\,--\,1}{\ignorespaces Súhrn hlavných experimentálnych zistení}}{72}{table.4.1}%

@@ -1,0 +1,38 @@
+\babel@toc {nil}{}\relax 
+\contentsline {section}{\numberline {1}Funkcia programu}{1}{section.1}%
+\contentsline {section}{\numberline {2}Analýza riešenia}{2}{section.2}%
+\contentsline {section}{\numberline {3}Popis programu}{2}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Popis riešenia}{3}{subsection.3.1}%
+\contentsline {paragraph}{Hardvérová vrstva.}{3}{section*.2}%
+\contentsline {paragraph}{Serverová aplikácia.}{3}{section*.3}%
+\contentsline {paragraph}{Webové administrátorské rozhranie.}{3}{section*.4}%
+\contentsline {paragraph}{Experimentálna a~analytická vrstva.}{4}{section*.5}%
+\contentsline {paragraph}{Vetvenie repozitára.}{4}{section*.6}%
+\contentsline {subsection}{\numberline {3.2}Popis algoritmov a~údajových štruktúr, globálnych premenných}{4}{subsection.3.2}%
+\contentsline {paragraph}{Modulárna štruktúra.}{4}{section*.7}%
+\contentsline {paragraph}{Algoritmus: rozhodovacia pipeline.}{5}{section*.8}%
+\contentsline {paragraph}{Algoritmus: sliding replay window.}{5}{section*.9}%
+\contentsline {paragraph}{Algoritmus: deterministický nonce (HMAC konštrukcia).}{6}{section*.10}%
+\contentsline {paragraph}{Algoritmus: detektor anomálií ako stavový automat.}{6}{section*.11}%
+\contentsline {paragraph}{Algoritmus: tamper-evident audit chain.}{7}{section*.12}%
+\contentsline {paragraph}{Algoritmus: pseudonymizácia identifikátora karty.}{7}{section*.13}%
+\contentsline {paragraph}{Algoritmus: parsovanie binárneho frame.}{7}{section*.14}%
+\contentsline {paragraph}{Konfigurácia.}{7}{section*.15}%
+\contentsline {paragraph}{Schéma databázy.}{8}{section*.16}%
+\contentsline {paragraph}{Globálne premenné.}{9}{section*.17}%
+\contentsline {paragraph}{Dialóg s~používateľom.}{9}{section*.18}%
+\contentsline {subsection}{\numberline {3.3}Popis modulov a~podprogramov}{9}{subsection.3.3}%
+\contentsline {paragraph}{\texttt {hw\_layer} (firmvér ESP32).}{9}{section*.19}%
+\contentsline {paragraph}{\texttt {crypto\_lib}.}{10}{section*.20}%
+\contentsline {paragraph}{\texttt {protocol\_lib}.}{10}{section*.21}%
+\contentsline {paragraph}{\texttt {key\_manager}.}{10}{section*.22}%
+\contentsline {paragraph}{\texttt {access\_core}.}{11}{section*.23}%
+\contentsline {paragraph}{\texttt {access\_decision}.}{11}{section*.24}%
+\contentsline {paragraph}{\texttt {access\_storage}.}{12}{section*.25}%
+\contentsline {paragraph}{Pomocné moduly.}{12}{section*.26}%
+\contentsline {paragraph}{Webové rozhranie (\texttt {web/}).}{12}{section*.27}%
+\contentsline {paragraph}{\texttt {experiments} (harness a~scenáre).}{13}{section*.28}%
+\contentsline {paragraph}{\texttt {analysis} (Python pipeline pre grafy a~tabuľky).}{13}{section*.29}%
+\contentsline {paragraph}{Vnorenie volaní pri spracovaní karty.}{14}{section*.30}%
+\contentsline {paragraph}{Vzťah modulov navzájom.}{15}{section*.31}%
+\contentsline {section}{\numberline {4}Zoznam použitej literatúry}{16}{section.4}%

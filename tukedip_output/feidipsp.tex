@@ -1,57 +1,80 @@
 % !TeX encoding=utf-8
 \documentclass[a4paper]{feidipsp}
 \usepackage[pdftex]{graphicx}
-\DeclareGraphicsExtensions{.pdf}
-\graphicspath{{figures/}}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+\graphicspath{{figures/}{plots/}}
 
 \usepackage[slovak]{babel}
+\providecommand{\uv}[1]{\quotedblbase#1\textquotedblleft}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 
 \usepackage{amsmath,amsfonts,amssymb,latexsym}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{blue!70!black}\bfseries,
+  commentstyle=\color{gray!70!black}\itshape,
+  stringstyle=\color{green!50!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  stepnumber=1,
+  numbersep=6pt,
+  frame=single,
+  framesep=4pt,
+  rulecolor=\color{gray!50},
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  xleftmargin=0.5em,
+  xrightmargin=0.5em
+}
 
 \def\figurename{Obrázok}
 \def\tabname{Tabuľka}
 
-%\usepackage[dvips]{graphicx}
-%\DeclareGraphicsExtensions{.eps}
+%% Allow more flexibility in line breaking (long \texttt{} identifiers, etc.)
+\emergencystretch=2em
+\tolerance=1500
+\hyphenpenalty=50
 
-%\usepackage[pdftex]{hyperref}   %% tlac !!!
-\usepackage[pdftex,colorlinks,citecolor=magenta,bookmarksnumbered,unicode,pdftoolbar=true,pdfmenubar=true,pdfwindowui=true,bookmarksopen=true]{hyperref}
+\usepackage[pdftex,colorlinks,citecolor=magenta,bookmarksnumbered,unicode,%
+  pdftoolbar=true,pdfmenubar=true,pdfwindowui=true,bookmarksopen=true]{hyperref}
 \hypersetup{%
-baseurl={http://www.tuke.sk/sevcovic},
-pdfcreator={pdfcsLaTeX},
-pdfkeywords={Sytémová príručka},
-pdftitle={Šablóna na písanie DP na FEI TU v~Košiciach},
-pdfauthor={Ján Buša, Ladislav Ševčovič},
-pdfsubject={Ako napísať peknú DP}
+  pdfcreator={pdfLaTeX},
+  pdfkeywords={kontrola prístupu, RFID, NFC, AEAD, ChaCha20-Poly1305, systémová príručka},
+  pdftitle={Systémová príručka --- Access-Security},
+  pdfauthor={Oleksandr Mykhailyshyn},
+  pdfsubject={Systémová príručka}
 }
 
-% Citovanie podla mena autora a roku
-%\usepackage[numbers]{natbib}
-\usepackage{natbib} \citestyle{chicago}
+\usepackage[numbers,sort&compress]{natbib}
+\renewcommand*{\bibsection}{\section{Zoznam použitej literatúry}}
 
-%\usepackage{mathptm} %\usepackage{times}
-
-\katedra{Laboratórium priemyselného inžinierstva}
-\department{Laboratory of Industrial Engineering}
-\odbor{Experimentálna fyzika}
-\autor{Ján Zelený}
-\veduci{Doc.~Ing.~Vojtech Čierny, CSc.}
-\konzultant{Ing. Matej Biely, PhD.}
-\nazov{Optimalizácia písania diplomových prác na našej fakulte}
-\kratkynazov{Optimalizácia písania DP}
-\nazovprogramu{ODYSSEUS}
-\klucoveslova{optimalizácia, diplomová práca, písanie}
-\title{The optimization of the diploma writing at our faculty}
-\keywords{optimization, diploma, writing}
-\datum{1. 4. 2004}
-
+%% ====================================================================
+%%  METADATA
+%% ====================================================================
+\katedra{Katedra počítačov a informatiky}
+\department{Department of Computers and Informatics}
+\odbor{TODO --- doplniť študijný odbor}
+\autor{Oleksandr Mykhailyshyn}
+\veduci{TODO --- doplniť vedúceho práce}
+%\konzultant{}
+\nazov{Zvýšenie bezpečnosti vybraných šifrovacích algoritmov v~prístupových systémoch}
+\kratkynazov{Zvýšenie bezpečnosti vybraných šifrovacích algoritmov v~prístupových systémoch}
+\nazovprogramu{ACCESS-SECURITY}
+\klucoveslova{kontrola prístupu, RFID, NFC, AEAD, ChaCha20-Poly1305, HMAC, HKDF, anti-replay, audit log}
+\title{Enhancing Security of Selected Encryption Algorithms in Access Control Systems}
+\keywords{access control, RFID, NFC, AEAD, ChaCha20-Poly1305, HMAC, HKDF, anti-replay, audit log}
+\datum{TODO.TODO.2026}
 
 
 \begin{document}
-\bibliographystyle{dcu}
+\bibliographystyle{plainnat}
 
 \titulnastrana
 
@@ -63,148 +86,227 @@ pdfsubject={Ako napísať peknú DP}
 
 \section{Funkcia programu}
 
-Krátky popis funkcie navrhovaného programu.
+\emph{Access-Security} je prototyp systému kontroly fyzického prístupu na báze RFID/NFC. Jeho úlohou je autorizovať držiteľov kariet na prechod cez elektronicky riadené dvere na základe kombinácie roly karty a~role dverí, pričom celý komunikačný reťazec medzi čítačkou a~serverom je chránený kryptograficky --- autentifikovaným šifrovaním (AEAD), anti-replay ochranou, HKDF per-reader deriváciou kľúčov, detekciou protokolových anomálií a~tamper-evident auditom.
+
+Systém tvoria tri hlavné časti:
+
+\begin{itemize}
+\item \textbf{Hardvérová čítačka} postavená na mikrokontroléri ESP32 a~module RC522. Číta UID karty, pripojí identifikátor čítačky a~dverí, doplní monotónne počítadlo \texttt{hw\_seq} a~cez bezdrôtové pripojenie Wi-Fi odošle autentifikovanú HTTP požiadavku (HMAC-SHA-256 podpis nad metódou, cestou a~telom) na server.
+\item \textbf{Serverová aplikácia} v~jazyku C++20, pozostávajúca z~dvoch nezávislých HTTP služieb: \emph{frontend} služba overuje HMAC podpis požiadavky a~konštruuje interný AEAD frame, \emph{DecisionService} frame dešifruje, overí anti-replay, spustí anomálny detektor, vyhodnotí autorizáciu (RBAC) a~výsledok zapíše do auditného logu. Lokálne úložisko je realizované cez SQLite v~WAL móde.
+\item \textbf{Webové administrátorské rozhranie} pre správu čítačiek, kariet, rolí dverí, kontrolu auditného logu s~overením integrity reťaze a~sledovanie prevádzkových udalostí v~reálnom čase.
+\end{itemize}
+
+Program je určený na nasadenie v~prostredí, kde konvergujú požiadavky fyzickej a~informačnej bezpečnosti --- tam, kde sa od prístupového systému očakáva ochrana nielen proti jednoduchému skopírovaniu karty, ale aj proti aktívnym útokom na komunikačný kanál (replay, manipulácia hlavičky, podsunutie nonce, rollback sekvenčného čísla, forgery pokusy o~AEAD tag a~pod.).
 
 \section{Analýza riešenia}
 
-Analýza riešeného problému včítane teoretického rozboru, porovnanie koncepcii možných
-riešení, zdôvodnenie zvoleného postupu riešenia a~pod.
+Detailný teoretický rozbor problematiky --- analýza aktuálnych prístupov ku kontrole fyzického prístupu, model hrozieb (STRIDE), porovnanie kryptografických primitív (ChaCha20-Poly1305 vs.\ AES-GCM, stratégie generovania nonce, HKDF derivácia kľúčov, HMAC autentifikácia), zásady návrhu bezpečných protokolov, ochrana súkromia identifikátorov, tamper-evident auditovateľnosť, bezpečnosť vstavaného zariadenia a~bezpečnosť transportnej vrstvy --- je obsahom kapitoly 2 \emph{Analýza} hlavnej diplomovej práce, ktorá je súčasťou rovnakého repozitára.
+
+Táto systémová príručka sa zameriava na technickú dokumentáciu konkrétnej implementácie: organizáciu kódovej bázy, algoritmy realizované vlastným kódom, údajové štruktúry, konfiguráciu a~spôsob zostavenia a~spustenia systému. Pre úplné odôvodnenie zvolených kryptografických primitív a~architektonických rozhodnutí je čitateľ odkázaný na hlavnú diplomovú prácu.
 
 \section{Popis programu}
+\label{sec:popis}
 
-Maximálne využívat formálne a~grafické prostriedky podla použitej metodológie návrhu.
-Je potrebné urobit odvolávky na zdrojové texty uvedené v~prílohách dokumentácie. Popis
-castí podprogramov môže byt prebraný  z~komentárov uvedených v~zdrojových textov
-programov. Hlavné komentáre (celoriadkové) musia odpovedat textovému popisu hrubého 
-algoritmu riešenia.
+Program pozostáva z~troch vrstiev. Hardvérová vrstva \texttt{hw\_layer} je firmvér bežiaci na ESP32 s~čítačkou MFRC522; jeho úlohou je čítanie UID karty a~odoslanie autentifikovanej HTTP požiadavky serveru. Serverová časť je písaná v~jazyku C++20 a~je rozdelená na dve nezávislé HTTP služby: \emph{frontend} (port 8080), ktorá prijíma požiadavky od čítačiek, overuje HMAC podpis a~konštruuje interný AEAD frame, a~\emph{DecisionService} (port 8081), ktorá frame dešifruje, spúšťa anti-replay kontrolu, anomálny detektor a~RBAC vyhodnotenie a~zapisuje výsledok do auditného logu. DecisionService počúva výhradne na loopback rozhraní \texttt{127.0.0.1}, takže je dostupný len lokálnej frontend službe. Webové administrátorské rozhranie slúži pre správu čítačiek, kariet a~rolí dverí a~pre sledovanie prevádzky v~reálnom čase.
 
-V~texte môžu byt použité obrázky a~tabulky podla nasledujúcich príkladov:
-
-\begin{figure}[!ht]
-\centering 
-\includegraphics[width=0.5\textwidth]{tlmosc}
-\caption{Tlmené oscilácie}\label{o:1}
-\end{figure}
-
-Obrázok by mal byt podla možnosti centrovaný. Pri jeho popisovaní v~texte treba použit odkazy na obrázok v~tvare obrázok \ref{o:1}  (kapitola 3, obrázok 1).
-
-\begin{table}[!ht]\caption{Prehľad jednotiek}\label{t:1}
-\smallskip
-\centering
-\begin{tabular}{|l|c|} \hline
-Názov	& [\,jednotka] \\ \hline
-Napätie & $\mu$V \\ \hline
-\end{tabular}	
-\end{table}
-
-
-Tabulka by mala byť podla možnosti centrovaná. Pri jej popisovaní v~texte treba použiť odkazy na tabuľku v~tvare tabuľka \ref{t:1} (kapitola 3, tabuľka 1).
-
-Na číslovanie obrázkov, resp. tabuliek treba použit desatinné triedenie, prvé číslo odpovedá číslu kapitoly resp. podkapitoly.
-
+Rozhodovacia cesta (\texttt{DecisionEngine::handleFrameBytes}) je organizovaná od najlacnejších kontrol po najdrahšie, aby sa neplatné požiadavky odfiltrovali čo najskôr: parsovanie $\rightarrow$ validácia čítačky $\rightarrow$ kontrola verzie kľúča $\rightarrow$ anti-replay (read-only) $\rightarrow$ AEAD dešifrovanie $\rightarrow$ anomálny detektor $\rightarrow$ RBAC $\rightarrow$ audit.
 
 \subsection{Popis riešenia}
+\label{sec:popis-riesenia}
 
-Uviesť teoretický základ resp koncepciu riešenia, použité vzťahy a~pod. s~odvolaním sa na literatúru uvedenú v~záverečnej kapitole
+Projekt sa skladá z~troch komponentov, ktoré dokopy tvoria funkčný prístupový systém spolu s~experimentálnou platformou pre jeho vyhodnotenie. Bezpečnostné mechanizmy implementované v~serverovej časti (AEAD frame s~AAD väzbou, HKDF per-reader derivácia kľúčov, deterministický nonce, anti-replay sliding window, detektor protokolových anomálií s~karanténou, tamper-evident audit log a~pseudonymizácia identifikátorov kariet) sú podrobne popísané a~odôvodnené v~kapitole 3 hlavnej diplomovej práce; tu sú spomenuté len v~rozsahu potrebnom pre orientáciu v~kóde.
 
-\subsection[Popis  algoritmov a~údajových štruktúr, globálnych premenných]{Popis  algoritmov a~údajových štruktúr, globálnych\\ premenných}
+\paragraph{Hardvérová vrstva.} Firmvér pre ESP32 s~čítačkou MFRC522, písaný pre Arduino-ESP32 framework. Číta UID karty, udržuje monotónne počítadlo \texttt{hw\_seq} v~perzistentnom NVS úložisku, a~odošle autentifikovanú HTTP požiadavku cez Wi-Fi (HMAC-SHA-256 podpis nad reťazcom \texttt{metóda $+$ cesta $+$ telo}). Detailné zapojenie a~popis firmvéru je v~následných podkapitolách.
 
-Popis algoritmov uviest s~použitím vhodných formálnych prostriedkov (vývojový diagram, verbálny popis atd.).podla použitej metodológie návrhu.
+\paragraph{Serverová aplikácia.} Dve nezávislé HTTP služby v~jazyku C++20: \emph{frontend} (port 8080) prijíma hardvérové požiadavky, overuje HMAC podpis a~konštruuje interný AEAD frame; poskytuje aj administratívne API a~servuje webové rozhranie. \emph{DecisionService} (port 8081, viazaný na loopback) frame dešifruje, spúšťa pipeline kontrol (anti-replay, anomálny detektor, RBAC, audit) a~vracia rozhodnutie. Úložisko je SQLite v~režime WAL.
 
-Popis návrhu dialógu s~používatelom. 
+\paragraph{Webové administrátorské rozhranie.} Vanilla JavaScript (bez frameworku) servovaný frontend službou. Spravuje čítačky, karty a~role dverí, verifikuje integritu auditného logu a~sleduje prevádzkové udalosti v~reálnom čase (polling každých 500\,ms; auditný log auto-refresh každú sekundu).
+
+\paragraph{Experimentálna a~analytická vrstva.} C++ harness (\texttt{experiments/}) zdieľa produkčný kód kryptografickej a~rozhodovacej vrstvy, čím sa zaručuje, že merania odrážajú skutočné správanie systému. Obsahuje sedem scenárov pokrývajúcich triedy útokov skúmaných v~hlavnej práci. Python skripty (\texttt{analysis/}) spracúvajú CSV výstupy a~generujú grafy a~LaTeX-ready tabuľky pomocou \texttt{pandas}, \texttt{matplotlib} a~\texttt{seaborn}.
+
+\paragraph{Vetvenie repozitára.} Projekt je udržiavaný v~dvoch vetvách: \texttt{main} (produkčná, obsahuje len funkčný systém) a~\texttt{analytical} (rozšírená o~moduly \texttt{experiments/} a~\texttt{analysis/}). Rozdiel je čisto aditívny --- produkčný kód je identický, \texttt{analytical} iba dopĺňa nástroje pre meranie, čím je zaručené, že experimenty bežia na presne tom istom kóde, aký by bol nasadený v~produkcii.
+
+\subsection[Popis algoritmov a~údajových štruktúr, globálnych premenných]{Popis algoritmov a~údajových štruktúr, globálnych\\ premenných}
+
+Táto podkapitola opisuje vlastné algoritmy implementované v~projekte, kľúčové údajové štruktúry, rozdelenie kódu na moduly a~model interakcie s~používateľom.
+
+\paragraph{Modulárna štruktúra.}
+
+Serverová časť je rozdelená do deviatich modulov so statickými knižnicami a~jednosmernými závislosťami: \texttt{crypto\_lib} (AEAD, HKDF, generátory nonce, HMAC), \texttt{protocol\_lib} (binárny formát frame, replay window), \texttt{key\_manager} (derivácia kľúčov, rotácia), \texttt{access\_core} (\texttt{FrameHandler}, \texttt{ProtocolAnomalyDetector}), \texttt{access\_decision} (\texttt{DecisionEngine}, RBAC), \texttt{access\_storage} (SQLite, audit log), \texttt{config\_loader} (YAML), \texttt{runtime\_events} (udalosti pre web) a~\texttt{access\_admin} (HTTP server, služby, web frontend). Každý modul má vlastnú sadu unit testov v~podadresári \texttt{tests/}.
+
+\paragraph{Algoritmus: rozhodovacia pipeline.}
+
+Hlavný algoritmus serverovej časti je obsiahnutý v~\texttt{DecisionEngine::handleFrameBytes} (a~podriadenej \texttt{FrameHandler::handle}). Spracovanie frame prebieha v~pevne definovanom poradí od najlacnejších kontrol po najdrahšie, aby sa neplatné požiadavky odfiltrovali čo najskôr:
+
+\begin{enumerate}
+\item \textbf{Parsovanie frame} --- validuje magic, verziu, hlavičku, ciphertext (s~kontrolou maximálnej dĺžky pred alokáciou), tag a~absenciu trailing bajtov.
+\item \textbf{Validácia čítačky a~verzie kľúča} --- overenie, že \texttt{reader\_id} je registrovaný a~\texttt{key\_version} je aktuálna alebo (pri povolenej tolerancii) bezprostredne predchádzajúca.
+\item \textbf{Anti-replay kontrola} --- \emph{read-only} volanie \texttt{ReplayWindow::contains(seq)}; pri nájdení duplicitu sa frame odmietne bez pokusu o~dešifrovanie.
+\item \textbf{AEAD dešifrovanie} --- derivácia per-reader kľúča cez HKDF, overenie Poly1305 tagu nad hlavičkou (AAD) a~ciphertextom.
+\item \textbf{Anomálny detektor} --- pri úspešnom dešifrovaní vyhodnotenie štyroch protokolových invariantov (viď~nižšie).
+\item \textbf{Zaznamenanie sekvencie} (\texttt{remember}) --- až po úspešnom kroku 4 sa \texttt{seq} pridá do replay window, aby neplatné frame nemohli \uv{otráviť} stav.
+\item \textbf{RBAC autorizácia} --- vyhľadanie karty podľa HMAC odtlačku, overenie väzby čítačka $\leftrightarrow$ dvere a~povolenia role pre cieľové dvere.
+\item \textbf{Zápis do auditného logu} --- bez ohľadu na výsledok rozhodnutia (allow alebo deny).
+\end{enumerate}
+
+\paragraph{Algoritmus: sliding replay window.}
+
+\texttt{ReplayWindow} udržuje dve komplementárne údajové štruktúry --- \texttt{std::deque<uint64\_t> \_order} (FIFO poradie vloženia) a~\texttt{std::unordered\_set<uint64\_t> \_seen} (rýchle $O(1)$ vyhľadávanie) --- plus ukazovateľ \texttt{\_maxSeen} na najvyššiu videnú hodnotu. Pri každom \texttt{remember(seq)}: ak je \texttt{seq > maxSeen}, aktualizuje sa ukazovateľ; následne sa \texttt{seq} pridá do oboch kontajnerov. Keď veľkosť okna prekročí limit (\texttt{evictOldestIfFull}), najstaršia hodnota z~\texttt{\_order} sa vyhodí aj z~\texttt{\_seen}. Kontrola \texttt{contains(seq)} vracia true, ak je \texttt{seq $\leq$ maxSeen $-$ windowSize} (príliš staré) alebo prítomné v~\texttt{\_seen}. Táto konštrukcia dosahuje amortizovanú $O(1)$ zložitosť pre všetky operácie a~zároveň toleruje krátke preusporiadania.
+
+\paragraph{Algoritmus: deterministický nonce (HMAC konštrukcia).}
+
+Generátor v~triede \texttt{HmacNonceGenerator} vypočíta HMAC-SHA-256 nad kanonicky serializovaným kontextom hlavičky (reader\_id, door\_id, seq, key\_version, ts\_unix\_ms) so samostatným nonce kľúčom odvodeným cez HKDF. Výstup HMAC má 32 bajtov; prvé \emph{nonce\_len} bajtov (12 pre ChaCha20-Poly1305, 24 pre XChaCha20-Poly1305) sa skopírujú ako nonce, ostatok sa vynuluje funkciou \texttt{sodium\_memzero} pred opustením zásobníka. Prijímacia strana prepočíta očakávanú hodnotu rovnakým postupom a~porovná ju s~prijatou cez \texttt{sodium\_memcmp} (porovnanie v~konštantnom čase, odolné voči timing útokom).
+
+\paragraph{Algoritmus: detektor anomálií ako stavový automat.}
+
+Detektor udržuje per-reader stav s~tromi položkami: najvyššia videná sekvencia (\emph{maxSeenSeq}), počítadlo po sebe idúcich zlyhaní tagu (\emph{consecutiveTagFails}) a~stav karantény. Pri reporte sekvencie sa overí, či \emph{seq~$+$~rollbackThreshold~$<$~maxSeenSeq}; ak áno, čítačka je zakarantenovaná s~dôvodom \emph{seq\_rollback}, inak sa maxSeenSeq aktualizuje. Pri zlyhaní tagu sa inkrementuje počítadlo a~po dosiahnutí limitu (\emph{tagFailStreakLimit}) sa aktivuje karanténa \emph{tag\_fail\_streak}. Replay a~nonce mismatch karanténujú okamžite. Úspešné spracovanie vynuluje počítadlo zlyhaní (legitímne frame nesmú \uv{frustrovať} streak). Karanténa pretrváva až do manuálneho zrušenia cez administrátorské API.
+
+\paragraph{Algoritmus: tamper-evident audit chain.}
+
+Pri zápise sa každá auditná udalosť serializuje do kanonického byte reťazca (ts, reader\_id, door\_id, seq, allow, reason, card\_hmac, action --- v~pevne stanovenom poradí s~little-endian kódovaním a~prefixmi dĺžky pre reťazce). Hash záznamu je vypočítaný ako \emph{HMAC(K\_audit, prev\_hash $\|$ fields)} a~uložený v~stĺpci \emph{entry\_hash}; predošlý hash je v~stĺpci \emph{prev\_hash}. Súčasne sa hash nového záznamu uloží aj do tabuľky \emph{audit\_anchor} ako ochrana proti truncation. Verifikácia rekonštruuje reťazec od prvého záznamu, porovnáva každý vypočítaný hash so storedEntry/storedPrev z~DB a~na konci overí zhodu s~anchor hodnotou --- akákoľvek modifikácia, vloženie alebo odrezanie záznamov sa odhalí.
+
+\paragraph{Algoritmus: pseudonymizácia identifikátora karty.}
+
+Komponent \emph{CardIdHasher} vypočíta HMAC-SHA-256 nad hex reťazcom UID karty s~pepper kľúčom a~vráti výsledok v~hex kódovaní. Pepper je per-verziu odvodený z~master kľúča cez HKDF, čo umožňuje rotáciu pepperu bez straty kontinuity. Vyhľadanie karty v~databáze prebieha tak, že server spočíta HMAC s~aktuálnym pepperom a~hľadá v~stĺpci \emph{cards.card\_hmac}; ak nenájde, opakuje s~predchádzajúcou verziou pepperu (pre tolerantný prechod počas rotácie).
+
+\paragraph{Algoritmus: parsovanie binárneho frame.}
+
+Parser binárneho frame je implementovaný defenzívne: najprv kontroluje minimálnu veľkosť bufferu, potom magic reťazec (\texttt{AS01}), verziu protokolu, následne po poliach parsuje hlavičku (fixné pozície s~little-endian kódovaním), nonce, dĺžku ciphertextu (s~kontrolou pred alokáciou, čím sa zabráni DoS útoku cez nadmernú dĺžku), samotný ciphertext, 16-bajtový tag a~na záver kontroluje absenciu trailing bajtov. Každá neplatná pozícia vyhodí výnimku s~presným popisom chyby; ošetrenie chyby je centralizované v~rozhodovacej pipeline.
+
+\paragraph{Konfigurácia.}
+
+Behová konfigurácia je udržiavaná v~YAML súboroch v~adresári \texttt{config/}. Hlavný produkčný profil \texttt{access\_security.yaml} obsahuje piate skupiny parametrov (\texttt{frame\_handler}, \texttt{key\_management}, \texttt{storage}, \texttt{admin}, \texttt{experiment}). Okrem neho existuje šesť experimentálnych profilov \texttt{profile\_a\{1,2\}\_r\{0,1,2\}.yaml}, ktoré kombinujú dva AEAD algoritmy a~tri stratégie generovania nonce.
+
+Modul \texttt{config\_loader} poskytuje funkciu \texttt{loadFromYaml(path)} $\rightarrow$ \texttt{Config}, ktorá načíta YAML a~validuje hodnoty. Výsledná štruktúra \texttt{Config} agreguje päť podštruktúr: \texttt{FrameHandlerConfig} (anti-replay, max skew, väzby), \texttt{StorageConfig} (cesta k~SQLite), \texttt{AdminConfig} (HTTP port, admin token, HMAC secret, decision\_mode), \texttt{KeyManagementYaml} (verzia kľúča, cesta k~master key) a~\texttt{ExperimentConfig} (AEAD cipher, nonce stratégia, detektor, kotva auditu). Všetky polia majú rozumné predvolené hodnoty, takže konfigurácia je priamočiara a~zrozumiteľná bez dokumentácie.
+
+\paragraph{Schéma databázy.}
+
+Úložisko je realizované cez SQLite v~režime WAL. Schéma obsahuje šesť tabuliek (tabuľka~\ref{t:db-schema}), ktoré sú pri prvom spustení automaticky vytvorené modulom \texttt{access\_storage} cez \texttt{CREATE TABLE IF NOT EXISTS}.
+
+\begin{table}[!ht]\caption{Schéma SQLite databázy}\label{t:db-schema}
+\smallskip
+\centering
+\begin{tabular}{|l|l|} \hline
+\textbf{Tabuľka} & \textbf{Obsah} \\ \hline
+\texttt{cards}         & HMAC(pepper, UID) $\rightarrow$ rola karty \\ \hline
+\texttt{door\_roles}   & Povolené roly pre každé dvere (RBAC) \\ \hline
+\texttt{readers}       & Registrované čítačky s~verziou kľúča \\ \hline
+\texttt{reader\_doors} & Väzba čítačka $\leftrightarrow$ dvere (FK, CASCADE) \\ \hline
+\texttt{audit\_log}    & Záznamy auditu s~HMAC hash chain \\ \hline
+\texttt{audit\_anchor} & Ochranná kotva proti truncation \\ \hline
+\end{tabular}
+\end{table}
+
+Žiadna tabuľka neobsahuje surové UID kariet --- ukladá sa len HMAC odtlačok s~pepperom. Tabuľky \texttt{audit\_log} a~\texttt{audit\_anchor} spolu tvoria tamper-evident auditný mechanizmus opísaný v~podkapitole~\ref{sec:popis-riesenia}.
+
+\paragraph{Globálne premenné.}
+
+Projekt sa zámerne vyhýba globálnym mutable premenným. Jediný agregujúci objekt serverovej aplikácie je inštancia \texttt{AppState} (v~module \texttt{access\_admin}), ktorá drží zdieľaný stav --- \texttt{DecisionEngine}, \texttt{KeyManager}, úložisko, kruhový buffer prevádzkových udalostí --- a~dva mutexy: \texttt{app.m} pre administratívne API a~\texttt{app.engineMutex} pre rozhodovaciu cestu. Všetky modifikácie zdieľaného stavu sú chránené jedným z~týchto mutexov. Firmvérová časť udržuje len statické premenné v~rámci hlavného skechu (\texttt{hwSeq}, \texttt{lastUid}, \texttt{lastSendMs}) --- plne opísané sú v~následnej podkapitole o~hardvérovej vrstve.
+
+\paragraph{Dialóg s~používateľom.}
+
+Interakcia s~administrátorom prebieha výhradne cez webové rozhranie: používateľ v~prehliadači otvorí administrátorskú stránku (servovanú frontend službou na porte 8080), zadá voliteľný administrátorský token a~prepína medzi sekciami \emph{Readers}, \emph{Door roles}, \emph{Cards}, \emph{Audit}, \emph{Runtime logs} a~\emph{DB Export/Import}. Každá operácia (pridanie karty, zrušenie roly, verifikácia auditu) je realizovaná volaním REST endpointu; výsledok je zobrazený v~zodpovedajúcej tabuľke alebo stavovom paneli. Dialóg s~používateľom karty (t.\,j.~samotné priloženie karty k~čítačke) je realizovaný cez svetelnú a~zvukovú signalizáciu opísanú v~následnej podkapitole o~hardvérovej vrstve.
 
 \subsection{Popis modulov a~podprogramov}
 
-U~podprogramov uviest funkciu, popis vstupných a~výstupných parametrov, globálne premenné, ktoré používa, uviest popis algoritmu. Znázornit v~grafickej forme spôsob vnorenia volaní podprogramov.
+Táto podkapitola sumarizuje verejné rozhranie každého modulu --- najdôležitejšie triedy a~funkcie, ich vstupno-výstupné parametre a~vzťah k~ostatným modulom. Globálne premenné jednotlivé moduly nepoužívajú; všetok zdieľaný stav je centralizovaný v~objekte \texttt{AppState} (popísaný v~3.2). Poradie popisu zodpovedá závislostiam: od základných knižníc po vyššie vrstvy.
 
-\subsection{Popis vstupných a~výstupných súborov}
+\paragraph{\texttt{hw\_layer} (firmvér ESP32).}
+Súbor \texttt{hw\_layer.ino} obsahuje obvyklú dvojicu Arduino funkcií. \texttt{setup()} vykoná inicializáciu (sériová konzola, GPIO, LEDC, NVS, SPI, MFRC522, Wi-Fi). \texttt{loop()} periodicky volá \texttt{rfid.PICC\_IsNewCardPresent()} a~\texttt{rfid.PICC\_ReadCardSerial()}; pri detekcii karty zavolá \texttt{postUidToServer(uid, allow)}. Tá overí Wi-Fi, inkrementuje \texttt{hw\_seq}, zostaví JSON telo, vypočíta HMAC podpis (\texttt{hmacSha256Hex}) a~odošle požiadavku cez \texttt{HTTPClient}. Výsledok je signalizovaný cez \texttt{signalAllow()} alebo \texttt{signalDeny()} (LED + LEDC tón).
 
-Pokial existujú. Popis charakter vstupu, organizáciu a~pokyny pre predprípravu  vstupných údajov.
+\paragraph{\texttt{crypto\_lib}.}
+Trieda \texttt{SecureAead} (\texttt{secure\_aead.hpp}) zapuzdruje ChaCha20-Poly1305 alebo XChaCha20-Poly1305 z~knižnice libsodium. Verejné šifrovacie metódy: \texttt{sealWithSeq(plaintext, aad, seq)} (interne odvodí nonce zo \texttt{seq}) a~\texttt{sealWithNonce(plaintext, aad, nonce)} (explicitne dodaný nonce) --- obe vracajú \texttt{Ciphertext} obsahujúci ciphertext, tag a~nonce. Dešifrovanie je metódou \texttt{openWithNonce(ct, tag, aad, nonce)}, ktorá vracia \texttt{std::vector<uint8\_t>} s~plaintextom alebo vyhodí výnimku pri zlyhaní tag verifikácie. Trieda \texttt{Hkdf} (\texttt{hkdf.hpp}) implementuje HKDF-SHA-256 podľa RFC~5869: konštruktor vykoná extract fázu (\texttt{PRK = HMAC(salt, IKM)}), metóda \texttt{derive() $\rightarrow$ vector<uint8\_t>} expand fázu. Generátory nonce (\texttt{nonce\_generator.hpp}) implementujú spoločné rozhranie \texttt{INonceGenerator::generate(context, seq) $\rightarrow$ array<uint8\_t,24>}; konkrétne triedy \texttt{RandomNonceGenerator} (libsodium \texttt{randombytes\_buf}) a~\texttt{HmacNonceGenerator} (HMAC nad kontextom).
 
-\section{Preklad programu}
+\paragraph{\texttt{protocol\_lib}.}
+\texttt{Frame} (\texttt{frame.hpp}) je dátová štruktúra obsahujúca \texttt{Header}, ciphertext (\texttt{vector<uint8\_t>}) a~\texttt{Tag16}. Voľná funkcia \texttt{serialize(const Frame\&) $\rightarrow$ vector<uint8\_t>} vyprodukuje binárny tvar (magic, verzia, hlavička, dĺžka ciphertext, ciphertext, tag); \texttt{parseFrame(bytes, maxCtLen=4096) $\rightarrow$ Frame} robí opačnú operáciu cez triedu \texttt{FrameParser} s~ochranou proti DoS útoku. Trieda \texttt{ReplayWindow} (\texttt{replay\_window.hpp}) poskytuje \texttt{contains(seq) $\rightarrow$ bool}, \texttt{remember(seq)} a~\texttt{accept(seq) $\rightarrow$ bool} (atomická kontrola $+$ vloženie).
 
-Popis prekladu programu.
+\paragraph{\texttt{key\_manager}.}
+Trieda \texttt{KeyManager} (\texttt{key\_manager.hpp}) odvodzuje podkľúče z~master kľúča. Konštruktor prijíma 32-bajtový \emph{MasterKey} a~\emph{KeyManagerConfig} (aktuálna verzia, povolenie predošlej verzie). Verejné metódy:
+\begin{itemize}
+\item \texttt{deriveAeadKey(readerId, keyVersion)} --- HKDF AEAD kľúč so saltom obsahujúcim ID čítačky a~verziu,
+\item \texttt{deriveNonceKey(readerId, keyVersion)} --- per-reader kľúč pre HMAC nonce konštrukciu,
+\item \texttt{deriveAuditHmacKey()} --- per-inštanciu kľúč pre auditný hash chain (bez parametrov),
+\item \texttt{deriveCardPepper(keyVersion)} --- pepper pre pseudonymizáciu kariet,
+\item \texttt{isAcceptedKeyVersion(keyVersion)} --- kontrola, či je verzia akceptovaná pre dešifrovanie,
+\item \texttt{masterAsAeadKey()} --- priamy režim bez HKDF (pre testovanie).
+\end{itemize}
 
-\subsection{Zoznam zdrojových textov}
+\paragraph{\texttt{access\_core}.}
+\texttt{FrameHandler::handle(frameBytes) $\rightarrow$ HandleResult} je centrálna metóda spracovania frame: parsuje, validuje čítačku a~verziu kľúča, volá \texttt{ReplayWindow::contains}, deriváciu kľúča a~AEAD dešifrovanie. \texttt{HandleResult} obsahuje pole \texttt{allow}, \texttt{reason} (string code), \texttt{plaintext} a~\texttt{header}. \texttt{ProtocolAnomalyDetector} (\texttt{protocol\_anomaly\_detector.hpp}) ponúka per-reader päť report metód: \texttt{reportReplay}, \texttt{reportSeq}, \texttt{reportNonceMismatch}, \texttt{reportTagFailure} a~\texttt{reportSuccess}; spolu s~dotaznými \texttt{isQuarantined} a~\texttt{quarantineInfo}. Trieda je \emph{thread-safe} (interný mutex).
 
-Zoznam s~odvolaním sa na prílohy.
+\paragraph{\texttt{access\_decision}.}
+Hlavná metóda \texttt{handleFrameBytes} (s~parametrami \texttt{frameBytes} a~mapou replay window podľa čítačky) vracia \texttt{DecisionResult} a~orchestruje úplný rozhodovací cyklus: volá \texttt{FrameHandler::handle}, vyhodnotí stav anomálneho detektora, prevedie pseudonymizáciu UID cez \texttt{CardIdHasher::hmacHex}, vykoná RBAC vyhľadanie cez \texttt{IAccessStore}, zapíše do \texttt{IAuditLog} a~vyšle udalosť do voliteľnej \texttt{EventBus}. Štruktúra \texttt{DecisionResult} obsahuje \texttt{allow}, \texttt{reason} (kódy ako \texttt{ok}, \texttt{replay}, \texttt{decrypt\_failed}, \texttt{unknown\_card}, \texttt{forbidden}, \texttt{quarantined}). \texttt{CardIdHasher::hmacHex(uid) $\rightarrow$ string} vypočíta hex HMAC s~pepperom.
 
-\subsection{Požiadavky na technické prostriedky pri preklade}
+\paragraph{\texttt{access\_storage}.}
+\texttt{SqliteAccessStore} implementuje rozhranie \texttt{IAccessStore} s~CRUD operáciami nad tabuľkami \texttt{readers}, \texttt{cards}, \texttt{door\_roles}, \texttt{reader\_doors}. \texttt{SqliteAuditLog} implementuje \texttt{IAuditLog::append(event)}; interne pri zápise volá \texttt{getLastEntryHash()} a~\texttt{computeEntryHash(prev, event)} pre tvorbu HMAC chain a~aktualizuje tabuľku \texttt{audit\_anchor}. Verifikácia (\texttt{verifyAuditChain(db, key)} v~\texttt{audit\_verify.cpp}) prečíta všetky záznamy v~poradí a~rekonštruuje reťazec; vracia \texttt{AuditVerifyResult \{bool ok, int64\_t bad\_id, std::string error\}} --- pri prvej zistenej nezhode sa verifikácia zastaví a~vráti ID problémového záznamu spolu s~popisom chyby.
 
-Typ potrebného pocítaca, potrebná velkost operacnej pamäte, diskový priestor, prídavné zariadenia, atd.
+\paragraph{Pomocné moduly.}
+Modul \texttt{config\_loader} obsahuje jedinú verejnú funkciu \texttt{loadFromYaml(path)}, ktorá načíta YAML súbor cez \texttt{yaml-cpp} a~vráti naplnenú štruktúru \texttt{Config}. \texttt{runtime\_events} poskytuje triedu \texttt{EventBus} s~kruhovým bufferom prevádzkových udalostí (\texttt{push(event)}, \texttt{getAfter(afterId, limit)}) pre real-time zobrazovanie vo webovom rozhraní. \texttt{access\_admin} obsahuje vstupný bod \texttt{main()} (spustí dva HTTP servery), centrálny \texttt{AppState} a~service vrstvu (\texttt{hw\_service}, \texttt{cards\_service}, \texttt{readers\_service}, \texttt{audit\_service} a~ďalšie), ktorá tvorí tenkú adaptáciu medzi HTTP požiadavkami a~jadrom systému.
 
-\subsection{Požiadavky na programové prostriedky pri preklade}
+\paragraph{Webové rozhranie (\texttt{web/}).}
+Vanilla JavaScript priamo servovaný frontend službou. Modul \texttt{app.js} obsluhuje navigáciu medzi sekciami a~spúšťa \texttt{startEventPolling()} (interval 500\,ms) a~\texttt{startAuditAutoRefresh()} (interval 1\,s, aktívny iba pri otvorenej audit sekcii). Jednotlivé súbory \texttt{readers.js}, \texttt{cards.js}, \texttt{doors.js}, \texttt{audit.js}, \texttt{db.js} implementujú obslužné funkcie pre svoje sekcie; všetky volajú jednotné API helper \texttt{api(path, opts)} z~\texttt{utils.js}, ktoré pridá \texttt{X-Admin-Token} hlavičku.
 
-Operacný systém, typ prekladaca a~spojovacieho programu, atd.
+\paragraph{\texttt{experiments} (harness a~scenáre).}
+Samostatný CMake podprojekt mimo produkčného runtime, ktorý linkuje produkčné knižnice ako spotrebiteľ. Skladá sa zo~statickej knižnice \texttt{experiments\_common} a~ôsmich samostatných spustiteľných programov (\texttt{s1\_replay} -- \texttt{s7\_nonce\_tamper}). Verejné API tvoria: trieda \texttt{ExperimentContext} (\texttt{experiment\_context.hpp}), ktorá pre každú iteráciu inštancuje vlastnú kópiu rozhodovacej pipeline (\texttt{KeyManager}, \texttt{SqliteAccessStore}, \texttt{DecisionEngine}, \texttt{ProtocolAnomalyDetector}) a~vystavuje metódu \texttt{processFrame(frameBytes) $\rightarrow$ DecisionResult} s~voliteľným E2E režimom cez \texttt{setE2eUrl(url)}; abstraktná trieda \texttt{IScenario} v~\texttt{scenario\_runner.hpp} s~metódami \texttt{setup(ctx)} a~\texttt{buildTrialFrame(ctx)}, ktoré každý scenár implementuje; a~voľná funkcia \texttt{runScenario(scenario)} iterujúca cez profily, kroky a~behy. Orchestráciu E2E režimu zabezpečuje shell skript \texttt{run\_e2e.sh}, ktorý pre každý profil generuje dočasný YAML konfig, spúšťa reálny \texttt{access\_admin} server, seeduje databázu cez REST API a~agreguje CSV výstupy.
 
-\subsection{Vlastný preklad}
+\paragraph{\texttt{analysis} (Python pipeline pre grafy a~tabuľky).}
+Samostatný Python modul mimo CMake buildu, ktorý spracúva CSV výstupy harnessu a~generuje publikačné grafy aj LaTeX tabuľky pre prácu. Vstupným bodom je skript \texttt{analyze.py} s~CLI prepínačmi \texttt{--results-dir} (predvolene \texttt{build/results}) a~\texttt{--output-dir} (predvolene \texttt{analysis/plots}). Závislosti sú uvedené v~\texttt{requirements.txt}: \texttt{pandas>=2.0} (spracovanie CSV), \texttt{matplotlib>=3.7} a~\texttt{seaborn>=0.13} (grafy), \texttt{numpy>=1.24} (numerické výpočty). Globálne konštanty v~hornej časti skriptu (\texttt{PROFILE\_ORDER}, \texttt{PROFILE\_PALETTE}, \texttt{MODE\_LABELS}, \texttt{ALGO\_LABELS}, \texttt{SCENARIO\_TITLES}) garantujú konzistentné farby, poradie a~popisy profilov naprieč všetkými výstupmi.
 
-Popis príkazových súborov a~pod., popis  nastavenia, konfigurácie prostredia, v~ktorom bol program vyvíjaný.
+Pipeline produkuje dve kategórie výstupov do \texttt{analysis/plots/}: (a)~sedem PNG grafov --- \texttt{attack\_success\_heatmap}, \texttt{attack\_success\_by\_n}, \texttt{quarantine\_speed}, \texttt{latency\_boxplot}, \texttt{throughput}, \texttt{detector\_overhead} a~\texttt{scenario\_summary\_table}, všetky uložené pri 300\,DPI pre tlač; (b)~tri LaTeX tabuľky --- \texttt{scenario\_summary.tex}, \texttt{throughput\_table.tex} a~\texttt{baseline\_correctness.tex}, ktoré sa vkladajú priamo do textu diplomovej práce cez \texttt{\textbackslash input\{plots/...\}}. Tento mechanizmus zabezpečuje, že numerické hodnoty v~tabuľkách sú vždy generované z~najnovších experimentálnych dát a~nemôžu sa \uv{rozísť} s~grafmi.
 
-\section{Náväznost na iné programové produkty}
+\paragraph{Vnorenie volaní pri spracovaní karty.}
+Nasledujúci diagram ukazuje postupnosť volaní podprogramov od priloženia karty po zápis do auditu:
 
-Napr. program môže využívat programový systém GKS, OpenGL, atď.
+\begin{verbatim}
+hw_layer.loop()                                       [ESP32]
+  +- rfid.PICC_IsNewCardPresent()
+  +- rfid.PICC_ReadCardSerial()
+  +- postUidToServer(uid, allow)
+       +- connectWiFi()                               (ak treba)
+       +- prefs.putULong64("hw_seq", ...)
+       +- hmacSha256Hex(key, "POST /api/hw/uid\n"+body)
+       +- http.POST(body) ----------> [Wi-Fi / HTTP]
 
-\section{Zhodnotenie riešenia}
+frontend (port 8080)
+  POST /api/hw/uid (lambda v routes_api.cpp)
+    +- verifyHwSignature(sig, msg, key)
+         +- verifyHmac(msg, key, sig)        (privátny helper)
+    +- processHwUid(app, req)
+         +- buildEncryptedFrameBytes(km, gen, ...)
+              +- nonceGenerator.generate(context, seq)
+              +- aead.sealWithNonce(payload, aad, nonce)
+         +- POST /api/decision/frame  --> [HTTP loopback]
 
-Čo je nedopracované, možnosti dalšieho vývoja, obmedzenia riešenia, existujúce okolnosti riešenia, atď.
+DecisionService (port 8081, loopback 127.0.0.1)
+  POST /api/decision/frame (lambda v main.cpp)
+    +- DecisionEngine::handleFrameBytes(frameBytes,
+                                        replayByReader)
+         +- FrameHandler::handle(frameBytes)
+         |    +- parseFrame(bytes, maxCtLen)
+         |    +- validateReader / validateKeyVersion
+         |    +- ReplayWindow::contains(seq)         (read-only)
+         |    +- KeyManager::deriveAeadKey(reader, kv)
+         |    +- FrameDecryptor::decrypt(frame)
+         |    |    +- aead.openWithNonce(ct, tag,
+         |    |                          aad, nonce)
+         |    +- ReplayWindow::remember(seq)         (po decrypt)
+         +- ProtocolAnomalyDetector::isQuarantined
+         +- ProtocolAnomalyDetector::reportSeq / reportSuccess
+         +- CardIdHasher::hmacHex(uid)
+         +- IAccessStore::roleForCardHmac(cardHmacHex)
+         +- IAccessStore::isAllowed(doorId, role)
+         +- IAuditLog::append(event)
+         |    +- getLastEntryHash()
+         |    +- computeEntryHash(prev, event)
+         |    +- INSERT audit_log + UPDATE audit_anchor
+         +- EventBus::push(event)
+\end{verbatim}
 
-\section{Zoznam použitej literatúry}
+Výstup z~DecisionService (\texttt{DecisionResult}) prejde naspäť do frontendu, ktorý odošle \texttt{\{"allow":true|false\}} firmvéru. Firmvér zavolá \texttt{signalAllow()} alebo \texttt{signalDeny()} a~vráti sa do \texttt{loop()}.
 
-Odkazy na použitú literatúru sa realizujú takým istým spôosobom ako v~texte hlavnej cast diplomovej práce, napr.
+\paragraph{Vzťah modulov navzájom.}
+Smer závislostí v~produkčnom runtime je striktne jednosmerný: \texttt{access\_admin} a~\texttt{access\_decision} sú vyššie vrstvy a~používajú nižšie (\texttt{access\_core}, \texttt{access\_storage}, \texttt{key\_manager}, \texttt{protocol\_lib}, \texttt{crypto\_lib}). Žiadny nižší modul nezávisí od vyššieho, čím je zaručená testovateľnosť každého modulu izolovane (každý má vlastný adresár \texttt{tests/}). \texttt{config\_loader} a~\texttt{runtime\_events} sú \uv{laterálne} pomocné moduly bez závislostí na rozhodovacej ceste. Modul \texttt{experiments} je voči produkčnému runtime paralelný --- linkuje produkčné knižnice ako spotrebiteľ, ale nie je nimi linkovaný; vďaka tomu ich môže používať bez rizika, že sa experimentálny kód dostane do produkčného binárneho výstupu. Modul \texttt{analysis} je úplne oddelený od C++ ekosystému (Python) a~s~ostatnými časťami komunikuje len cez CSV súbory na disku.
 
-\def\refname{Zoznam použitej literatúry}
-\addcontentsline{toc}{section}{\numberline{}Zoznam použitej literatúry}
-
-\begin{thebibliography}{999}
-\harvarditem{Barancok et al.}{1995}{barancok}
-BARANCOK, D. et al. 1995. \emph{The effect of semiconductor surface treatment on LB film/Si interface.} In:~Physica Status Solidi /a/,  ISSN 0031-8965, 1995, vol. 108, no.2, pp. K~87\,--\,90
-
-\harvarditem{Gonda}{2001}{gonda}
-GONDA, V. 2001. \emph{Ako napísať a~úspešne obhájiť diplomovú prácu.} Bratislava : Elita, 2001, 3.~doplnené a~prepracované vydanie, 120~s. ISBN 80-8044-075-1
-
-\harvarditem{Jadr. fyz. a~tech.}{1985}{slovnik}
-\emph{Jadrová fyzika a~technika: Terminologický výkladový slovník.} 2.~rev.~vyd. Bratislava : ALFA, 1985. 235 s. ISBN 80-8256-030-5
-
-\harvarditem{Katucák}{1998}{kat}
-KATUŠČÁK, D. \emph{Ako písať vysokoškolské a~kvalifikačné práce.} Bratislava : Stimul, 1998, 2.~doplnené vydanie. 121~s. ISBN 80-85697-82-3
-
-
-\harvarditem{Lamoš a~Potocký}{1989}{lamos}
-LAMOŠ, F. -- POTOCKÝ, R. 1989. \emph{Pravdepodobnosť a~matematická štatistika.} 1.~vyd. Bratislava : Alfa, 1989. 344 s. ISBN 80-8046-020-5
-
-\harvarditem{PASC-L}{1989}{pasc} PASC-L (Public Access Computer Systems Forum). [online]. Houston : University of Houston Libraries. June 1989. [cit: 1995-05-07]. Dostupné na internete: \verb+<listserv@uhupvm.uh.edu>+
-
-\harvarditem{Sýkora a~i.}{1980}{sykora}
-SÝKORA, F. a~iní. 1980. \emph{Telesná výchova a~šport.} 1.~vyd. Bratislava : SPN, 1980. 35 s. ISBN 80-8046-020-5
-
-
-\end{thebibliography}
-
-
-
-\section{Zoznam príloh}
-
-Prílohy obsahujú výpisy zdrojových textov programov. Každý zdrojový text zacína s~komentárovou hlavickou obsahujúcou nasledujúce informácie:
-
-Súbor: názov súboru
-
-Program: názov programu
-
-Vypracoval:  meno diplomanta
-
-Diplomová práca: názov diplomovej práce
-
-Vedúci diplomovej práce: meno vedúceho diplomovej práce
-
-Konzultant(i): meno konzultanta c.1, meno konzultanta c.2
-
-\addcontentsline{toc}{section}{\numberline{}Zoznam obrázkov}
-\listoffigures
-
-\addcontentsline{toc}{section}{\numberline{}Zoznam tabuliek}
-\listoftables
-
-
+\bibliography{bibliography}
 
 \end{document}

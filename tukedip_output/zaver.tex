@@ -21,7 +21,7 @@ T2 & \texttt{ProtocolAnomalyDetector} (profily R2) dosiahol 0\% úspešnosť nap
 T3 & Replay window a~anomálna detekcia sú komplementárne. S4: 11\% pre R0/R1 $\rightarrow$ 0\% pre R2. \\
 T4 & AAD binding poskytuje ochranu nezávisle od režimu nonce (S2: 0\% naprieč všetkými profilmi). S7 potvrdzuje, že zmena nonce v~transite vedie k~zlyhaniu AEAD tag verifikácie aj bez detektora. \\
 T5 & Karanténa mení reakciu z~per-frame odmietnutia na izoláciu zariadenia (defense-in-depth). \\
-T6 & Overhead detektora (${\sim}17\%$, ${\sim}35\,\mu$s na frame) je rádovo nepodstatný pre reálnu prevádzku ($<$10 udalostí/s), hoci nie je zanedbateľný. \\
+T6 & Overhead detektora (${\sim}15$--$19\%$, ${\sim}25$--$35\,\mu$s na frame v~závislosti od AEAD algoritmu) je rádovo nepodstatný pre reálnu prevádzku ($<$10 udalostí/s), hoci nie je zanedbateľný. \\
 \bottomrule
 \end{tabular}
 \end{table}
