@@ -127,7 +127,7 @@ Implementácia podporuje aj konfigurovateľný režim \texttt{aad\_mode: "none"}
 
 \subsubsection{Derivácia kľúčov a domain separation}
 
-Celý kryptografický materiál v prototype pochádza z jedného 256-bitového master secret, uloženého v súbore \texttt{secrets/master\_key.hex} mimo repozitára. Manuálne spravovaný tajný súbor je pragmatický kompromis vhodný pre prototyp; v produkčnom nasadení by jeho úlohu plnil HSM alebo vault\cite{NIST80057}. Z tohto tajomstva sa pomocou HKDF-SHA-256\cite{RFC5869} deterministicky odvodia tri nezávislé skupiny podkľúčov:
+Celý kryptografický materiál v prototype pochádza z jedného 256-bitového master secret, uloženého v súbore \texttt{secrets/master\_key.hex} mimo zdrojového archívu (generuje sa jednorázovo pri prvom nasadení). Manuálne spravovaný tajný súbor je pragmatický kompromis vhodný pre prototyp; v produkčnom nasadení by jeho úlohu plnil HSM alebo vault\cite{NIST80057}. Z tohto tajomstva sa pomocou HKDF-SHA-256\cite{RFC5869} deterministicky odvodia tri nezávislé skupiny podkľúčov:
 
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
   \item \textbf{AEAD kľúče} pre šifrovanie interného frame. Salt je zložený z \texttt{reader\_id} (4 bajty, little-endian) a \texttt{key\_version} (4 bajty), info reťazec je \texttt{"access-aead-v1"}.
@@ -412,7 +412,7 @@ Scenár vytvorí validný frame a následne zmení \texttt{door\_id} v binárnej
 
 \textit{Očakávané správanie:} Keďže \texttt{door\_id} je súčasťou AAD, zmena spôsobí zlyhanie AEAD overenia. R0/R1 vracajú \texttt{decrypt\_failed}. R2 detekuje problém skôr --- zmena \texttt{door\_id} mení kontext pre deterministický nonce, takže overenie nonce zlyhá (\texttt{nonce\_mismatch}) ešte pred pokusom o dešifrovanie.
 
-\paragraph{S3a: Overenie nonce enforcement politiky}
+\paragraph{S3a: Overenie nonce enforcement politiky (binárny súbor \texttt{s3\_rng\_fault})}
 
 Scenár injektuje chybu do generovania nonce: trieda \texttt{FixedNonceGenerator} napĺňa celý nonce bajtom 0xAA, čím produkuje rovnaký nonce pre každý frame bez ohľadu na kontext a sekvenciu. Cieľom je overiť, či a ako jednotlivé nonce režimy reagujú na porušenie deterministického nonce invariantu.
 
@@ -420,7 +420,7 @@ Scenár injektuje chybu do generovania nonce: trieda \texttt{FixedNonceGenerator
 
 \textit{Prečo je tento test dôležitý:} S3a je jediný scenár, ktorý priamo testuje \textbf{nonce enforcement} --- odlišuje R0/R1 od R2 práve v~kontexte nonce politiky (S4 odlišuje R0/R1 od R2 cez seq rollback detekciu, nie nonce). V~aktuálnej architektúre s~oddeleným DecisionService (port 8081) AEAD frame cestuje cez HTTP kanál, kde generátor nonce (frontend) a~verifikátor (DecisionService) sú oddelené služby. Vynucovaná nonce politika v~R2 zabezpečuje, že akákoľvek odchýlka --- či už spôsobená chybou, konfiguračným nesúladom alebo zásahom na kanáli --- je detekovaná a~zariadenie zakaranténované\cite{RogawayNonceMisuse2004}.
 
-\paragraph{S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation)}
+\paragraph{S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation, binárny súbor \texttt{s3\_cross\_reader})}
 
 Komponentový validačný scenár overuje, že frame vytvorený v kľúčovom kontexte jednej čítačky nemožno úspešne overiť v kontexte inej čítačky. Nejde o simuláciu aktuálneho produkčného HTTP toku zariadenia (čítačka v produkcii nekonštruuje AEAD frame), ale o overenie izolačných vlastností HKDF per-reader derivácie v AEAD vrstve.
 
@@ -476,7 +476,7 @@ Scenár simuluje efekt útočníka, ktorý by zachytil validný AEAD frame na ko
 
 \paragraph{Zber dát}
 
-Každý scenár produkuje CSV súbor s jedným riadkom na frame. Celkový objem dát pri 5 behoch: ${\sim}2{,}835{,}000$ riadkov. Pre každý frame sa zaznamenáva:
+Každý scenár produkuje CSV súbor s jedným riadkom na frame. Celkový objem dát pri 5 behoch: ${\sim}2{,}977{,}500$ riadkov. Pre každý frame sa zaznamenáva:
 
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item konfiguračný profil a jeho parametre,
@@ -507,7 +507,7 @@ Každý beh $r$ ($r = 0\ldots4$) používa seed $42 + r$, takže nonce hodnoty s
 
 \paragraph{Celkový prehľad}
 
-Obrázok~\ref{fig:heatmap} zobrazuje úspešnosť útokov pre všetky kombinácie scenár $\times$ profil pri maximálnom počte útočných frame ($N=500$, resp.\ $N=50{,}000$ pre S6).
+Obrázok~\ref{fig:heatmap} zobrazuje úspešnosť útokov pre útočné scenáre (S1--S5, S7) pri $N=500$; výkonnostný scenár S6 je samostatne vyhodnotený v~sekcii~\ref{sec:results_throughput}.
 
 \begin{figure}[H]
 \centering
@@ -557,7 +557,7 @@ Baseline fáza (200 validných frame pred každým útokom) vykazuje \textbf{nul
 
 \noindent Obrázok~\ref{fig:throughput} zobrazuje distribúciu priepustnosti pre každý profil. Všetky profily dosahujú priepustnosť nad 5{,}000 frame/s, čo je rádovo viac ako reálna záťaž fyzického prístupového systému ($<$10 udalostí/s). Mediánová latencia je 140--185\,$\mu$s.
 
-\textbf{Porovnanie algoritmov:} A2 (XChaCha20) dosahuje mierne vyššiu priepustnosť ako A1 (ChaCha20), čo je prekvapivý výsledok. Príčinou je pravdepodobne optimalizácia libsodium pre XChaCha20 cestu.
+\textbf{Porovnanie algoritmov:} Rozdiel v~priepustnosti medzi A1 (ChaCha20) a~A2 (XChaCha20) je malý (pod 9\,\%) a~smer závislosti sa mení podľa nonce režimu. V~R0 a~R1 je A1 mierne rýchlejší (6\,840 vs.\ 6\,312~fps, resp.\ 6\,537 vs.\ 6\,326~fps), v~R2 je naopak A2 nepatrne rýchlejší (5\,361 vs.\ 5\,276~fps). Rozdiely sú rádovo menšie ako overhead detektora a~v~praxi zanedbateľné.
 
 \textbf{Overhead detektora:} Porovnanie R1 a~R2 umožňuje izolovať overhead anomálneho detektora. Rozdiel je ${\sim}15$--$19\%$ v~závislosti od algoritmu (A1--R1: 6\,537~fps vs.\ A1--R2: 5\,276~fps, t.j.\ $-19{,}3\%$; A2--R1: 6\,326~fps vs.\ A2--R2: 5\,361~fps, t.j.\ $-15{,}3\%$). Overhead pochádza z:
 \begin{itemize}[leftmargin=*,itemsep=1pt]

@@ -73,7 +73,7 @@
 \klucoveslova{kontrola prístupu, RFID, NFC, AEAD, ChaCha20-Poly1305, HMAC, HKDF, anti-replay, audit log}
 \title{Enhancing Security of Selected Encryption Algorithms in Access Control Systems}
 \keywords{access control, RFID, NFC, AEAD, ChaCha20-Poly1305, HMAC, HKDF, anti-replay, audit log}
-\datum{TODO.TODO.2026}
+\datum{24.04.2026}
 
 
 \begin{document}
@@ -98,7 +98,7 @@
 Systém tvoria tri hlavné časti:
 
 \begin{itemize}
-\item \textbf{Hardvérová čítačka} postavená na mikrokontroléri ESP32\cite{Espressif2024} a~module RC522, komunikujúca podľa ISO~14443\cite{ISO14443}. Číta UID karty, pripojí identifikátor čítačky a~dverí, doplní monotónne počítadlo \texttt{hw\_seq} a~cez bezdrôtové pripojenie Wi-Fi odošle autentifikovanú HTTP požiadavku (HMAC-SHA-256\cite{FIPS1981} podpis nad reťazcom \uv{metóda + cesta + LF + telo}) na server.
+\item \textbf{Hardvérová čítačka} postavená na mikrokontroléri ESP32\cite{Espressif2024} a~module RC522, komunikujúca podľa ISO~14443\cite{ISO14443}. Číta UID karty, pripojí identifikátor čítačky a~dverí, doplní monotónne počítadlo \texttt{hw\_seq} a~cez bezdrôtové pripojenie Wi-Fi odošle autentifikovanú HTTP požiadavku (HMAC-SHA-256\cite{FIPS1981} podpis nad reťazcom \texttt{"POST /api/hw/uid\textbackslash n"} $+$ telo požiadavky) na server.
 \item \textbf{Serverová aplikácia} v~jazyku C++20, pozostávajúca z~dvoch nezávislých HTTP služieb: \emph{frontend} služba overuje HMAC podpis požiadavky a~konštruuje interný AEAD frame, \emph{DecisionService} frame dešifruje, overí anti-replay, spustí anomálny detektor, vyhodnotí autorizáciu (RBAC) a~výsledok zapíše do auditného logu. Lokálne úložisko je realizované cez SQLite\cite{SQLiteSec} v~WAL móde.
 \item \textbf{Webové administrátorské rozhranie} pre správu čítačiek, kariet, rolí dverí, kontrolu auditného logu s~overením integrity reťaze a~sledovanie prevádzkových udalostí v~reálnom čase.
 \end{itemize}
@@ -107,7 +107,7 @@ Program je určený na nasadenie v~prostredí, kde konvergujú požiadavky fyzic
 
 \section{Analýza riešenia}
 
-Detailný teoretický rozbor problematiky --- analýza aktuálnych prístupov ku kontrole fyzického prístupu, model hrozieb (STRIDE\cite{STRIDE}), porovnanie kryptografických primitív (ChaCha20-Poly1305\cite{RFC8439} vs.\ AES-GCM, stratégie generovania nonce, HKDF derivácia kľúčov, HMAC autentifikácia), zásady návrhu bezpečných protokolov, ochrana súkromia identifikátorov, tamper-evident auditovateľnosť, bezpečnosť vstavaného zariadenia a~bezpečnosť transportnej vrstvy --- je obsahom kapitoly 2 \emph{Analýza} hlavnej diplomovej práce, ktorá je súčasťou rovnakého repozitára.
+Detailný teoretický rozbor problematiky --- analýza aktuálnych prístupov ku kontrole fyzického prístupu, model hrozieb (STRIDE\cite{STRIDE}), porovnanie kryptografických primitív (ChaCha20-Poly1305\cite{RFC8439} vs.\ AES-GCM, stratégie generovania nonce, HKDF derivácia kľúčov, HMAC autentifikácia), zásady návrhu bezpečných protokolov, ochrana súkromia identifikátorov, tamper-evident auditovateľnosť, bezpečnosť vstavaného zariadenia a~bezpečnosť transportnej vrstvy --- je obsahom kapitoly 2 \emph{Analýza} hlavnej diplomovej práce, ktorá je súčasťou rovnakého priloženého média.
 
 Táto systémová príručka sa zameriava na technickú dokumentáciu konkrétnej implementácie: organizáciu kódovej bázy, algoritmy realizované vlastným kódom, údajové štruktúry, konfiguráciu a~spôsob zostavenia a~spustenia systému. Pre úplné odôvodnenie zvolených kryptografických primitív a~architektonických rozhodnutí je čitateľ odkázaný na hlavnú diplomovú prácu.
 
@@ -129,9 +129,9 @@ Projekt sa skladá z~troch komponentov, ktoré dokopy tvoria funkčný prístupo
 
 \paragraph{Webové administrátorské rozhranie.} Vanilla JavaScript (bez frameworku) servovaný frontend službou. Spravuje čítačky, karty a~role dverí, verifikuje integritu auditného logu a~sleduje prevádzkové udalosti v~reálnom čase (polling každých 500\,ms; auditný log auto-refresh každú sekundu).
 
-\paragraph{Experimentálna a~analytická vrstva.} C++ harness (\texttt{experiments/}) zdieľa produkčný kód kryptografickej a~rozhodovacej vrstvy, čím sa zaručuje, že merania odrážajú skutočné správanie systému. Obsahuje sedem scenárov pokrývajúcich triedy útokov skúmaných v~hlavnej práci. Python skripty (\texttt{analysis/}) spracúvajú CSV výstupy a~generujú grafy a~LaTeX-ready tabuľky pomocou \texttt{pandas}, \texttt{matplotlib} a~\texttt{seaborn}.
+\paragraph{Experimentálna a~analytická vrstva.} C++ harness (\texttt{experiments/}) zdieľa produkčný kód kryptografickej a~rozhodovacej vrstvy, čím sa zaručuje, že merania odrážajú skutočné správanie systému. Obsahuje sedem útočných tried (S1--S7), pričom S3 je rozdelené na dve samostatné binárky (S3a: \texttt{s3\_rng\_fault}, S3b: \texttt{s3\_cross\_reader}) --- spolu teda osem spustiteľných programov a~osem CSV súborov. Python skripty (\texttt{analysis/}) spracúvajú CSV výstupy a~generujú grafy a~LaTeX-ready tabuľky pomocou \texttt{pandas}, \texttt{matplotlib} a~\texttt{seaborn}.
 
-\paragraph{Vetvenie repozitára.} Projekt je udržiavaný v~dvoch vetvách: \texttt{main} (produkčná, obsahuje len funkčný systém) a~\texttt{analytical} (rozšírená o~moduly \texttt{experiments/} a~\texttt{analysis/}). Rozdiel je čisto aditívny --- produkčný kód je identický, \texttt{analytical} iba dopĺňa nástroje pre meranie, čím je zaručené, že experimenty bežia na presne tom istom kóde, aký by bol nasadený v~produkcii.
+\paragraph{Členenie zdrojového archívu.} Priložené médium obsahuje produkčný kód systému spolu s~experimentálnou a~analytickou vrstvou. Moduly \texttt{experiments/} a~\texttt{analysis/} (spolu s~adresárom \texttt{tukedip\_output/}) sú čisto aditívne --- nijako nemenia správanie produkčného systému, iba dopĺňajú nástroje pre meranie a~generovanie grafov. Tým je zaručené, že experimenty bežia na presne tom istom kóde, aký by bol nasadený v~produkcii. Pre minimálnu produkčnú distribúciu postačuje odstrániť adresáre \texttt{experiments/}, \texttt{analysis/} a~\texttt{tukedip\_output/} --- produkčný server sa zostaví aj bez nich bez úpravy koreňového \texttt{CMakeLists.txt}.
 
 \subsection[Popis algoritmov a~údajových štruktúr, globálnych premenných]{Popis algoritmov a~údajových štruktúr, globálnych\\ premenných}
 
@@ -150,8 +150,8 @@ Hlavný algoritmus serverovej časti je obsiahnutý v~\texttt{DecisionEngine::ha
 \item \textbf{Validácia čítačky a~verzie kľúča} --- overenie, že \texttt{reader\_id} je registrovaný a~\texttt{key\_version} je aktuálna alebo (pri povolenej tolerancii) bezprostredne predchádzajúca.
 \item \textbf{Anti-replay kontrola} --- \emph{read-only} volanie \texttt{ReplayWindow::contains(seq)}; pri nájdení duplicitu sa frame odmietne bez pokusu o~dešifrovanie.
 \item \textbf{AEAD dešifrovanie} --- derivácia per-reader kľúča cez HKDF, overenie Poly1305 tagu nad hlavičkou (AAD) a~ciphertextom.
+\item \textbf{Zaznamenanie sekvencie} (\texttt{remember}) --- až po úspešnom dešifrovaní sa \texttt{seq} pridá do replay window, aby neplatné frame nemohli \uv{otráviť} stav.
 \item \textbf{Anomálny detektor} --- pri úspešnom dešifrovaní vyhodnotenie štyroch protokolových invariantov (viď~nižšie).
-\item \textbf{Zaznamenanie sekvencie} (\texttt{remember}) --- až po úspešnom kroku 4 sa \texttt{seq} pridá do replay window, aby neplatné frame nemohli \uv{otráviť} stav.
 \item \textbf{RBAC autorizácia} --- vyhľadanie karty podľa HMAC odtlačku, overenie väzby čítačka $\leftrightarrow$ dvere a~povolenia role pre cieľové dvere.
 \item \textbf{Zápis do auditného logu} --- bez ohľadu na výsledok rozhodnutia (allow alebo deny).
 \end{enumerate}
@@ -236,7 +236,7 @@ Vanilla JavaScript priamo servovaný frontend službou. Modul \texttt{app.js} ob
 Samostatný CMake podprojekt mimo produkčného runtime, ktorý linkuje produkčné knižnice ako spotrebiteľ. Skladá sa zo~statickej knižnice \texttt{experiments\_common} a~ôsmich samostatných spustiteľných programov (\texttt{s1\_replay} -- \texttt{s7\_nonce\_tamper}). Verejné API tvoria: trieda \texttt{ExperimentContext} (\texttt{experiment\_context.hpp}), ktorá pre každú iteráciu inštancuje vlastnú kópiu rozhodovacej pipeline (\texttt{KeyManager}, \texttt{SqliteAccessStore}, \texttt{DecisionEngine}, \texttt{ProtocolAnomalyDetector}) a~vystavuje metódu \texttt{processFrame(frameBytes) $\rightarrow$ DecisionResult} s~voliteľným E2E režimom cez \texttt{setE2eUrl(url)}; abstraktná trieda \texttt{IScenario} v~\texttt{scenario\_runner.hpp} s~metódami \texttt{setup(ctx)} a~\texttt{buildTrialFrame(ctx)}, ktoré každý scenár implementuje; a~voľná funkcia \texttt{runScenario(scenario)} iterujúca cez profily, kroky a~behy. Orchestráciu E2E režimu zabezpečuje shell skript \texttt{run\_e2e.sh}, ktorý pre každý profil generuje dočasný YAML konfig, spúšťa reálny \texttt{access\_admin} server, seeduje databázu cez REST API a~agreguje CSV výstupy.
 
 \paragraph{\texttt{analysis} (Python pipeline pre grafy a~tabuľky).}
-Samostatný Python modul mimo CMake buildu, ktorý spracúva CSV výstupy harnessu a~generuje publikačné grafy aj LaTeX tabuľky pre prácu. Vstupným bodom je skript \texttt{analyze.py} s~CLI prepínačmi \texttt{--results-dir} (predvolene \texttt{build/results}) a~\texttt{--output-dir} (predvolene \texttt{analysis/plots}). Závislosti sú uvedené v~\texttt{requirements.txt}: \texttt{pandas>=2.0} (spracovanie CSV), \texttt{matplotlib>=3.7} a~\texttt{seaborn>=0.13} (grafy), \texttt{numpy>=1.24} (numerické výpočty). Globálne konštanty v~hornej časti skriptu (\texttt{PROFILE\_ORDER}, \texttt{PROFILE\_PALETTE}, \texttt{MODE\_LABELS}, \texttt{ALGO\_LABELS}, \texttt{SCENARIO\_TITLES}) garantujú konzistentné farby, poradie a~popisy profilov naprieč všetkými výstupmi.
+Samostatný Python modul mimo CMake buildu, ktorý spracúva CSV výstupy harnessu a~generuje publikačné grafy aj LaTeX tabuľky pre prácu. Vstupným bodom je skript \texttt{analyze.py} s~CLI prepínačmi \texttt{--results-dir} (predvolene \texttt{build/experiments/results}) a~\texttt{--output-dir} (predvolene \texttt{analysis/plots}). Závislosti sú uvedené v~\texttt{requirements.txt}: \texttt{pandas>=2.0} (spracovanie CSV), \texttt{matplotlib>=3.7} a~\texttt{seaborn>=0.13} (grafy), \texttt{numpy>=1.24} (numerické výpočty). Globálne konštanty v~hornej časti skriptu (\texttt{PROFILE\_ORDER}, \texttt{PROFILE\_PALETTE}, \texttt{MODE\_LABELS}, \texttt{ALGO\_LABELS}, \texttt{SCENARIO\_TITLES}) garantujú konzistentné farby, poradie a~popisy profilov naprieč všetkými výstupmi.
 
 Pipeline produkuje dve kategórie výstupov do \texttt{analysis/plots/}: (a)~sedem PNG grafov --- \texttt{attack\_success\_heatmap}, \texttt{attack\_success\_by\_n}, \texttt{quarantine\_speed}, \texttt{latency\_boxplot}, \texttt{throughput}, \texttt{detector\_overhead} a~\texttt{scenario\_summary\_table}, všetky uložené pri 300\,DPI pre tlač; (b)~tri LaTeX tabuľky --- \texttt{scenario\_summary.tex}, \texttt{throughput\_table.tex} a~\texttt{baseline\_correctness.tex}, ktoré sa vkladajú priamo do textu diplomovej práce cez \texttt{\textbackslash input\{plots/...\}}. Tento mechanizmus zabezpečuje, že numerické hodnoty v~tabuľkách sú vždy generované z~najnovších experimentálnych dát a~nemôžu sa \uv{rozísť} s~grafmi.
 
@@ -281,7 +281,7 @@ Smer závislostí v~produkčnom runtime je striktne jednosmerný: \texttt{access
 Táto podkapitola sumarizuje vstupné a~výstupné súbory produkčného systému a~experimentálnej platformy. Produkčné vstupy sú v~tabuľke~\ref{t:prod-inputs}; produkčné výstupy sú popísané v~nasledujúcom odseku. Experimentálna časť (tabuľky~\ref{t:exp-cli}--\ref{t:analysis-outputs}) pokrýva CLI parametre, CSV výstupy harnessu a~výstupy analytického pipeline.
 
 \paragraph{Produkčné vstupy.}
-Systém vyžaduje tri vstupné súbory (tabuľka~\ref{t:prod-inputs}): \texttt{config/access\_security.yaml} (jediný súbor upravovaný pri nasadení), \texttt{secrets/master\_key.hex} (jednorázovo generovaný, mimo repozitára) a~\texttt{hw\_layer/hw\_config.h} (kompiluje sa priamo do firmvéru).
+Systém vyžaduje tri vstupné súbory (tabuľka~\ref{t:prod-inputs}): \texttt{config/access\_security.yaml} (jediný súbor upravovaný pri nasadení), \texttt{secrets/master\_key.hex} (jednorázovo generovaný, mimo zdrojového archívu) a~\texttt{hw\_layer/hw\_config.h} (kompiluje sa priamo do firmvéru).
 
 \begin{table}[!htbp]
 \centering
@@ -291,7 +291,7 @@ Systém vyžaduje tri vstupné súbory (tabuľka~\ref{t:prod-inputs}): \texttt{c
 \begin{tabular}{|l|l|p{5.5cm}|} \hline
 \textbf{Súbor} & \textbf{Formát} & \textbf{Obsah} \\ \hline
 \texttt{config/access\_security.yaml} & YAML & Hlavný konfiguračný súbor so štyrmi sekciami: \texttt{frame\_handler} (anti-replay, max skew, AAD mód), \texttt{key\_management} (verzia kľúča, cesta k~master key), \texttt{storage} (cesta k~SQLite), \texttt{admin} (port, token, HMAC secret, decision mode). Sekcia \texttt{experiment} je len v~6~profilových YAML súboroch. \\ \hline
-\texttt{secrets/master\_key.hex} & Text (hex) & 64 hexadecimálnych znakov (32~bajtov po dekódovaní). Zdieľané tajomstvo pre HKDF deriváciu všetkých podkľúčov. Nie je súčasťou repozitára. \\ \hline
+\texttt{secrets/master\_key.hex} & Text (hex) & 64 hexadecimálnych znakov (32~bajtov po dekódovaní). Zdieľané tajomstvo pre HKDF deriváciu všetkých podkľúčov. Nie je súčasťou priloženého archívu --- generuje sa jednorázovo pri prvom nasadení. \\ \hline
 \texttt{hw\_layer/hw\_config.h} & C hlavička & Konfigurácia firmvéru: Wi-Fi prístupové údaje, URL servera, HMAC secret, identita čítačky, priradenie GPIO pinov, časové konštanty (popísané v~podkapitole~3.1). \\ \hline
 \end{tabular}
 \end{table}
@@ -321,9 +321,9 @@ Experimentálny harness nevyžaduje YAML konfiguráciu --- šesť profilov je de
 \noindent Adresár \texttt{config/} obsahuje aj šesť referenčných profilových YAML súborov (\texttt{profile\_a\{1,2\}\_r\{0,1,2\}.yaml}), ktoré dokumentujú kompletnú produkčnú konfiguráciu pre každú kombináciu AEAD algoritmu a~nonce režimu. Experimentálne skripty (\texttt{run\_e2e.sh}) generujú ekvivalentnú dočasnú konfiguráciu inline kvôli izolácii portov a~SQLite úložiska medzi behmi profilov.
 
 \paragraph{Výstupné súbory experimentov.}
-Každý zo~8~scenárov produkuje jeden CSV súbor s~názvom zhodným so~scenárom (\texttt{s1\_replay.csv} až \texttt{s7\_nonce\_tamper.csv} vrátane variantu \texttt{s3\_cross\_reader.csv}) do adresára \texttt{build/experiments/results/} (in-process) alebo \texttt{build/experiments/results\_e2e/} (E2E režim). CSV formát bol zvolený pre priamu kompatibilitu s~analytickým pipeline (\texttt{pandas.read\_csv}) a~možnosť manuálnej inšpekcie v~tabuľkovom procesore.
+Osem binárnych scenárov (sedem útočných tried S1--S7 plus rozdelený S3 na S3a/S3b) produkuje osem CSV súborov s~názvami zhodnými s~binárkou (\texttt{s1\_replay.csv}, \texttt{s2\_tamper.csv}, \texttt{s3\_rng\_fault.csv}, \texttt{s3\_cross\_reader.csv}, \texttt{s4\_seq\_reset.csv}, \texttt{s5\_tag\_probe.csv}, \texttt{s6\_throughput.csv}, \texttt{s7\_nonce\_tamper.csv}) do adresára \texttt{build/experiments/results/} (in-process) alebo \texttt{build/experiments/results\_e2e/} (E2E režim). CSV formát bol zvolený pre priamu kompatibilitu s~analytickým pipeline (\texttt{pandas.read\_csv}) a~možnosť manuálnej inšpekcie v~tabuľkovom procesore.
 
-\noindent Každý CSV súbor má jednotnú štruktúru s~15~stĺpcami: \texttt{profile}, \texttt{cipher\_mode}, \texttt{nonce\_mode}, \texttt{detector\_enabled} (konfigurácia behu); \texttt{scenario}, \texttt{phase} (\texttt{baseline}/\texttt{attack}/\texttt{measure}), \texttt{attack\_n}, \texttt{frame\_idx} (kontext); \texttt{allowed}, \texttt{reason} (kódy ako \texttt{ok}, \texttt{replay}, \texttt{quarantined}), \texttt{quarantined}, \texttt{anomaly\_type} (rozhodnutie); \texttt{latency\_ns} (meranie); \texttt{seed}, \texttt{run\_idx} (reprodukovateľnosť). Celkový objem dát pri štandardnom behu (5~behov, attack\_n~=~50\ldots500): ${\sim}2{,}835{,}000$ riadkov naprieč 8~CSV súbormi.
+\noindent Každý CSV súbor má jednotnú štruktúru s~15~stĺpcami: \texttt{profile}, \texttt{cipher\_mode}, \texttt{nonce\_mode}, \texttt{detector\_enabled} (konfigurácia behu); \texttt{scenario}, \texttt{phase} (\texttt{baseline}/\texttt{attack}/\texttt{measure}), \texttt{attack\_n}, \texttt{frame\_idx} (kontext); \texttt{allowed}, \texttt{reason} (kódy ako \texttt{ok}, \texttt{replay}, \texttt{quarantined}), \texttt{quarantined}, \texttt{anomaly\_type} (rozhodnutie); \texttt{latency\_ns} (meranie); \texttt{seed}, \texttt{run\_idx} (reprodukovateľnosť). Celkový objem dát pri štandardnom behu (5~behov, attack\_n~=~50\ldots500): ${\sim}2{,}977{,}500$ riadkov naprieč 8~CSV súbormi.
 
 \paragraph{Výstupy analytického pipeline.}
 Skript \texttt{analysis/analyze.py} načíta CSV súbory a~vygeneruje do adresára \texttt{analysis/plots/} dve kategórie výstupov --- sedem PNG grafov a~tri \LaTeX{} tabuľky --- zhrnuté v~tabuľke~\ref{t:analysis-outputs}.
@@ -362,7 +362,7 @@ Server vypisuje na štandardný výstup prevádzkové správy:
 \item \texttt{[decision] exception: <popis>} --- výnimka pri spracovaní frame; frame je zamietnutý s~dôvodom \texttt{internal\_error}, server pokračuje v~prevádzke.
 \end{itemize}
 
-\noindent Detailné prevádzkové udalosti (rozhodnutia o~prístupe, detekované anomálie, aktivácie karantény) nie sú vypisované na štandardný výstup --- sú prístupné cez webové administrátorské rozhranie v~sekciách \emph{Runtime logs} (polling 500\,ms) a~\emph{Audit} (auto-refresh 1\,s). Chybové kódy vrátené v~JSON odpovediach na HW endpoint (\texttt{reason}: \texttt{ok}, \texttt{replay}, \texttt{decrypt\_failed}, \texttt{unknown\_card}, \texttt{forbidden}, \texttt{quarantined}, \texttt{bad\_payload}, \texttt{bad\_action}, \texttt{remote\_unavailable}, \texttt{internal\_error}) sú popísané v~používateľskej príručke.
+\noindent Detailné prevádzkové udalosti (rozhodnutia o~prístupe, detekované anomálie, aktivácie karantény) nie sú vypisované na štandardný výstup --- sú prístupné cez webové administrátorské rozhranie v~sekciách \emph{Runtime logs} (polling 500\,ms) a~\emph{Audit} (auto-refresh 1\,s). Chybové kódy vrátené v~JSON odpovediach na HW endpoint (\texttt{reason}: \texttt{ok}, \texttt{replay}, \texttt{decrypt\_failed}, \texttt{unknown\_reader}, \texttt{unknown\_card}, \texttt{forbidden}, \texttt{quarantined}, \texttt{bad\_payload}, \texttt{bad\_action}, \texttt{remote\_unavailable}, \texttt{internal\_error}) sú popísané v~používateľskej príručke.
 
 \paragraph{Firmvér ESP32.}
 Firmvér vypisuje na sériovú konzolu (115\,200~baud) správy pri každej fáze spracovania: inicializácia (\texttt{hw\_seq loaded}, \texttt{RC522 ready}), pripojenie k~Wi-Fi (\texttt{Connecting...}, \texttt{OK}/\texttt{FAILED}), detekcia karty (\texttt{UID: <hex>}), odoslanie požiadavky (\texttt{POST <URL>}, \texttt{Body: ...}, \texttt{Sig: ...}), odpoveď servera (\texttt{HTTP <kód>}, \texttt{Resp: ...}) a~finálne rozhodnutie (\texttt{ALLOW}/\texttt{DENY}/\texttt{SEND FAILED}). Chybové stavy: \texttt{WiFi not connected} (zlyhanie Wi-Fi), \texttt{Skip (too soon)} (debounce 1500\,ms), \texttt{Bad response JSON (no allow field)} (neplatná odpoveď servera). Sériový výstup obsahuje citlivé údaje (UID, HMAC podpis) --- v~produkčnom nasadení sa odporúča vypnúť.
@@ -392,7 +392,7 @@ Kompletné zdrojové texty sú súčasťou priloženého média. Tabuľka~\ref{t
 \begin{tabular}{|l|c|c|c|p{3.6cm}|} \hline
 \textbf{Modul} & \textbf{.hpp} & \textbf{.cpp} & \textbf{Testy} & \textbf{Hlavná zodpovednosť} \\ \hline
 \texttt{crypto\_lib}       & 4 & 4 & 2 & AEAD, HKDF, HMAC, nonce generátory \\ \hline
-\texttt{protocol\_lib}     & 5 & 5 & 3 & Binárny formát frame, replay window \\ \hline
+\texttt{protocol\_lib}     & 5 & 5 & 2 & Binárny formát frame, replay window \\ \hline
 \texttt{key\_manager}      & 2 & 2 & 0 & HKDF derivácia, hex utility \\ \hline
 \texttt{access\_core}      & 3 & 3 & 2 & FrameHandler, anomálny detektor \\ \hline
 \texttt{access\_decision}  & 6 & 4 & 2 & DecisionEngine, RBAC, CardIdHasher \\ \hline
@@ -400,7 +400,7 @@ Kompletné zdrojové texty sú súčasťou priloženého média. Tabuľka~\ref{t
 \texttt{config\_loader}    & 1 & 1 & 0 & Načítanie YAML konfigurácie \\ \hline
 \texttt{runtime\_events}   & 1 & 1 & 0 & EventBus (udalosti pre web) \\ \hline
 \texttt{access\_admin}     & 12 & 13 & 0 & HTTP server, služby, \texttt{main()} \\ \hline
-\multicolumn{1}{|r|}{\textbf{Spolu}} & \textbf{39} & \textbf{37} & \textbf{11} & 76~zdrojových + 11~testovacích súborov \\ \hline
+\multicolumn{1}{|r|}{\textbf{Spolu}} & \textbf{39} & \textbf{37} & \textbf{10} & 76~zdrojových + 10~testovacích súborov \\ \hline
 \end{tabular}
 \end{table}
 
@@ -510,8 +510,8 @@ Napriek uvedeným obmedzeniam prototyp demonštruje, že kombinácia štandardn�
 
 \section{Zoznam príloh}
 
-Priložené elektronické médium obsahuje vetvu \texttt{analytical} Git repozitára so štruktúrou: deväť produkčných modulov (\texttt{crypto\_lib}, \texttt{protocol\_lib}, \texttt{key\_manager}, \texttt{access\_core}, \texttt{access\_decision}, \texttt{access\_storage}, \texttt{config\_loader}, \texttt{runtime\_events}, \texttt{access\_admin} --- popísané v~tabuľke~\ref{t:src-server}), \texttt{hw\_layer/} (firmvér ESP32), \texttt{web/} (webové rozhranie), \texttt{experiments/} (C++ harness), \texttt{analysis/} (Python pipeline), \texttt{config/} (YAML konfigurácie), \texttt{cmake\_other/} (CMake FetchContent), \texttt{Dockerfile}, koreňový \texttt{CMakeLists.txt} a~adresár \texttt{tukedip\_output/} s~textom diplomovej práce a~systémovej príručky v~\LaTeX{}.
+Priložené elektronické médium obsahuje zdrojový archív projektu so štruktúrou: deväť produkčných modulov (\texttt{crypto\_lib}, \texttt{protocol\_lib}, \texttt{key\_manager}, \texttt{access\_core}, \texttt{access\_decision}, \texttt{access\_storage}, \texttt{config\_loader}, \texttt{runtime\_events}, \texttt{access\_admin} --- popísané v~tabuľke~\ref{t:src-server}), \texttt{hw\_layer/} (firmvér ESP32), \texttt{web/} (webové rozhranie), \texttt{experiments/} (C++ harness), \texttt{analysis/} (Python pipeline), \texttt{config/} (YAML konfigurácie), \texttt{cmake\_other/} (CMake FetchContent), \texttt{Dockerfile}, koreňový \texttt{CMakeLists.txt} a~adresár \texttt{tukedip\_output/} s~textom diplomovej práce a~systémovej príručky v~\LaTeX{}.
 
-Každý modul má podadresár \texttt{include/} (verejné hlavičky), \texttt{src/} (implementácia) a~voliteľne \texttt{tests/} (unit testy). Zdrojové súbory používajú Doxygen-štýl komentárov (\texttt{//!}, \texttt{@param}, \texttt{@return}); identifikácia autora a~projektu je zabezpečená cez Git históriu a~koreňový \texttt{README.md}. Produkčný kód je vo vetvách \texttt{main} aj \texttt{analytical} identický --- vetva \texttt{main} len neobsahuje \texttt{experiments/}, \texttt{analysis/} a~\texttt{tukedip\_output/}.
+Každý modul má podadresár \texttt{include/} (verejné hlavičky), \texttt{src/} (implementácia) a~voliteľne \texttt{tests/} (unit testy). Zdrojové súbory používajú Doxygen-štýl komentárov (\texttt{//!}, \texttt{@param}, \texttt{@return}); identifikácia autora a~projektu je uvedená v~koreňovom \texttt{README.md} a~v~hlavičkách jednotlivých zdrojových súborov. Pre minimálnu produkčnú distribúciu postačuje odstrániť adresáre \texttt{experiments/}, \texttt{analysis/} a~\texttt{tukedip\_output/} --- produkčný kód je voči nim nezávislý a~server sa zostaví a~spustí aj bez nich.
 
 \end{document}

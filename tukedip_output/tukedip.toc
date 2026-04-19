@@ -1,5 +1,5 @@
 \babel@toc {nil}{}\relax 
-\contentsline {section}{Úvod}{17}{section*.7}%
+\contentsline {section}{Úvod}{17}{section*.6}%
 \contentsline {section}{\numberline {1}Formulácia úlohy}{19}{section.1}%
 \contentsline {subsection}{\numberline {1.1}Úloha~1: Analyzovať aktuálny stav moderných prístupových systémov}{19}{subsection.1.1}%
 \contentsline {subsection}{\numberline {1.2}Úloha~2: Analyzovať problematiku bezpečnosti šifrovacích algoritmov}{19}{subsection.1.2}%
@@ -22,10 +22,10 @@
 \contentsline {subsection}{\numberline {2.4}Kryptografické základy}{27}{subsection.2.4}%
 \contentsline {subsubsection}{\numberline {2.4.1}HMAC a hashovacie funkcie}{27}{subsubsection.2.4.1}%
 \contentsline {subsubsection}{\numberline {2.4.2}Symetrické šifrovanie a AEAD}{28}{subsubsection.2.4.2}%
-\contentsline {paragraph}{ChaCha20 a Poly1305}{28}{section*.8}%
-\contentsline {paragraph}{XChaCha20-Poly1305 a nonce manažment}{29}{section*.9}%
-\contentsline {paragraph}{Associated Data (AAD)}{29}{section*.10}%
-\contentsline {paragraph}{Porovnanie s AES-GCM}{29}{section*.11}%
+\contentsline {paragraph}{ChaCha20 a Poly1305}{28}{section*.7}%
+\contentsline {paragraph}{XChaCha20-Poly1305 a nonce manažment}{29}{section*.8}%
+\contentsline {paragraph}{Associated Data (AAD)}{29}{section*.9}%
+\contentsline {paragraph}{Porovnanie s AES-GCM}{29}{section*.10}%
 \contentsline {subsubsection}{\numberline {2.4.3}Nonce stratégie a ich bezpečnostné modely}{30}{subsubsection.2.4.3}%
 \contentsline {subsubsection}{\numberline {2.4.4}HKDF a domain separation}{31}{subsubsection.2.4.4}%
 \contentsline {subsection}{\numberline {2.5}Zásady návrhu bezpečných protokolov}{31}{subsection.2.5}%
@@ -61,56 +61,56 @@
 \contentsline {subsubsection}{\numberline {3.1.1}Architektúra implementácie}{42}{subsubsection.3.1.1}%
 \contentsline {subsubsection}{\numberline {3.1.2}Modulárna štruktúra a externé závislosti}{43}{subsubsection.3.1.2}%
 \contentsline {subsubsection}{\numberline {3.1.3}AEAD šifrovanie interného frame}{44}{subsubsection.3.1.3}%
-\contentsline {paragraph}{Voľba algoritmu}{44}{section*.12}%
-\contentsline {paragraph}{Konštrukcia nonce}{45}{section*.13}%
-\contentsline {paragraph}{Náhodný nonce.}{45}{section*.14}%
-\contentsline {paragraph}{Deterministický HMAC nonce.}{45}{section*.15}%
-\contentsline {paragraph}{Rozdiel medzi deterministickým nonce bez a~s~verifikáciou.}{46}{section*.16}%
-\contentsline {paragraph}{AAD väzba hlavičky}{46}{section*.17}%
+\contentsline {paragraph}{Voľba algoritmu}{44}{section*.11}%
+\contentsline {paragraph}{Konštrukcia nonce}{45}{section*.12}%
+\contentsline {paragraph}{Náhodný nonce.}{45}{section*.13}%
+\contentsline {paragraph}{Deterministický HMAC nonce.}{45}{section*.14}%
+\contentsline {paragraph}{Rozdiel medzi deterministickým nonce bez a~s~verifikáciou.}{46}{section*.15}%
+\contentsline {paragraph}{AAD väzba hlavičky}{46}{section*.16}%
 \contentsline {subsubsection}{\numberline {3.1.4}Derivácia kľúčov a domain separation}{47}{subsubsection.3.1.4}%
 \contentsline {subsubsection}{\numberline {3.1.5}Anti-replay mechanizmus}{49}{subsubsection.3.1.5}%
 \contentsline {subsubsection}{\numberline {3.1.6}Detektor protokolových anomálií}{50}{subsubsection.3.1.6}%
 \contentsline {subsubsection}{\numberline {3.1.7}Ďalšie bezpečnostné mechanizmy}{52}{subsubsection.3.1.7}%
-\contentsline {paragraph}{Ochrana identifikátorov kariet.}{52}{section*.18}%
-\contentsline {paragraph}{Tamper-evident audit.}{52}{section*.19}%
-\contentsline {paragraph}{RBAC a väzba čítačka--dvere.}{52}{section*.20}%
-\contentsline {paragraph}{Konfigurácia.}{52}{section*.21}%
+\contentsline {paragraph}{Ochrana identifikátorov kariet.}{52}{section*.17}%
+\contentsline {paragraph}{Tamper-evident audit.}{52}{section*.18}%
+\contentsline {paragraph}{RBAC a väzba čítačka--dvere.}{52}{section*.19}%
+\contentsline {paragraph}{Konfigurácia.}{52}{section*.20}%
 \contentsline {subsection}{\numberline {3.2}Verifikácia kvality kódu pred experimentmi}{53}{subsection.3.2}%
 \contentsline {subsection}{\numberline {3.3}Experimentálna analýza bezpečnostných profilov}{53}{subsection.3.3}%
 \contentsline {subsubsection}{\numberline {3.3.1}Matica konfiguračných profilov}{55}{subsubsection.3.3.1}%
 \contentsline {subsubsection}{\numberline {3.3.2}Architektúra experimentálneho harnessu}{56}{subsubsection.3.3.2}%
-\contentsline {paragraph}{Hlavné komponenty}{56}{section*.22}%
-\contentsline {paragraph}{Fázy experimentu}{57}{section*.23}%
-\contentsline {paragraph}{Reprodukovateľnosť}{57}{section*.24}%
-\contentsline {paragraph}{Vzťah harnessu k produkčnému systému}{58}{section*.25}%
-\contentsline {subsubsection}{\numberline {3.3.3}Popis útokových scenárov}{59}{subsubsection.3.3.3}%
-\contentsline {paragraph}{S1: Replay útok}{59}{section*.26}%
-\contentsline {paragraph}{S2: Manipulácia poľa v hlavičke (AAD tampering)}{59}{section*.27}%
-\contentsline {paragraph}{S3a: Overenie nonce enforcement politiky}{59}{section*.28}%
-\contentsline {paragraph}{S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation)}{60}{section*.29}%
-\contentsline {paragraph}{S4: Rollback sekvenčného čísla}{61}{section*.30}%
-\contentsline {paragraph}{S5: Opakované neplatné ciphertexty (AEAD tag verification)}{61}{section*.31}%
-\contentsline {paragraph}{S6: Throughput benchmark}{62}{section*.32}%
-\contentsline {paragraph}{S7: Nonce tamper (MITM na kanáli)}{62}{section*.33}%
+\contentsline {paragraph}{Hlavné komponenty}{56}{section*.21}%
+\contentsline {paragraph}{Fázy experimentu}{57}{section*.22}%
+\contentsline {paragraph}{Reprodukovateľnosť}{57}{section*.23}%
+\contentsline {paragraph}{Vzťah harnessu k produkčnému systému}{58}{section*.24}%
+\contentsline {subsubsection}{\numberline {3.3.3}Popis útokových scenárov}{58}{subsubsection.3.3.3}%
+\contentsline {paragraph}{S1: Replay útok}{58}{section*.25}%
+\contentsline {paragraph}{S2: Manipulácia poľa v hlavičke (AAD tampering)}{59}{section*.26}%
+\contentsline {paragraph}{S3a: Overenie nonce enforcement politiky (binárny súbor \texttt {s3\_rng\_fault})}{59}{section*.27}%
+\contentsline {paragraph}{S3b: Izolácia kľúčov medzi čítačkami (HKDF key isolation, binárny súbor \texttt {s3\_cross\_reader})}{60}{section*.28}%
+\contentsline {paragraph}{S4: Rollback sekvenčného čísla}{60}{section*.29}%
+\contentsline {paragraph}{S5: Opakované neplatné ciphertexty (AEAD tag verification)}{61}{section*.30}%
+\contentsline {paragraph}{S6: Throughput benchmark}{61}{section*.31}%
+\contentsline {paragraph}{S7: Nonce tamper (simulovaný MITM útok)}{62}{section*.32}%
 \contentsline {subsubsection}{\numberline {3.3.4}Metodika zberu a spracovania dát}{62}{subsubsection.3.3.4}%
-\contentsline {paragraph}{Zber dát}{62}{section*.34}%
-\contentsline {paragraph}{Odvodzované metriky}{63}{section*.35}%
-\contentsline {paragraph}{Štatistická robustnosť}{63}{section*.36}%
+\contentsline {paragraph}{Zber dát}{62}{section*.33}%
+\contentsline {paragraph}{Odvodzované metriky}{63}{section*.34}%
+\contentsline {paragraph}{Štatistická robustnosť}{63}{section*.35}%
 \contentsline {subsubsection}{\numberline {3.3.5}Výsledky: Úspešnosť útokov}{64}{subsubsection.3.3.5}%
-\contentsline {paragraph}{Celkový prehľad}{64}{section*.37}%
-\contentsline {paragraph}{Závislosť od počtu útočných frame}{65}{section*.38}%
-\contentsline {paragraph}{Rýchlosť karantény}{65}{section*.39}%
+\contentsline {paragraph}{Celkový prehľad}{64}{section*.36}%
+\contentsline {paragraph}{Závislosť od počtu útočných frame}{65}{section*.37}%
+\contentsline {paragraph}{Rýchlosť karantény}{65}{section*.38}%
 \contentsline {subsubsection}{\numberline {3.3.6}Výsledky: Baseline korektnosť}{66}{subsubsection.3.3.6}%
 \contentsline {subsubsection}{\numberline {3.3.7}Výsledky: Latencia a priepustnosť}{66}{subsubsection.3.3.7}%
 \contentsline {paragraph}{Throughput benchmark (S6)}{66}{table.3.8}%
-\contentsline {paragraph}{Overhead detektora na baseline frame}{67}{section*.41}%
-\contentsline {subsubsection}{\numberline {3.3.8}Diskusia a interpretácia výsledkov}{67}{subsubsection.3.3.8}%
+\contentsline {paragraph}{Overhead detektora na baseline frame}{67}{section*.40}%
+\contentsline {subsubsection}{\numberline {3.3.8}Diskusia a interpretácia výsledkov}{68}{subsubsection.3.3.8}%
 \contentsline {subsubsection}{\numberline {3.3.9}Porovnanie s minimalistickými implementáciami}{68}{subsubsection.3.3.9}%
 \contentsline {subsubsection}{\numberline {3.3.10}Zhrnutie experimentov}{69}{subsubsection.3.3.10}%
 \contentsline {section}{\numberline {4}Záver (zhodnotenie riešenia)}{71}{section.4}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam použitej literatúry}{73}{table.4.1}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam príloh}{78}{section*.43}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha A}{79}{section*.45}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha B}{80}{section*.46}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha C}{81}{section*.47}%
-\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha D}{82}{section*.48}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam použitej literatúry}{74}{table.4.1}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Zoznam príloh}{79}{section*.42}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha A}{80}{section*.44}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha B}{81}{section*.45}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha C}{82}{section*.46}%
+\contentsline {section}{\hbox to\@tempdima {\hfil }Príloha D}{83}{section*.47}%

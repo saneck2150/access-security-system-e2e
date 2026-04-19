@@ -44,7 +44,7 @@ In both modes, a fresh `ExperimentContext` (SQLite + DecisionEngine + ProtocolAn
 | `s4_seq_reset` | Sequence number rollback | R0/R1: partial pass (11%); R2: `quarantined` (seq_rollback) |
 | `s5_tag_probe` | Corrupt ciphertext bytes | All: `decrypt_failed`; R2: `quarantined` (tag_fail_streak) |
 | `s6_throughput` | Valid frames (performance) | All: `ok` |
-| `s7_nonce_tamper` | Valid frame, nonce XOR-flipped (MITM) | All: `decrypt_failed`; R2: `quarantined` (nonce_mismatch) |
+| `s7_nonce_tamper` | Valid frame, nonce XOR-flipped post-construction (simulated MITM) | All: `decrypt_failed`; R2: `quarantined` (nonce_mismatch) |
 
 ## Running
 
@@ -64,7 +64,7 @@ cd build/experiments
 ./experiments/run_e2e.sh
 
 # Or single scenario/profile:
-./build/experiments/s7_nonce_tamper --e2e=http://localhost:8080 --profile=A2-R2
+./build/experiments/s7_nonce_tamper --e2e=http://localhost:8081 --profile=A2-R2
 ```
 
 ### CLI flags

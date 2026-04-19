@@ -30,7 +30,7 @@ Parses `access_security.yaml` and populates typed configuration structs used thr
 │   │ loadFrameHandler  loadStorage  loadAdmin  loadKeyMgmt│       │
 │   │  │                 │            │           │        │       │
 │   │  ▼                 ▼            ▼           ▼        │       │
-│   │ FrameHandlerCfg  StorageCfg  AdminCfg  KeyMgmtCfg   │       │
+│   │ FrameHandlerCfg  StorageCfg  AdminCfg  KeyMgmtCfg    │       │
 │   └──────────────────────────────────────────────────────┘       │
 │                         │                                        │
 │                         ▼                                        │

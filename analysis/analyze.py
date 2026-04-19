@@ -5,7 +5,7 @@ Loads CSV results from S1-S6 scenarios, computes derived metrics,
 and generates publication-quality plots for the diploma thesis.
 
 Usage:
-    python analysis/analyze.py [--results-dir build/results] [--output-dir analysis/plots]
+    python analysis/analyze.py [--results-dir build/experiments/results] [--output-dir analysis/plots]
 """
 
 import argparse
@@ -579,7 +579,7 @@ def generate_latex_baseline(data: pd.DataFrame, out: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Experiment analysis and thesis plots")
-    parser.add_argument("--results-dir", type=Path, default=Path("build/results"),
+    parser.add_argument("--results-dir", type=Path, default=Path("build/experiments/results"),
                         help="Directory with CSV files")
     parser.add_argument("--output-dir", type=Path, default=Path("analysis/plots"),
                         help="Output directory for plots")

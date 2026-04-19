@@ -80,6 +80,7 @@ This directory contains CMake scripts for fetching and configuring external libr
 - All `*_test` executables in `tests/` directories
 
 **Test files:**
+- `access_core/tests/anomaly_detector_test.cpp`
 - `access_core/tests/handle_frame_test.cpp`
 - `access_decision/tests/engine_test.cpp`
 - `access_decision/tests/engine_rotation_test.cpp`
@@ -87,7 +88,8 @@ This directory contains CMake scripts for fetching and configuring external libr
 - `access_storage/tests/audit_chain_test.cpp`
 - `crypto_lib/tests/aead_roundtrip_test.cpp`
 - `crypto_lib/tests/hkdf_test.cpp`
-- `protocol_lib/tests/frame_parser_test.cpp`
+- `protocol_lib/tests/frame_test.cpp`
+- `protocol_lib/tests/replay_window_test.cpp`
 
 ---
 
