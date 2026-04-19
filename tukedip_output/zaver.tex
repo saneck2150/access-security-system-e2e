@@ -2,7 +2,11 @@
 \section{Záver (zhodnotenie riešenia)}
 \label{sec:conclusion}
 
-Práca sa zaoberala návrhom, implementáciou a~experimentálnym hodnotením bezpečnostných mechanizmov pre systém kontroly fyzického prístupu na báze RFID/NFC. Výsledkom je funkčný prototyp pozostávajúci z~hardvérovej čítačky (ESP32 + RC522) a~dvoch nezávislých serverových služieb v~jazyku C++20 --- frontend služba (spracovanie požiadaviek, HMAC autentifikácia, konštrukcia AEAD frame) a~DecisionService (dešifrovanie, rozhodovacia logika, anomálna detekcia) --- s~lokálnym úložiskom SQLite. Systém implementuje viacvrstvovú ochranu: HMAC-SHA-256 autentifikáciu hardvérových požiadaviek, AEAD frame (ChaCha20-Poly1305 / XChaCha20-Poly1305) s~AAD binding, HKDF per-reader deriváciu kľúčov, anti-replay sliding window, anomálny detektor s~karanténou a~tamper-evident audit log. Architektúra s~oddeleným DecisionService umožňuje nezávislé testovanie bezpečnostných vlastností AEAD vrstvy a~zároveň robí scenár S7 (nonce tamper na komunikačnom kanáli) realistickým.
+Práca sa zaoberala návrhom, implementáciou a~experimentálnym hodnotením bezpečnostných mechanizmov pre systém kontroly fyzického prístupu na báze RFID/NFC. Výsledkom je funkčný prototyp pozostávajúci z~hardvérovej čítačky (ESP32 + RC522) a~dvoch nezávislých serverových služieb v~jazyku C++20 --- frontend služba (spracovanie požiadaviek, HMAC autentifikácia, konštrukcia AEAD frame) a~DecisionService (dešifrovanie, rozhodovacia logika, anomálna detekcia) --- s~lokálnym úložiskom SQLite. Systém implementuje viacvrstvovú ochranu: HMAC-SHA-256 autentifikáciu hardvérových požiadaviek, AEAD frame (ChaCha20-Poly1305 / XChaCha20-Poly1305) s~AAD binding, HKDF per-reader deriváciu kľúčov, anti-replay sliding window, anomálny detektor s~karanténou a~tamper-evident audit log. Architektúra s~oddeleným DecisionService umožňuje nezávislé testovanie bezpečnostných vlastností AEAD vrstvy; scenár S7 (simulovaný nonce tamper) modeluje efekt MITM útoku na frame pred vstupom do rozhodovacej vrstvy.
+
+Okrem samotného prototypu práca prináša reprodukovateľný experimentálny rámec: automatizovaný harness izoluje útočný vstup, cieľové primitívy a~metriky do samostatných komponentov, Python pipeline agreguje výstupy do CSV a~generuje grafy aj LaTeX tabuľky použité v~texte. Porovnanie profilov prebieha nad spoločnou produkčnou kódovou základňou so zdieľaným AEAD enginom, čím je zabezpečená neutralita vyhodnotenia --- žiadny profil nemá implementačnú výhodu nad ostatnými.
+
+Prototyp je kontajnerizovateľný pomocou priloženého \texttt{Dockerfile}; modulárna štruktúra serverovej aplikácie umožňuje výmenu jednotlivých vrstiev bez dopadu na ostatné (napr.\ nahradenie SQLite plnohodnotnou SQL databázou alebo pridanie ďalších AEAD algoritmov). Použitie výlučne permisívnych open-source závislostí odstraňuje licenčné prekážky pre ďalšie rozšírenia.
 
 Experimentálna analýza šiestich profilov (tabuľka~\ref{tab:findings}) (A1/A2 $\times$ R0/R1/R2) v~siedmich scenároch potvrdila hlavné zistenia:
 
@@ -19,15 +23,15 @@ Experimentálna analýza šiestich profilov (tabuľka~\ref{tab:findings}) (A1/A2
 T1 & R2 ako jediný vynucuje nonce politiku (S3a: R0/R1 100\% úspešnosť vs.\ R2 0\%). HKDF per-reader derivácia zabraňuje cross-reader útokom (S3b: 0\% naprieč všetkými profilmi). \\
 T2 & \texttt{ProtocolAnomalyDetector} (profily R2) dosiahol 0\% úspešnosť naprieč všetkými testovanými scenármi (S1--S7). V~S3a a~S4 bol jediným mechanizmom, ktorý scenár zastavil; v~S7 detekoval nonce tamper ešte pred pokusom o~dešifrovanie. \\
 T3 & Replay window a~anomálna detekcia sú komplementárne. S4: 11\% pre R0/R1 $\rightarrow$ 0\% pre R2. \\
-T4 & AAD binding poskytuje ochranu nezávisle od režimu nonce (S2: 0\% naprieč všetkými profilmi). S7 potvrdzuje, že zmena nonce v~transite vedie k~zlyhaniu AEAD tag verifikácie aj bez detektora. \\
+T4 & AAD binding poskytuje ochranu nezávisle od režimu nonce (S2: 0\% naprieč všetkými profilmi). S7 potvrdzuje, že modifikácia nonce v~zostavenom frame vedie k~zlyhaniu AEAD tag verifikácie aj bez detektora. \\
 T5 & Karanténa mení reakciu z~per-frame odmietnutia na izoláciu zariadenia (defense-in-depth). \\
 T6 & Overhead detektora (${\sim}15$--$19\%$, ${\sim}25$--$35\,\mu$s na frame v~závislosti od AEAD algoritmu) je rádovo nepodstatný pre reálnu prevádzku ($<$10 udalostí/s), hoci nie je zanedbateľný. \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Obmedzenia a budúca práca}
+\noindent\textbf{Obmedzenia a~budúca práca}
 
-Práca vedome zjednodušuje niektoré aspekty produkčného nasadenia: karta slúži ako identifikátor (nie kryptografický dôkaz), TLS nie je povinné, správa tajomstiev je pragmatická (hex súbor, nie HSM). Tieto obmedzenia vytvárajú presný rámec pre interpretáciu experimentov.
+Práca vedome zjednodušuje niektoré aspekty produkčného nasadenia: karta slúži ako identifikátor, TLS nie je povinné a~správa tajomstiev je pragmatická (hex súbor, nie HSM). Tieto obmedzenia vymedzujú rámec pre interpretáciu experimentov.
 
-Potenciálne smery budúcej práce zahŕňajú: nasadenie mTLS\cite{RFC8446} pre transport, migráciu na kryptografické smart karty (napr.\ MIFARE DESFire\cite{GarciaMIFARE2008}), škálovanie na geograficky distribuované nasadenie s~viacerými lokalitami a~integráciu s~centralizovanou správou tajomstiev (HSM/vault)\cite{NIST80057}.
+Smery budúcej práce: mTLS\cite{RFC8446} pre transport, migrácia na kryptografické smart karty (napr.\ MIFARE DESFire\cite{GarciaMIFARE2008}) a~integrácia s~centralizovanou správou tajomstiev (HSM/vault)\cite{NIST80057}.

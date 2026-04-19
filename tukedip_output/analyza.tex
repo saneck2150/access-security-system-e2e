@@ -3,7 +3,11 @@
 \section{Analýza}
 % ==============================================================
 
+Táto kapitola zhŕňa teoretické východiská potrebné pre návrh systému: existujúce riešenia kontroly prístupu, bezpečnostné požiadavky, modely oprávnení, kryptografické primitívy a~zásady návrhu bezpečných protokolov. Cieľom je vymedziť rámec, v~ktorom sa pohybuje praktická časť práce, a~identifikovať aspekty, ktoré štandardné riešenia nepokrývajú dostatočne pre konkrétny scenár RFID/NFC prístupového systému.
+
 \subsection{Analýza aktuálnych riešení a srovnávací základňa}
+
+Pred návrhom vlastných modifikácií je potrebné zhodnotiť existujúce prístupy k~bezpečnosti RFID/NFC systémov a~vymedziť srovnávaciu základňu, voči ktorej bude navrhované riešenie experimentálne hodnotené. Nasledujúce podkapitoly mapujú spektrum reálne nasadených riešení a~identifikujú štandard, ktorý slúži ako referenčný bod.
 
 \subsubsection{Existujúce riešenia v oblasti prístupových systémov}
 
@@ -15,7 +19,7 @@ Hlavnou srovnávacou základňou tejto práce je štandardné nasadenie AEAD pod
 
 Práve tieto aspekty --- spôsob generovania nonce, derivácia kľúčov a~runtime detekcia anomálií --- sú predmetom modifikácií navrhnutých v~praktickej časti tejto práce. Výskum v~oblasti nonce-misuse resistance\cite{RogawayNonceMisuse2004,BellareNonceMisuse2006} ukazuje, že deterministická konštrukcia nonce znižuje závislosť na kvalite generátora náhodných čísiel a~umožňuje serverovú verifikáciu zhody nonce.
 
-Pre aspekty, ktoré RFC~8439 nepokrýva, slúžia ako ďalšie ориентiry:
+Pre aspekty, ktoré RFC~8439 nepokrýva, slúžia ako ďalšie orientíry:
 \begin{itemize}[leftmargin=*,itemsep=2pt]
   \item \textbf{Derivácia kľúčov:} HKDF podľa RFC~5869\cite{RFC5869}, s~per-reader salt pre kryptografickú izoláciu zariadení.
   \item \textbf{Anti-replay:} Sliding window mechanizmus, bežný v~protokoloch ako IPsec a~DTLS\cite{RFC5116}.
@@ -69,6 +73,8 @@ Na komunikačnej vrstve sú relevantné útoky MITM (zachytenie a~úprava požia
 
 \subsection{Systémy kontroly prístupu a prístupové modely}
 
+Bezpečný návrh prístupového systému vyžaduje porozumenie tomu, aký typ kontroly systém vykonáva a~aký model oprávnení používa. Táto podkapitola zhŕňa základné pojmy a~modely relevantné pre scenár RFID/NFC kontroly fyzického prístupu.
+
 \subsubsection{Fyzická vs. logická kontrola prístupu}
 
 Fyzická kontrola prístupu rieši otázku, kto smie vstúpiť na konkrétne miesto. Logická kontrola prístupu sa zaoberá oprávneniami v~informačných systémoch. V~moderných systémoch sa tieto oblasti prekrývajú: fyzická čítačka komunikuje so serverom, ktorý overuje oprávnenia podľa logických pravidiel. Moderné prístupové systémy sú na tomto priesečníku --- hardvérová čítačka je fyzický vstupný bod, no rozhodovanie a~audit sú plne digitálne.
@@ -92,6 +98,8 @@ Princíp najmenej oprávnení\cite{SaltzerSchroeder1975} požaduje, aby subjekt 
 % ==============================================================
 
 \subsection{Kryptografické základy}
+
+Kryptografické mechanizmy použité v~prototype vychádzajú z~ustálených primitív popísaných v~tejto podkapitole: autentifikačné kódy správ, symetrické šifrovanie s~overením integrity, stratégie generovania nonce a~odvodzovanie kľúčov. Pre každú skupinu sú zhrnuté vlastnosti relevantné pre návrh riešenia.
 
 \subsubsection{HMAC a hashovacie funkcie}
 

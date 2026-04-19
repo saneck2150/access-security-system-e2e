@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.4.6)  13 APR 2026 21:24
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.4.6)  19 APR 2026 11:34
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -454,7 +454,7 @@ Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 )
 \Hy@SectionHShift=\skip62
 )
-LaTeX Font Info:    Trying to load font information for T1+lmr on input line 95
+LaTeX Font Info:    Trying to load font information for T1+lmr on input line 94
 .
 
 (/usr/share/texmf/tex/latex/lm/t1lmr.fd
@@ -469,24 +469,24 @@ File: l3backend-pdftex.def 2024-01-04 L3 backend support: PDF output (pdfTeX)
 (./jadroprace.aux) (./zaver.aux) (./literatura.aux) (./prilohy.aux))
 \openout1 = `tukedip.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 95.
-LaTeX Font Info:    ... okay on input line 95.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 94.
+LaTeX Font Info:    ... okay on input line 94.
 
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
@@ -510,7 +510,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-Package hyperref Info: Link coloring OFF on input line 95.
+Package hyperref Info: Link coloring OFF on input line 94.
 
 (./tukedip.out) (./tukedip.out)
 \@outlinefile=\write4
@@ -528,47 +528,47 @@ dvips/lm/lm-ec.enc}]
 LaTeX Warning: No \bakpraca given.
 
 LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 1
-11.
+10.
 (/usr/share/texmf/tex/latex/lm/ot1lmr.fd
 File: ot1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OML+lmm on input line 1
-11.
+10.
 
 (/usr/share/texmf/tex/latex/lm/omllmm.fd
 File: omllmm.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 
-111.
+110.
 
 (/usr/share/texmf/tex/latex/lm/omslmsy.fd
 File: omslmsy.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 
-111.
+110.
 
 (/usr/share/texmf/tex/latex/lm/omxlmex.fd
 File: omxlmex.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <12> on input line 111.
+(Font)              <12> on input line 110.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 111.
+(Font)              <8> on input line 110.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 111.
+(Font)              <6> on input line 110.
 LaTeX Font Info:    Trying to load font information for U+lasy on input line 11
-1.
+0.
 
 (/usr/share/texlive/texmf-dist/tex/latex/base/ulasy.fd
 File: ulasy.fd 1998/08/17 v2.2e LaTeX symbol font definitions
 )
-LaTeX Font Info:    Trying to load font information for U+msa on input line 111
+LaTeX Font Info:    Trying to load font information for U+msa on input line 110
 .
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 111
+LaTeX Font Info:    Trying to load font information for U+msb on input line 110
 .
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
@@ -578,75 +578,64 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 LaTeX Warning: No \konzultanta given.
 
 [2]
-Underfull \hbox (badness 4096) in paragraph at lines 113--114
-\T1/lmr/m/n/12 (ChaCha20-Poly1305); pr·ca navrhuje modifik·cie spÙsobu jeho nas
-adenia
+Underfull \hbox (badness 2020) in paragraph at lines 112--113
+\T1/lmr/m/n/12 na b·ze RFID/NFC. Ako srovn·vacia z·klad¨a sl˙∫i ≤tandardnÈ nasa
+denie
  []
 
 
-Underfull \hbox (badness 1052) in paragraph at lines 113--114
-\T1/lmr/m/n/12 --- deterministick˙ kon≤trukciu nonce pomocou HMAC a runtime ver
-ifik·ciu
+Underfull \hbox (badness 1502) in paragraph at lines 112--113
+\T1/lmr/m/n/12 ˙to£n˝ch scen·roch a posudzuje ich prÌnos oproti ≤tandardnÈmu na
+sadeniu.
  []
 
 
-Underfull \hbox (badness 1019) in paragraph at lines 113--114
-\T1/lmr/m/n/12 slu∫bami, £o umo∫¨uje nez·vislÈ testovanie bezpe£nostn˝ch vlastn
-ostÌ AEAD
- []
-
-
-Underfull \hbox (badness 3872) in paragraph at lines 113--114
+Underfull \hbox (badness 3872) in paragraph at lines 112--113
 \T1/lmr/m/n/12 kontrola prÌstupu, RFID, NFC, kryptografia, AEAD, ChaCha20-Poly1
 305,
  []
 
 [3]
-Underfull \hbox (badness 1270) in paragraph at lines 115--116
-\T1/lmr/m/n/12 The system implements multi-layered protection: HMAC-SHA-256 har
-dware
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 115--116
+Underfull \hbox (badness 10000) in paragraph at lines 116--117
 \T1/lmr/m/n/12 access control, RFID, NFC, cryptography, AEAD, ChaCha20-Poly1305
 ,
  []
 
-[4]
-LaTeX Font Info:    Trying to load font information for T1+lmss on input line 1
-17.
- (/usr/share/texmf/tex/latex/lm/t1lmss.fd
-File: t1lmss.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-) [5] [6] [7] [8]
-Underfull \hbox (badness 3872) in paragraph at lines 129--130
+[4] [5] [6] [7]
+Underfull \hbox (badness 3872) in paragraph at lines 130--131
 \T1/lmr/m/n/12 a informatiky Fakulty elektrotechniky a informatiky Technickej u
 niverzity
  []
 
-[9] (./tukedip.toc [10] [11])
+[8] (./tukedip.toc [9]
+LaTeX Font Info:    Trying to load font information for T1+lmss on input line 6
+1.
+ (/usr/share/texmf/tex/latex/lm/t1lmss.fd
+File: t1lmss.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
+) [10] [11])
 \tf@toc=\write5
 \openout5 = `tukedip.toc'.
 
- [12] [13] (./tukedip.lof)
+
+[12] (./tukedip.lof
+LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 2
+.
+ (/usr/share/texmf/tex/latex/lm/t1lmtt.fd
+File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
+))
 \tf@lof=\write6
 \openout6 = `tukedip.lof'.
 
- [14{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/
+ [13{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/
 enc/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}] (./
-tukedip.lot
-LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 6
-.
-
-(/usr/share/texmf/tex/latex/lm/t1lmtt.fd
-File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-))
+tukedip.lot)
 \tf@lot=\write7
 \openout7 = `tukedip.lot'.
 
- [15]
+
+[14]
 No file tukedip.gls.
-[16] [17]
+[15] [16]
 \openout2 = `uvod.aux'.
 
  (./uvod.tex
@@ -655,9 +644,9 @@ Underfull \hbox (badness 1043) in paragraph at lines 11--12
 ESP32
  []
 
-[18
+[17
 
-]) [19]
+]) [18]
 \openout2 = `formulacia.aux'.
 
  (./formulacia.tex
@@ -688,7 +677,7 @@ Underfull \hbox (badness 1558) in paragraph at lines 16--17
 a medzi
  []
 
-[20
+[19
 
 
 
@@ -698,7 +687,7 @@ Underfull \hbox (badness 1253) in paragraph at lines 20--21
 ent, cross-
  []
 
-[21]
+[20]
 LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <10.95> on input line 36.
 
@@ -711,250 +700,177 @@ Underfull \hbox (badness 10000) in paragraph at lines 41--41
 []|\T1/lmr/m/n/10.95 KryptografickÈ z·klady, nonce
  []
 
-) [22]
+) [21]
 \openout2 = `analyza.aux'.
 
  (./analyza.tex
-Underfull \hbox (badness 8056) in paragraph at lines 10--11
+Underfull \hbox (badness 5533) in paragraph at lines 6--7
+\T1/lmr/m/n/12 T·to kapitola zhØ¨a teoretickÈ v˝chodisk· potrebnÈ pre n·vrh sys
+tÈmu:
+ []
+
+
+Underfull \hbox (badness 8056) in paragraph at lines 14--15
 \T1/lmr/m/n/12 V praxi existuj˙ rÙzne prÌstupy k bezpe£nosti prÌstupov˝ch systÈ
 mov.
  []
 
 
-Underfull \hbox (badness 2205) in paragraph at lines 10--11
+Underfull \hbox (badness 2205) in paragraph at lines 14--15
 \T1/lmr/m/n/12 Legacy protokol Wiegand[[]] neposkytuje ≤ifrovanie ani autentifi
 k·ciu --- je
  []
 
 
-Underfull \hbox (badness 1102) in paragraph at lines 10--11
+Underfull \hbox (badness 1102) in paragraph at lines 14--15
 \T1/lmr/m/n/12 jednosmern˝ prenos identifik·tora bez akejko©vek kryptografickej
  v‰zby. Na
  []
 
-
-Underfull \hbox (badness 1694) in paragraph at lines 16--17
-\T1/lmr/m/n/12 tejto pr·ce. V˝skum v oblasti nonce-misuse resistance[[], []] uk
-azuje, ∫e
- []
-
-[23
+[22
 
 
 
 ]
+Underfull \hbox (badness 1694) in paragraph at lines 20--21
+\T1/lmr/m/n/12 tejto pr·ce. V˝skum v oblasti nonce-misuse resistance[[], []] uk
+azuje, ∫e
+ []
 
-! LaTeX Error: Unicode character –æ (U+043E)
-               not set up for use with LaTeX.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.18 ...~8439 nepokr√Ωva, sl√∫≈æia ako ƒèal≈°ie –æ
-                                                  —Ä–∏–µ–Ω—Çiry:
-You may provide a definition with
-\DeclareUnicodeCharacter 
-
-
-! LaTeX Error: Unicode character —Ä (U+0440)
-               not set up for use with LaTeX.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.18 ...439 nepokr√Ωva, sl√∫≈æia ako ƒèal≈°ie –æ—Ä
-                                                  –∏–µ–Ω—Çiry:
-You may provide a definition with
-\DeclareUnicodeCharacter 
-
-
-! LaTeX Error: Unicode character –∏ (U+0438)
-               not set up for use with LaTeX.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.18 ...9 nepokr√Ωva, sl√∫≈æia ako ƒèal≈°ie –æ—Ä–∏
-                                                  –µ–Ω—Çiry:
-You may provide a definition with
-\DeclareUnicodeCharacter 
-
-
-! LaTeX Error: Unicode character –µ (U+0435)
-               not set up for use with LaTeX.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.18 ...nepokr√Ωva, sl√∫≈æia ako ƒèal≈°ie –æ—Ä–∏–µ
-                                                  –Ω—Çiry:
-You may provide a definition with
-\DeclareUnicodeCharacter 
-
-
-! LaTeX Error: Unicode character –Ω (U+043D)
-               not set up for use with LaTeX.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.18 ...pokr√Ωva, sl√∫≈æia ako ƒèal≈°ie –æ—Ä–∏–µ–Ω
-                                                  —Çiry:
-You may provide a definition with
-\DeclareUnicodeCharacter 
-
-
-! LaTeX Error: Unicode character —Ç (U+0442)
-               not set up for use with LaTeX.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.18 ...kr√Ωva, sl√∫≈æia ako ƒèal≈°ie –æ—Ä–∏–µ–Ω—Ç
-                                                  iry:
-You may provide a definition with
-\DeclareUnicodeCharacter 
-
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 1
-9.
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 2
+3.
 (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-Underfull \hbox (badness 1789) in paragraph at lines 20--21
+Underfull \hbox (badness 1789) in paragraph at lines 24--25
 []\T1/lmr/bx/n/12 Deriv·cia k©˙£ov: \T1/lmr/m/n/12 HKDF pod©a RFC 5869[[]], s p
 er-reader salt pre
  []
 
-
-Underfull \hbox (badness 3930) in paragraph at lines 35--36
+[23{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
+Underfull \hbox (badness 3930) in paragraph at lines 39--40
 []\T1/lmr/bx/n/12 Integrita \T1/lmr/m/n/12 vy∫aduje detekciu akejko©vek neopr·v
 nenej zmeny --- £i u∫
  []
 
-[24{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
-Underfull \hbox (badness 1072) in paragraph at lines 39--40
+
+Underfull \hbox (badness 1072) in paragraph at lines 43--44
 \T1/lmr/m/n/12 z registrovanÈho zariadenia, nie od ˙to£nÌka. HMAC s tajn˝m k©˙£
 om je
  []
 
-
-Underfull \hbox (badness 3590) in paragraph at lines 56--57
+[24]
+Underfull \hbox (badness 3590) in paragraph at lines 60--61
 []\T1/lmr/m/n/12 Takto formulovanÈ po∫iadavky sa daj˙ priamo mapova¥ na konkrÈt
 ne
  []
 
-[25]
-Underfull \hbox (badness 1383) in paragraph at lines 64--65
+
+Underfull \hbox (badness 1383) in paragraph at lines 68--69
 \T1/lmr/m/n/12 nie ako kryptografick˝ dÙkaz identity. Toto riziko je mo∫nÈ komp
 enzova¥
  []
 
-[26]
-Underfull \hbox (badness 1199) in paragraph at lines 98--99
+[25] [26]
+Underfull \hbox (badness 1199) in paragraph at lines 106--107
 \T1/lmr/m/n/12 autentifik·ciu po∫iadaviek od zariadenÌ, pri£om sa po£Ìta nad je
 dnozna£nou
  []
 
 [27]
-Underfull \hbox (badness 6741) in paragraph at lines 102--103
+Underfull \hbox (badness 6741) in paragraph at lines 110--111
 \T1/lmr/m/n/12 SymetrickÈ ≤ifrovanie je vhodnÈ pre embedded zariadenia kvÙli v˝
 konu
  []
 
 
-Overfull \hbox (10.07382pt too wide) in paragraph at lines 106--107
+Overfull \hbox (10.07382pt too wide) in paragraph at lines 114--115
  []\T1/lmr/bx/n/12 ChaCha20 a Poly1305[] \T1/lmr/m/n/12 ChaCha20 je pr˙dov· ≤if
 ra navrhnut· D. J. Bernsteinom[[]].
  []
 
-[28]
-Underfull \hbox (badness 1107) in paragraph at lines 130--131
+[28{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}]
+Underfull \hbox (badness 1107) in paragraph at lines 138--139
 \T1/lmr/m/n/12 protokoloch sa AAD typicky pou∫Ìva pre hlavi£ku spr·vy --- metad
 ·ta ako
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 146--146
+Underfull \hbox (badness 10000) in paragraph at lines 154--154
 []|\T1/lmr/m/n/10.95 96b (IETF) / 192b
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 147--147
+Underfull \hbox (badness 10000) in paragraph at lines 155--155
 []|\T1/lmr/m/n/10.95 ⁄nik XOR plaintextov
  []
 
 
-Underfull \hbox (badness 3354) in paragraph at lines 147--148
+Underfull \hbox (badness 3354) in paragraph at lines 155--156
 []|\T1/lmr/m/n/10.95 KritickÈ: extrahovate©n˝
  []
 
 
-Underfull \hbox (badness 3364) in paragraph at lines 148--149
+Underfull \hbox (badness 3364) in paragraph at lines 156--157
 []|\T1/lmr/m/n/10.95 Timing side-channel bez
  []
 
-[29{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}] [30]
-Underfull \hbox (badness 1127) in paragraph at lines 179--180
+[29] [30]
+Underfull \hbox (badness 1127) in paragraph at lines 187--188
 \T1/lmr/m/n/12 Ak zlyh· autentifik·cia, valid·cia vstupu, anti-replay kontrola 
 alebo intern·
  []
 
 [31]
-Underfull \hbox (badness 3179) in paragraph at lines 189--190
+Underfull \hbox (badness 3179) in paragraph at lines 197--198
 []\T1/lmr/bx/n/12 Autentickos¥ po∫iadavky \T1/lmr/m/n/12 je zabezpe£en· pomocou
  HMAC s tajn˝m
  []
 
 [32] [33]
-Underfull \hbox (badness 1242) in paragraph at lines 237--238
+Underfull \hbox (badness 1242) in paragraph at lines 245--246
 \T1/lmr/m/n/12 Audit v prÌstupovom systÈme nem· sl˙∫i¥ iba na to, aby si admini
 str·tor
  []
 
 [34]
-Underfull \hbox (badness 4048) in paragraph at lines 257--258
+Underfull \hbox (badness 4048) in paragraph at lines 265--266
 \T1/lmr/m/n/12 Verifik·cia prebieha offline alebo cez admin panel: na£Ìtanie z·
 znamov,
  []
 
 
-Overfull \hbox (7.00989pt too wide) in paragraph at lines 263--264
+Overfull \hbox (7.00989pt too wide) in paragraph at lines 271--272
 \T1/lmr/m/n/12 Embedded zariadenie (£Ìta£ka) je z bezpe£nostnÈho h©adiska typic
 ky najzranite©nej≤Ìm
  []
 
 [35]
-Underfull \hbox (badness 1400) in paragraph at lines 289--290
+Underfull \hbox (badness 1400) in paragraph at lines 297--298
 \T1/lmr/m/n/12 HlavnÈ v˝zvy: spr·va certifik·tov na zariadeniach s obmedzenou p
 am‰¥ou,
  []
 
 [36]
-Underfull \hbox (badness 2245) in paragraph at lines 301--302
+Underfull \hbox (badness 2245) in paragraph at lines 309--310
 \T1/lmr/m/n/12 ktor˝ prid·va Secure Channel s AES-128 ≤ifrovanÌm, MAC autentifi
 k·ciou
  []
 
 [37]
-Underfull \hbox (badness 2452) in paragraph at lines 307--308
+Underfull \hbox (badness 2452) in paragraph at lines 315--316
 []\T1/lmr/m/n/12 V porovnanÌ s Wiegand[[]] navrhovan˝ prÌstup poskytuje kryptog
 rafick˙
  []
 
 
-Underfull \hbox (badness 2884) in paragraph at lines 307--308
+Underfull \hbox (badness 2884) in paragraph at lines 315--316
 \T1/lmr/m/n/12 autentifik·ciu (HMAC), integritu (AEAD + AAD) a anti-replay ochr
 anu.
  []
 
 )
-Underfull \hbox (badness 2564) in paragraph at lines 319--202
+Underfull \hbox (badness 2564) in paragraph at lines 327--203
 []\T1/lmr/m/n/12 VrstvenÈ zabezpe£enie (defense-in-depth)[[]] znamen·, ∫e systÈ
 m nestojÌ
  []
@@ -963,27 +879,21 @@ m nestojÌ
 \openout2 = `jadroprace.aux'.
 
  (./jadroprace.tex
-Underfull \hbox (badness 1852) in paragraph at lines 8--9
+Underfull \hbox (badness 1852) in paragraph at lines 10--11
 \T1/lmr/m/n/12 implement·ciu, teda ≤trukt˙ru projektu, tok spracovania udalosti
  a hlavnÈ
  []
 
 
-Underfull \hbox (badness 4217) in paragraph at lines 10--11
+Underfull \hbox (badness 4217) in paragraph at lines 12--13
 []\T1/lmr/m/n/12 Ka∫dÈ implementa£nÈ rozhodnutie vych·dza z bezpe£nostnÈho prin
 cÌpu
  []
 
 
-Underfull \hbox (badness 4739) in paragraph at lines 12--13
+Underfull \hbox (badness 4739) in paragraph at lines 14--15
 []\T1/lmr/bx/n/12 Autentifik·cia hardvÈrov˝ch po∫iadaviek \T1/lmr/m/n/12 je rea
 lizovan· v module
- []
-
-
-Underfull \hbox (badness 1442) in paragraph at lines 14--15
-[]\T1/lmr/bx/n/12 AEAD ≤ifrovanie a integrita internÈho frame \T1/lmr/m/n/12 za
-bezpe£uj˙ moduly
  []
 
 [40
@@ -991,376 +901,384 @@ bezpe£uj˙ moduly
 
 
 ]
-Underfull \hbox (badness 4739) in paragraph at lines 22--23
+Underfull \hbox (badness 1442) in paragraph at lines 16--17
+[]\T1/lmr/bx/n/12 AEAD ≤ifrovanie a integrita internÈho frame \T1/lmr/m/n/12 za
+bezpe£uj˙ moduly
+ []
+
+
+Underfull \hbox (badness 4739) in paragraph at lines 24--25
 []\T1/lmr/bx/n/12 Pseudonymiz·cia identifik·torov kariet \T1/lmr/m/n/12 v modul
 e \T1/lmtt/m/n/12 access_storage
  []
 
 
-Underfull \hbox (badness 7722) in paragraph at lines 30--31
+Underfull \hbox (badness 7722) in paragraph at lines 32--33
 \T1/lmr/m/n/12 Implement·cia je koncipovan· ako modul·rny serverovo-riaden˝ pro
 totyp
  []
 
 
-Underfull \hbox (badness 2245) in paragraph at lines 30--31
+Underfull \hbox (badness 2245) in paragraph at lines 32--33
 \T1/lmr/m/n/12 postaven· na platforme ESP32[[]] s modulom RC522, komunikuj˙ca p
 od©a
  []
 
 
-Underfull \hbox (badness 2547) in paragraph at lines 30--31
+Underfull \hbox (badness 2547) in paragraph at lines 32--33
 \T1/lmr/m/n/12 po∫iadavku autentifikuje pomocou HMAC-SHA256. SamotnÈ rozhodovan
 ie
  []
 
 [41]
-Underfull \hbox (badness 10000) in paragraph at lines 49--49
+Underfull \hbox (badness 10000) in paragraph at lines 51--51
 []|\T1/lmr/m/n/12 HardvÈrov·
  []
 
 
-Underfull \hbox (badness 1087) in paragraph at lines 49--50
+Underfull \hbox (badness 1087) in paragraph at lines 51--52
 \T1/lmr/m/n/12 po∫iadavku, zv˝≤i lok·lne po£Ìtadlo \T1/lmtt/m/n/12 hw_seq \T1/l
 mr/m/n/12 a
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 51--51
+Underfull \hbox (badness 10000) in paragraph at lines 53--53
 []|\T1/lmr/m/n/12 Frontend (port
  []
 
 
-Underfull \hbox (badness 1502) in paragraph at lines 51--52
+Underfull \hbox (badness 1502) in paragraph at lines 53--54
 []|\T1/lmr/m/n/12 Modul \T1/lmtt/m/n/12 access_admin\T1/lmr/m/n/12 : endpoint \
 T1/lmtt/m/n/12 /api/hw/uid
  []
 
 
-Underfull \hbox (badness 2980) in paragraph at lines 51--52
+Underfull \hbox (badness 2980) in paragraph at lines 53--54
 \T1/lmr/m/n/12 (overenie HMAC, kon≤trukcia AEAD frame),
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 53--53
+Underfull \hbox (badness 10000) in paragraph at lines 55--55
 []|\T1/lmr/m/n/12 DecisionService
  []
 
 
-Underfull \hbox (badness 1454) in paragraph at lines 53--54
+Underfull \hbox (badness 1454) in paragraph at lines 55--56
 []|\T1/lmr/m/n/12 Endpoint \T1/lmtt/m/n/12 /api/decision/frame\T1/lmr/m/n/12 : 
 prijÌma raw
  []
 
 
-Underfull \hbox (badness 2035) in paragraph at lines 53--54
+Underfull \hbox (badness 2035) in paragraph at lines 55--56
 \T1/lmr/m/n/12 frame bytes, sp˙≤¥a \T1/lmtt/m/n/12 DecisionEngine \T1/lmr/m/n/1
 2 (AEAD
  []
 
 
-Underfull \hbox (badness 1043) in paragraph at lines 55--56
+Underfull \hbox (badness 1043) in paragraph at lines 57--58
 []|\T1/lmr/m/n/12 Modul \T1/lmtt/m/n/12 access_storage\T1/lmr/m/n/12 : SQLite (
 WAL mÛd)
  []
 
 
-Underfull \hbox (badness 1097) in paragraph at lines 57--58
+Underfull \hbox (badness 1097) in paragraph at lines 59--60
 []|\T1/lmr/m/n/12 Modul \T1/lmtt/m/n/12 runtime_events\T1/lmr/m/n/12 : prev·dzk
 ovÈ udalosti
  []
 
 [42]
-Underfull \hbox (badness 3884) in paragraph at lines 65--66
+Underfull \hbox (badness 3884) in paragraph at lines 67--68
 \T1/lmr/m/n/12 (form·t frame, replay window), \T1/lmtt/m/n/12 key_manager \T1/l
 mr/m/n/12 (HKDF deriv·cia, rot·cia),
  []
 
 
-Underfull \hbox (badness 4266) in paragraph at lines 65--66
+Underfull \hbox (badness 4266) in paragraph at lines 67--68
 \T1/lmr/m/n/12 --- implement·ciu ≤tandardizovan˝ch algoritmov (ChaCha20-Poly130
 5 pod©a
  []
 
 [43]
-Underfull \hbox (badness 2285) in paragraph at lines 69--70
+Underfull \hbox (badness 2285) in paragraph at lines 71--72
 \T1/lmr/m/n/12 Po ˙spe≤nom overenÌ hardvÈrovej po∫iadavky server nevyhodnocuje 
 prÌstup
  []
 
 
-Underfull \hbox (badness 1648) in paragraph at lines 69--70
+Underfull \hbox (badness 1648) in paragraph at lines 71--72
 \T1/lmr/m/n/12 priamo z prijat˝ch d·t. Namiesto toho z nich vytv·ra intern˝ bez
 pe£n˝
  []
 
 
-Underfull \hbox (badness 2111) in paragraph at lines 76--77
+Underfull \hbox (badness 2111) in paragraph at lines 78--79
 []\T1/lmr/bx/n/12 XChaCha20-Poly1305 \T1/lmr/m/n/12 s 192-bitov˝m noncom (24 ba
 jtov). Roz≤Ìren˝
  []
 
 
-Underfull \hbox (badness 1137) in paragraph at lines 76--77
+Underfull \hbox (badness 1137) in paragraph at lines 78--79
 \T1/lmr/m/n/12 nonce je kon≤truovan˝ pomocou medzikroku HChaCha20, v§aka £omu j
 e
  []
 
 
-Overfull \hbox (3.80293pt too wide) in paragraph at lines 77--78
+Overfull \hbox (3.80293pt too wide) in paragraph at lines 79--80
 []\T1/lmr/bx/n/12 ChaCha20-Poly1305 IETF \T1/lmr/m/n/12 s 96-bitov˝m noncom (12
  bajtov). ítandardizovan˝
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 80--81
+Underfull \hbox (badness 10000) in paragraph at lines 82--83
 []\T1/lmr/m/n/12 Implement·cia podporuje tri stratÈgie generovania nonce (n·hod
 n˝,
  []
 
 
-Underfull \hbox (badness 6625) in paragraph at lines 80--81
+Underfull \hbox (badness 6625) in paragraph at lines 82--83
 \T1/lmr/m/n/12 deterministick˝ HMAC a deterministick˝ s runtime verifik·ciou). 
 Pri
  []
 
 [44]
-Underfull \hbox (badness 2644) in paragraph at lines 84--85
+Underfull \hbox (badness 2644) in paragraph at lines 86--87
  []\T1/lmr/bx/n/12 Kon≤trukcia nonce[] \T1/lmr/m/n/12 Implement·cia definuje ro
 zhranie \T1/lmtt/m/n/12 INonceGenerator \T1/lmr/m/n/12 s
  []
 
 
-Underfull \hbox (badness 5637) in paragraph at lines 103--104
+Underfull \hbox (badness 5637) in paragraph at lines 105--106
 []\T1/lmr/m/n/12 Samotn˝ nonce sa po£Ìta ako skr·ten˝ v˝stup HMAC-SHA-256 nad
  []
 
 [45]
-Underfull \hbox (badness 2245) in paragraph at lines 114--115
+Underfull \hbox (badness 2245) in paragraph at lines 116--117
  []\T1/lmr/bx/n/12 Rozdiel medzi deterministick˝m nonce bez a s verifik·ciou.[]
  \T1/lmr/m/n/12 Obe
  []
 
 [46]
-Underfull \hbox (badness 3460) in paragraph at lines 124--125
+Underfull \hbox (badness 3460) in paragraph at lines 126--127
 []\T1/lmr/m/n/12 Implement·cia podporuje aj konfigurovate©n˝ re∫im \T1/lmtt/m/n
 /12 aad_mode: "none"\T1/lmr/m/n/12 ,
  []
 
 
-Underfull \hbox (badness 1237) in paragraph at lines 128--129
+Underfull \hbox (badness 1237) in paragraph at lines 130--131
 \T1/lmr/m/n/12 spravovan˝ tajn˝ s˙bor je pragmatick˝ kompromis vhodn˝ pre proto
 typ; v
  []
 
 [47]
-
-LaTeX Warning: Reference `fig:hkdf_tree' on page 48 undefined on input line 157
-.
-
-<plots/hkdf_derivation_tree.png, id=828, 1601.985pt x 519.9425pt>
+<plots/hkdf_derivation_tree.png, id=834, 1601.985pt x 519.9425pt>
 File: plots/hkdf_derivation_tree.png Graphic file (type png)
 <use plots/hkdf_derivation_tree.png>
-Package pdftex.def Info: plots/hkdf_derivation_tree.png  used on input line 161
+Package pdftex.def Info: plots/hkdf_derivation_tree.png  used on input line 163
 .
 (pdftex.def)             Requested size: 392.64725pt x 127.4386pt.
-
-Underfull \hbox (badness 1087) in paragraph at lines 172--173
+ [48 <./plots/hkdf_derivation_tree.png>]
+Underfull \hbox (badness 1087) in paragraph at lines 174--175
 []\T1/lmr/m/n/12 Implement·cia podporuje aj priamy re∫im deriv·cie (bez HKDF); 
 v≤etky
  []
 
-[48] [49]
-Underfull \hbox (badness 10000) in paragraph at lines 202--203
-[]\T1/lmr/bx/n/12 Nes˙lad nonce \T1/lmr/m/n/12 (\T1/lmtt/m/n/12 nonce_mismatch\
-T1/lmr/m/n/12 ): ak prijat˝ nonce nezodpoved·
+[49]
+Underfull \hbox (badness 10000) in paragraph at lines 212--213
+[]|\T1/lmr/m/n/12 Nes˙lad nonce: prijat˝ nonce nezodpoved·
  []
 
-[50] [51]
-Underfull \hbox (badness 5548) in paragraph at lines 246--247
+
+Overfull \hbox (1.57632pt too wide) in paragraph at lines 213--213
+[]|\T1/lmtt/m/n/12 tag_fail_streak| 
+ []
+
+[50] [51] [52]
+Underfull \hbox (badness 5548) in paragraph at lines 258--259
 []\T1/lmr/bx/n/12 Statick· anal˝za (clang-tidy[[]]): \T1/lmr/m/n/12 16 kategÛri
 Ì kontrol (wildcards
  []
 
 
-Underfull \hbox (badness 1173) in paragraph at lines 248--249
+Underfull \hbox (badness 1173) in paragraph at lines 260--261
 \T1/lmr/m/n/12 kryptografiu, replay window, anom·lny detektor (18 testov), audi
 tn˝ log
  []
 
-[52]
-Underfull \hbox (badness 4254) in paragraph at lines 264--265
+[53]
+Underfull \hbox (badness 4254) in paragraph at lines 276--277
 []\T1/lmr/m/n/12 Predch·dzaj˙ce kapitoly opÌsali n·vrh a implement·ciu bezpe£no
 stn˝ch
  []
 
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 274.
+(Font)              <10> on input line 286.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 274.
+(Font)              <7> on input line 286.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 274.
+(Font)              <5> on input line 286.
 
-Underfull \hbox (badness 1057) in paragraph at lines 290--291
+Underfull \hbox (badness 1057) in paragraph at lines 302--303
 \T1/lmr/m/n/12 ≤pecifickÈ pre protokoly s per-reader deriv·ciou k©˙£ov, rollbac
 k sekvencie a
  []
 
 
-Underfull \hbox (badness 1789) in paragraph at lines 290--291
+Underfull \hbox (badness 1789) in paragraph at lines 302--303
 \T1/lmr/m/n/12 v˝konnostn˝ dopad mechanizmov. S3 vych·dza z princÌpu kryptograf
 ickej
- []
-
-[53]
-
-Package enumitem Warning: Negative labelwidth. This does not make much
-(enumitem)                sense, on input line 326.
-
-
-Underfull \hbox (badness 2334) in paragraph at lines 329--332
-[]\T1/lmr/m/n/12 Nonce je generovan˝ deterministicky ako HMAC-SHA-
  []
 
 [54]
 
 Package enumitem Warning: Negative labelwidth. This does not make much
-(enumitem)                sense, on input line 348.
+(enumitem)                sense, on input line 338.
 
-LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <12> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 349.
 
-Underfull \hbox (badness 1867) in paragraph at lines 349--350
-[]\T1/lmr/m/n/12 Pre ka∫d˙ kombin·ciu (profil, attack_n, run) vytv·ra
+Underfull \hbox (badness 2334) in paragraph at lines 341--344
+[]\T1/lmr/m/n/12 Nonce je generovan˝ deterministicky ako HMAC-SHA-
  []
 
 [55]
-Underfull \hbox (badness 2894) in paragraph at lines 350--351
+
+Package enumitem Warning: Negative labelwidth. This does not make much
+(enumitem)                sense, on input line 360.
+
+LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <12> not available
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 361.
+
+Underfull \hbox (badness 1867) in paragraph at lines 361--362
+[]\T1/lmr/m/n/12 Pre ka∫d˙ kombin·ciu (profil, attack_n, run) vytv·ra
+ []
+
+
+Underfull \hbox (badness 2894) in paragraph at lines 362--363
 \T1/lmr/m/n/12 produk£n˝ systÈm. Poskytuje aj statickÈ metÛdy na manipul·ciu fr
 ame
  []
 
-
-Underfull \hbox (badness 1442) in paragraph at lines 351--352
+[56]
+Underfull \hbox (badness 1442) in paragraph at lines 363--364
 []\T1/lmr/m/n/12 Zapisuje v˝sledky do CSV s 15 st®pcami vr·tane \T1/lmtt/m/n/12
  seed
  []
 
 
-Underfull \hbox (badness 4378) in paragraph at lines 369--370
+Underfull \hbox (badness 4378) in paragraph at lines 381--382
 []\T1/lmr/m/n/12 Ka∫d˝ beh $\OML/lmm/m/it/12 r$ \T1/lmr/m/n/12 ($\OML/lmm/m/it/
 12 r \OT1/lmr/m/n/12 = 0 [] 4$\T1/lmr/m/n/12 ) pou∫Ìva in˝ seed $\OT1/lmr/m/n/1
 2 42 + \OML/lmm/m/it/12 r$\T1/lmr/m/n/12 , £o zav·dza
  []
 
-[56]
-Underfull \hbox (badness 5091) in paragraph at lines 371--372
+
+Underfull \hbox (badness 5091) in paragraph at lines 383--384
 []\T1/lmr/m/n/12 CLI prepÌna£e \T1/lmtt/m/n/12 --seed=N\T1/lmr/m/n/12 , \T1/lmt
 t/m/n/12 --warmup=N\T1/lmr/m/n/12 , \T1/lmtt/m/n/12 --baseline=N\T1/lmr/m/n/12 
 , \T1/lmtt/m/n/12 --runs=N\T1/lmr/m/n/12 , \T1/lmtt/m/n/12 --e2e=URL\T1/lmr/m/n
 /12 ,
  []
 
-
-Underfull \hbox (badness 7613) in paragraph at lines 376--377
+[57]
+Underfull \hbox (badness 7613) in paragraph at lines 388--389
  []\T1/lmr/bx/n/12 Vz¥ah harnessu k produk£nÈmu systÈmu[] \T1/lmr/m/n/12 Harnes
 s je \T1/lmr/m/it/12 kontrolovan˝
  []
 
 
-Underfull \hbox (badness 1292) in paragraph at lines 376--377
+Underfull \hbox (badness 1292) in paragraph at lines 388--389
 \T1/lmr/m/it/12 experiment·lny mini-systÈm\T1/lmr/m/n/12 , nie pln· replika pro
 duk£nÈho systÈmu. Zdie©a
  []
 
 
-Underfull \hbox (badness 1701) in paragraph at lines 376--377
+Underfull \hbox (badness 1701) in paragraph at lines 388--389
 \T1/lmr/m/n/12 s produk£n˝m kÛdom kryptografick˙ vrstvu (\T1/lmtt/m/n/12 crypto
 _lib\T1/lmr/m/n/12 ), deriv·ciu k©˙£ov
  []
 
 
-Underfull \hbox (badness 2359) in paragraph at lines 379--380
+Underfull \hbox (badness 2359) in paragraph at lines 391--392
 \T1/lmtt/m/n/12 DecisionEngine::handleFrameBytes() \T1/lmr/m/n/12 priamo, bez s
 ie¥ovÈho overhead-u.
  []
 
-[57]
-Underfull \hbox (badness 3009) in paragraph at lines 399--400
+[58]
+Underfull \hbox (badness 3009) in paragraph at lines 411--412
 \T1/lmr/m/n/12 sa izoluje kryptografick· detekcia manipul·cie od autoriza£nej p
 olitiky ---
  []
 
 
-Underfull \hbox (badness 1360) in paragraph at lines 405--406
+Underfull \hbox (badness 1360) in paragraph at lines 417--418
 \T1/lmr/m/n/12 generovania nonce: trieda \T1/lmtt/m/n/12 FixedNonceGenerator \T
 1/lmr/m/n/12 nap®¨a cel˝ nonce bajtom
  []
 
-[58]
-Underfull \hbox (badness 7397) in paragraph at lines 413--414
+[59]
+Underfull \hbox (badness 7397) in paragraph at lines 425--426
  []\T1/lmr/bx/n/12 S3b: Izol·cia k©˙£ov medzi £Ìta£kami (HKDF key isolation)[]
  []
 
-[59]
-Underfull \hbox (badness 3460) in paragraph at lines 422--423
+
+Underfull \hbox (badness 3460) in paragraph at lines 434--435
 []\T1/lmr/m/it/12 O£ak·vanÈ spr·vanie: \T1/lmr/m/n/12 V≤etky profily odmietaj˙ 
 100% ˙to£n˝ch frame
  []
 
-
-Overfull \hbox (4.98769pt too wide) in paragraph at lines 442--443
+[60]
+Overfull \hbox (4.98769pt too wide) in paragraph at lines 454--455
 []\T1/lmr/m/it/12 O£ak·vanÈ spr·vanie: \T1/lmr/m/n/12 AEAD overenie zlyh· pre v
 ≤etky profily (\T1/lmtt/m/n/12 decrypt_failed\T1/lmr/m/n/12 ).
  []
 
-[60] [61]
+[61] [62]
 
 Package enumitem Warning: Negative labelwidth. This does not make much
-(enumitem)                sense, on input line 481.
+(enumitem)                sense, on input line 493.
 
-[62]
-Underfull \hbox (badness 4156) in paragraph at lines 498--499
+
+Underfull \hbox (badness 4156) in paragraph at lines 510--511
  []\T1/lmr/bx/n/12 Celkov˝ preh©ad[] \T1/lmr/m/n/12 Obr·zok []3--2[] zobrazuje 
 ˙spe≤nos¥ ˙tokov pre v≤etky
  []
 
-<plots/attack_success_heatmap.png, id=950, 729.927pt x 327.3831pt>
+[63]
+<plots/attack_success_heatmap.png, id=956, 729.927pt x 327.3831pt>
 File: plots/attack_success_heatmap.png Graphic file (type png)
 <use plots/attack_success_heatmap.png>
 Package pdftex.def Info: plots/attack_success_heatmap.png  used on input line 5
-02.
+14.
 (pdftex.def)             Requested size: 426.79134pt x 191.42592pt.
-(./plots/scenario_summary.tex
+ (./plots/scenario_summary.tex
 Overfull \hbox (5.0661pt too wide) in paragraph at lines 6--21
  [][] 
  []
 
-) [63 <./plots/attack_success_heatmap.png>] [64]
-Overfull \hbox (8.37357pt too wide) in paragraph at lines 525--526
+) [64 <./plots/attack_success_heatmap.png>]
+Overfull \hbox (8.37357pt too wide) in paragraph at lines 537--538
 \T1/lmr/m/n/12 frame_idx = 4, £o zodpoved· nakonfigurovanÈmu limitu \T1/lmtt/m/
 n/12 tag_fail_streak_limit \T1/lmr/m/n/12 = 5
  []
 
-<plots/throughput.png, id=964, 1005.2757pt x 356.2911pt>
+[65]
+<plots/throughput.png, id=972, 1005.2757pt x 356.2911pt>
 File: plots/throughput.png Graphic file (type png)
 <use plots/throughput.png>
-Package pdftex.def Info: plots/throughput.png  used on input line 539.
+Package pdftex.def Info: plots/throughput.png  used on input line 551.
 (pdftex.def)             Requested size: 426.79134pt x 151.26677pt.
-[65] (./plots/throughput_table.tex)
-Underfull \hbox (badness 5893) in paragraph at lines 548--549
+ (./plots/throughput_table.tex)
+Underfull \hbox (badness 5893) in paragraph at lines 560--561
 []\T1/lmr/bx/n/12 Porovnanie algoritmov: \T1/lmr/m/n/12 A2 (XChaCha20) dosahuje
  mierne vy≤≤iu
  []
 
 
-Underfull \hbox (badness 1394) in paragraph at lines 548--549
+Underfull \hbox (badness 1394) in paragraph at lines 560--561
 \T1/lmr/m/n/12 priepustnos¥ ako A1 (ChaCha20), £o je prekvapiv˝ v˝sledok. PrÌ£i
 nou je
  []
 
 [66 <./plots/throughput.png>] [67] [68]
-Underfull \hbox (badness 1221) in paragraph at lines 614--615
+Underfull \hbox (badness 1221) in paragraph at lines 626--627
 \T1/lmr/m/n/12 anal˝za siedmich scen·rov naprie£ ≤iestimi konfigura£n˝mi profil
 mi potvrdila
  []
@@ -1369,7 +1287,7 @@ mi potvrdila
 \openout2 = `zaver.aux'.
 
  (./zaver.tex
-Underfull \hbox (badness 2027) in paragraph at lines 24--25
+Underfull \hbox (badness 2027) in paragraph at lines 28--29
 \T1/lmr/m/n/10.95 od AEAD algoritmu) je r·dovo nepodstatn˝ pre re·lnu
  []
 
@@ -1377,13 +1295,7 @@ Underfull \hbox (badness 2027) in paragraph at lines 24--25
 
 
 
-])
-Underfull \hbox (badness 2478) in paragraph at lines 33--206
-\T1/lmr/m/n/12 na geograficky distribuovanÈ nasadenie s viacer˝mi lokalitami a 
-integr·ciu
- []
-
-[72] [73]
+]) [72]
 \openout2 = `literatura.aux'.
 
  (./literatura.tex (./tukedip.bbl
@@ -1404,7 +1316,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 51--56
  _ manual _ en .
  []
 
-[74
+[73
 
 
 
@@ -1426,7 +1338,7 @@ Underfull \hbox (badness 1412) in paragraph at lines 120--125
 nd
  []
 
-[75]
+[74]
 Underfull \hbox (badness 1590) in paragraph at lines 146--151
 []\T1/lmr/m/n/12 libsodium contributors.  XChaCha20-Poly1305 construction -- li
 bsodium
@@ -1455,7 +1367,7 @@ Underfull \hbox (badness 2050) in paragraph at lines 171--177
 pps . nsa . gov / iaarchive /
  []
 
-[76]
+[75]
 Underfull \hbox (badness 10000) in paragraph at lines 185--190
 []\T1/lmr/m/n/12 Private Internet Access and NCC Group.  Libsodium Security
  []
@@ -1471,17 +1383,42 @@ Underfull \hbox (badness 10000) in paragraph at lines 185--190
  . com / blog /
  []
 
-[77])) [78]
+[76])) [77]
 \openout2 = `prilohy.aux'.
 
- (./prilohy.tex [79
+ (./prilohy.tex [78
 
 
 
-] [80] [81])
-Underfull \hbox (badness 2538) in paragraph at lines 30--210
-\T1/lmr/m/n/12 Konfigura£nÈ profily definuj˙ experiment·lnu maticu A1/A2 $\OMS/
-lmsy/m/n/12 ^^B$ \T1/lmr/m/n/12 R0/R1/R2.
+]
+Underfull \hbox (badness 1616) in paragraph at lines 19--20
+\T1/lmr/m/n/12 zhodnotenie rie≤enia. Dokument je prilo∫en˝ v samostatnom PDF s˙
+bore
+ []
+
+[79]
+Underfull \hbox (badness 3088) in paragraph at lines 25--26
+\T1/lmr/m/n/12 spustenie, webovÈ administr·torskÈ rozhranie, vstupnÈ a v˝stupnÈ
+ s˙bory,
+ []
+
+[80]
+Underfull \hbox (badness 6910) in paragraph at lines 31--32
+\T1/lmr/m/n/12 Zdrojov˝ kÛd prototypu obsahuje kompletn˙ implement·ciu: produk£
+n˝
+ []
+
+
+Underfull \hbox (badness 1824) in paragraph at lines 31--32
+\T1/lmtt/m/n/12 access_decision\T1/lmr/m/n/12 , \T1/lmtt/m/n/12 access_storage\
+T1/lmr/m/n/12 , \T1/lmtt/m/n/12 access_admin\T1/lmr/m/n/12 ), firmvÈr £Ìta£ky E
+SP32,
+ []
+
+[81])
+Underfull \hbox (badness 2012) in paragraph at lines 37--211
+\T1/lmr/m/n/12 CSV v˝stupy experimentov obsahuj˙ per-frame z·znamy pre v≤etk˝ch
+ ≤es¥
  []
 
 [82] [83
@@ -1493,21 +1430,17 @@ lmsy/m/n/12 ^^B$ \T1/lmr/m/n/12 R0/R1/R2.
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
  ***********
-
-
-LaTeX Warning: There were undefined references.
-
 Package rerunfilecheck Info: File `tukedip.out' has not changed.
-(rerunfilecheck)             Checksum: 1856980716334EA7756442D412F01592;21428.
+(rerunfilecheck)             Checksum: 97EA3E2E0FB8BC0CEED2089FD8561E16;21461.
  ) 
 Here is how much of TeX's memory you used:
- 13293 strings out of 476182
- 205904 string characters out of 5795596
+ 13285 strings out of 476182
+ 205831 string characters out of 5795596
  1935975 words of memory out of 5000000
- 34699 multiletter control sequences out of 15000+600000
+ 34693 multiletter control sequences out of 15000+600000
  649328 words of font info for 114 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 75i,13n,79p,2284b,635s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,13n,79p,1181b,635s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/p
@@ -1522,10 +1455,10 @@ ublic/lm/lmtk10.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt10.pfb></usr/sh
 are/texmf/fonts/type1/public/lm/lmtt12.pfb></usr/share/texlive/texmf-dist/fonts
 /type1/public/amsfonts/symbols/msam10.pfb></usr/share/texlive/texmf-dist/fonts/
 type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on tukedip.pdf (83 pages, 905538 bytes).
+Output written on tukedip.pdf (83 pages, 930640 bytes).
 PDF statistics:
  1293 PDF objects out of 1440 (max. 8388607)
  1146 compressed objects within 12 object streams
- 289 named destinations out of 1000 (max. 500000)
+ 287 named destinations out of 1000 (max. 500000)
  664 words of extra memory for PDF output out of 10000 (max. 10000000)
 

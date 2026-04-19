@@ -3,36 +3,54 @@
 \contentsline {section}{\numberline {2}Analýza riešenia}{2}{section.2}%
 \contentsline {section}{\numberline {3}Popis programu}{2}{section.3}%
 \contentsline {subsection}{\numberline {3.1}Popis riešenia}{3}{subsection.3.1}%
-\contentsline {paragraph}{Hardvérová vrstva.}{3}{section*.2}%
-\contentsline {paragraph}{Serverová aplikácia.}{3}{section*.3}%
-\contentsline {paragraph}{Webové administrátorské rozhranie.}{3}{section*.4}%
-\contentsline {paragraph}{Experimentálna a~analytická vrstva.}{4}{section*.5}%
-\contentsline {paragraph}{Vetvenie repozitára.}{4}{section*.6}%
+\contentsline {paragraph}{Hardvérová vrstva.}{3}{section*.3}%
+\contentsline {paragraph}{Serverová aplikácia.}{3}{section*.4}%
+\contentsline {paragraph}{Webové administrátorské rozhranie.}{4}{section*.5}%
+\contentsline {paragraph}{Experimentálna a~analytická vrstva.}{4}{section*.6}%
+\contentsline {paragraph}{Vetvenie repozitára.}{4}{section*.7}%
 \contentsline {subsection}{\numberline {3.2}Popis algoritmov a~údajových štruktúr, globálnych premenných}{4}{subsection.3.2}%
-\contentsline {paragraph}{Modulárna štruktúra.}{4}{section*.7}%
-\contentsline {paragraph}{Algoritmus: rozhodovacia pipeline.}{5}{section*.8}%
-\contentsline {paragraph}{Algoritmus: sliding replay window.}{5}{section*.9}%
-\contentsline {paragraph}{Algoritmus: deterministický nonce (HMAC konštrukcia).}{6}{section*.10}%
-\contentsline {paragraph}{Algoritmus: detektor anomálií ako stavový automat.}{6}{section*.11}%
-\contentsline {paragraph}{Algoritmus: tamper-evident audit chain.}{7}{section*.12}%
-\contentsline {paragraph}{Algoritmus: pseudonymizácia identifikátora karty.}{7}{section*.13}%
-\contentsline {paragraph}{Algoritmus: parsovanie binárneho frame.}{7}{section*.14}%
-\contentsline {paragraph}{Konfigurácia.}{7}{section*.15}%
-\contentsline {paragraph}{Schéma databázy.}{8}{section*.16}%
-\contentsline {paragraph}{Globálne premenné.}{9}{section*.17}%
-\contentsline {paragraph}{Dialóg s~používateľom.}{9}{section*.18}%
-\contentsline {subsection}{\numberline {3.3}Popis modulov a~podprogramov}{9}{subsection.3.3}%
-\contentsline {paragraph}{\texttt {hw\_layer} (firmvér ESP32).}{9}{section*.19}%
-\contentsline {paragraph}{\texttt {crypto\_lib}.}{10}{section*.20}%
-\contentsline {paragraph}{\texttt {protocol\_lib}.}{10}{section*.21}%
-\contentsline {paragraph}{\texttt {key\_manager}.}{10}{section*.22}%
-\contentsline {paragraph}{\texttt {access\_core}.}{11}{section*.23}%
-\contentsline {paragraph}{\texttt {access\_decision}.}{11}{section*.24}%
-\contentsline {paragraph}{\texttt {access\_storage}.}{12}{section*.25}%
-\contentsline {paragraph}{Pomocné moduly.}{12}{section*.26}%
-\contentsline {paragraph}{Webové rozhranie (\texttt {web/}).}{12}{section*.27}%
-\contentsline {paragraph}{\texttt {experiments} (harness a~scenáre).}{13}{section*.28}%
-\contentsline {paragraph}{\texttt {analysis} (Python pipeline pre grafy a~tabuľky).}{13}{section*.29}%
-\contentsline {paragraph}{Vnorenie volaní pri spracovaní karty.}{14}{section*.30}%
-\contentsline {paragraph}{Vzťah modulov navzájom.}{15}{section*.31}%
-\contentsline {section}{\numberline {4}Zoznam použitej literatúry}{16}{section.4}%
+\contentsline {paragraph}{Modulárna štruktúra.}{4}{section*.8}%
+\contentsline {paragraph}{Algoritmus: rozhodovacia pipeline.}{5}{section*.9}%
+\contentsline {paragraph}{Hlavné implementačné algoritmy.}{6}{section*.10}%
+\contentsline {paragraph}{Konfigurácia.}{6}{section*.11}%
+\contentsline {paragraph}{Schéma databázy.}{7}{section*.12}%
+\contentsline {paragraph}{Globálne premenné.}{7}{section*.13}%
+\contentsline {paragraph}{Dialóg s~používateľom.}{8}{section*.14}%
+\contentsline {subsection}{\numberline {3.3}Popis modulov a~podprogramov}{8}{subsection.3.3}%
+\contentsline {paragraph}{\texttt {hw\_layer} (firmvér ESP32).}{8}{section*.15}%
+\contentsline {paragraph}{\texttt {crypto\_lib}.}{8}{section*.16}%
+\contentsline {paragraph}{\texttt {protocol\_lib}.}{9}{section*.17}%
+\contentsline {paragraph}{\texttt {key\_manager}.}{9}{section*.18}%
+\contentsline {paragraph}{\texttt {access\_core}.}{10}{section*.19}%
+\contentsline {paragraph}{\texttt {access\_decision}.}{10}{section*.20}%
+\contentsline {paragraph}{\texttt {access\_storage}.}{10}{section*.21}%
+\contentsline {paragraph}{Pomocné moduly.}{11}{section*.22}%
+\contentsline {paragraph}{Webové rozhranie (\texttt {web/}).}{11}{section*.23}%
+\contentsline {paragraph}{\texttt {experiments} (harness a~scenáre).}{11}{section*.24}%
+\contentsline {paragraph}{\texttt {analysis} (Python pipeline pre grafy a~tabuľky).}{12}{section*.25}%
+\contentsline {paragraph}{Tok spracovania požiadavky.}{12}{section*.26}%
+\contentsline {paragraph}{Vzťah modulov navzájom.}{14}{section*.27}%
+\contentsline {subsection}{\numberline {3.4}Popis vstupných a~výstupných súborov}{14}{subsection.3.4}%
+\contentsline {paragraph}{Produkčné vstupy.}{14}{section*.28}%
+\contentsline {paragraph}{Produkčné výstupy.}{14}{section*.29}%
+\contentsline {paragraph}{Vstupné súbory experimentov.}{16}{section*.30}%
+\contentsline {paragraph}{Výstupné súbory experimentov.}{16}{section*.31}%
+\contentsline {paragraph}{Výstupy analytického pipeline.}{17}{section*.32}%
+\contentsline {subsection}{\numberline {3.5}Popis správ pre systémového programátora}{17}{subsection.3.5}%
+\contentsline {paragraph}{Serverová aplikácia.}{17}{section*.33}%
+\contentsline {paragraph}{Firmvér ESP32.}{19}{section*.34}%
+\contentsline {section}{\numberline {4}Preklad programu}{19}{section.4}%
+\contentsline {paragraph}{Serverová aplikácia (C++20).}{20}{section*.35}%
+\contentsline {paragraph}{Docker nasadenie.}{20}{section*.36}%
+\contentsline {paragraph}{Firmvér ESP32 a~Python pipeline.}{20}{section*.37}%
+\contentsline {subsection}{\numberline {4.1}Zoznam zdrojových textov}{20}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Požiadavky na technické prostriedky pri preklade}{22}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Požiadavky na programové prostriedky pri preklade}{22}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Nadväznosť na iné programové produkty}{24}{section.5}%
+\contentsline {section}{\numberline {6}Zhodnotenie riešenia}{24}{section.6}%
+\contentsline {paragraph}{Obmedzenia produkčného nasadenia.}{24}{section*.38}%
+\contentsline {paragraph}{Nedopracované oblasti.}{26}{section*.39}%
+\contentsline {paragraph}{Potenciálne smery ďalšieho vývoja.}{26}{section*.40}%
+\contentsline {paragraph}{Celkové zhodnotenie.}{26}{section*.41}%
+\contentsline {section}{\numberline {7}Zoznam použitej literatúry}{26}{section.7}%
+\contentsline {section}{\numberline {8}Zoznam príloh}{29}{section.8}%

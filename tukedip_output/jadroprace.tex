@@ -1,5 +1,7 @@
 % !TeX root=tukedip.tex
-\section{Jadro práce}
+\section{Realizácia a experimentálne vyhodnotenie}
+
+Táto kapitola popisuje praktickú realizáciu navrhnutého systému a~experimentálne vyhodnotenie jeho bezpečnostných vlastností. Prvá podkapitola sa venuje samotnej implementácii prototypu --- štruktúre projektu, toku spracovania udalosti a~hlavným bezpečnostným mechanizmom v~kóde. Druhá podkapitola systematicky hodnotí šesť konfiguračných profilov v~siedmich útočných scenároch a~porovnáva ich s~referenčným nasadením podľa RFC~8439.
 
 \subsection{Praktická implementácia navrhnutého systému}
 
@@ -9,7 +11,7 @@ Opis implementácie sa člení na dve vrstvy. Prvá vrstva opisuje samotnú impl
 
 Každé implementačné rozhodnutie vychádza z bezpečnostného princípu diskutovaného v teoretickej časti. Nasledujúci prehľad sumarizuje, kde v kóde sa realizuje každý z teoreticky opísaných mechanizmov.
 
-\textbf{Autentifikácia hardvérových požiadaviek} je realizovaná v module \texttt{access\_admin} (endpoint \texttt{/api/hw/uid}): každá HTTP požiadavka od čítačky obsahuje hlavičku \texttt{X-HW-Signature} s HMAC-SHA-256 podpisom nad metódou, cestou a~telom požiadavky (ochrana proti cross-endpoint replay). Server podpis overí pred akýmkoľvek ďalším spracovaním. Kľúč pre HMAC je oddelený od ostatných kryptografických účelov.
+\textbf{Autentifikácia hardvérových požiadaviek} je realizovaná v module \texttt{access\_admin} (endpoint \texttt{/api/hw/uid}): každá HTTP požiadavka od čítačky obsahuje hlavičku \texttt{X-HW-Signature} s HMAC-SHA-256 podpisom nad reťazcom \texttt{"POST /api/hw/uid\textbackslash n"} $+$ telo požiadavky (zahrnutie metódy a~cesty oddelených znakom LF chráni proti cross-endpoint replay). Server podpis overí pred akýmkoľvek ďalším spracovaním. Kľúč pre HMAC je oddelený od ostatných kryptografických účelov.
 
 \textbf{AEAD šifrovanie a integrita interného frame} zabezpečujú moduly \texttt{crypto\_lib} a \texttt{access\_core}. Po overení HMAC server nevyhodnocuje požiadavku priamo, ale vytvára z nej interný bezpečný frame: binárnu štruktúru, kde je payload zašifrovaný algoritmom ChaCha20-Poly1305 alebo XChaCha20-Poly1305. Hlavička frame (vrátane \texttt{reader\_id}, \texttt{door\_id}, \texttt{seq}, \texttt{key\_version} a nonce) vstupuje do AEAD operácie ako AAD, čím je kryptograficky viazaná na šifrovaný obsah.
 
@@ -156,12 +158,12 @@ Auditný HMAC & \texttt{audit-chain-salt-v1} & \texttt{audit-hmac-v1} \\
 
 Grafické znázornenie tejto derivačnej hierarchie je v obrázku~\ref{fig:hkdf_tree}.
 
-\begin{figure*}[H]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.92\textwidth]{plots/hkdf_derivation_tree.png}
 \caption{Derivácia kľúčov z master secret cez HKDF. Každá vetva má vlastný \texttt{info} reťazec (domain separation).}
 \label{fig:hkdf_tree}
-\end{figure*}
+\end{figure}
 
 Info reťazce zabezpečujú domain separation\cite{RFC5869}: z rovnakého master kľúča nikdy nevznikne rovnaký podkľúč pre dva rôzne účely, ani keby sa hodnoty \texttt{reader\_id} a \texttt{key\_version} náhodne prekrývali. Súčasne umožňujú neskoršiu zmenu verzie schémy (napríklad z \texttt{access-aead-v1} na \texttt{access-aead-v2}) bez spätnej kompatibility so starými kľúčmi, čo je dôležité pri migračných scenároch.
 
@@ -194,14 +196,24 @@ Veľkosť okna (\texttt{replay\_window\_size}) je konfigurovateľná a priamo ov
 
 Nad rámec reaktívneho odmietnutia jednotlivých frame implementácia obsahuje komponent \texttt{ProtocolAnomalyDetector}, ktorý sleduje vzory správania na úrovni celej čítačky a pri podozrivej aktivite dokáže čítačku proaktívne umiestniť do karantény. Tento prístup vychádza z princípov detekcie anomálií v sieťovom prostredí\cite{NIST80094}.
 
-Detektor udržiava per-reader stavový záznam a~sleduje štyri typy anomálií:
+Detektor udržiava per-reader stavový záznam a~sleduje štyri typy anomálií uvedené v~tabuľke~\ref{tab:anomaly-types}.
 
-\begin{enumerate}[leftmargin=*,itemsep=2pt]
-  \item \textbf{Opakované sekvenčné číslo} (\texttt{seq\_reuse}): ak frame nesie \texttt{seq}, ktoré už bolo zaznamenané. Na rozdiel od \texttt{ReplayWindow}, ktorá frame iba odmietne, detektor túto udalosť zaregistruje ako indikátor replay útoku.
-  \item \textbf{Rollback sekvenčného čísla} (\texttt{seq\_rollback}): ak \texttt{seq + rollbackThreshold < maxSeenSeq}. Veľký skok späť signalizuje, že útočník sa pokúša obísť sliding window opakovaním starších sekvencií.
-  \item \textbf{Nesúlad nonce} (\texttt{nonce\_mismatch}): ak prijatý nonce nezodpovedá deterministicky odvodenému nonce z kontextu hlavičky. Táto kontrola je aktívna iba pri deterministickom nonce móde a~súčasne zapnutom detektore.
-  \item \textbf{Séria zlyhaní tagu} (\texttt{tag\_fail\_streak}): ak počet po sebe nasledujúcich zlyhaní AEAD autentifikačného tagu dosiahne konfigurovateľný limit. Opakované zlyhania indikujú systematický pokus o~predloženie neplatného ciphertextu.
-\end{enumerate}
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.2}
+\centering
+\caption{Typy anomálií sledovaných detektorom \texttt{ProtocolAnomalyDetector}}
+\label{tab:anomaly-types}
+\begin{tabular}{p{3.2cm} p{10.3cm}}
+\toprule
+\textbf{Kód anomálie} & \textbf{Popis} \\
+\midrule
+\texttt{seq\_reuse} & Opakované sekvenčné číslo: frame nesie \texttt{seq}, ktoré už bolo zaznamenané --- detektor udalosť registruje ako indikátor replay útoku. \\
+\texttt{seq\_rollback} & Rollback sekvenčného čísla: \texttt{seq + rollbackThreshold < maxSeenSeq}; skok späť signalizuje pokus obísť sliding window. \\
+\texttt{nonce\_mismatch} & Nesúlad nonce: prijatý nonce nezodpovedá deterministicky odvodenej hodnote z~kontextu hlavičky (aktívne iba v~deterministickom móde). \\
+\texttt{tag\_fail\_streak} & Séria zlyhaní tagu: počet po sebe nasledujúcich zlyhaní AEAD tagu dosiahne konfigurovateľný limit, čo indikuje systematický pokus o~predloženie neplatného ciphertextu. \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 Pri detekcii anomálie sa čítačka umiestni do karantény: všetky ďalšie frame od tejto čítačky sú zamietnuté s~dôvodom \texttt{quarantined}, bez ohľadu na ich obsah. Karanténa je proaktívna obrana --- izoluje celé zariadenie, nie iba jednotlivý frame. Tým sa odlišuje od anti-replay okna (ktoré zamieta iba konkrétnu sekvenciu) a~od zlyhania AEAD dešifrovania (ktoré zamieta iba frame s~neplatným tagom).
 
@@ -259,7 +271,7 @@ Tieto výsledky posilňujú dôveru, že experimentálne merania odrážajú spr
 \subsection{Experimentálna analýza bezpečnostných profilov}
 \label{sec:experiments}
 
-Táto kapitola nadväzuje na teoretické východiská z oblastí AEAD, správy nonce, anti-replay ochrany, derivácie kľúčov a detekcie protokolových anomálií. Kým teoretická časť formulovala bezpečnostné požiadavky a model hrozieb, táto kapitola tieto požiadavky premieňa na merateľné tvrdenia a overuje ich experimentálne pomocou profilov A1/A2\,$\times$\,R0/R1/R2. Jadrom analýzy nie je všeobecná bezpečnosť celého informačného systému, ale konkrétne vyhodnotenie toho, ako voľba AEAD algoritmu, nonce stratégie a runtime detektora ovplyvňuje odolnosť voči zvoleným triedam útokov. Každý scenár priamo zodpovedá jednému teoretickému konceptu: S1 overuje anti-replay, S2 AAD binding, S3a nonce enforcement, S3b kryptografickú izoláciu kľúčov (HKDF), S4 sekvenčnú čerstvosť, S5 AEAD tag verifikáciu a~S7 odolnosť voči modifikácii nonce v~transite (MITM na kanáli medzi frontend a~DecisionService).
+Táto kapitola nadväzuje na teoretické východiská z oblastí AEAD, správy nonce, anti-replay ochrany, derivácie kľúčov a detekcie protokolových anomálií. Kým teoretická časť formulovala bezpečnostné požiadavky a model hrozieb, táto kapitola tieto požiadavky premieňa na merateľné tvrdenia a overuje ich experimentálne pomocou profilov A1/A2\,$\times$\,R0/R1/R2. Jadrom analýzy nie je všeobecná bezpečnosť celého informačného systému, ale konkrétne vyhodnotenie toho, ako voľba AEAD algoritmu, nonce stratégie a runtime detektora ovplyvňuje odolnosť voči zvoleným triedam útokov. Každý scenár priamo zodpovedá jednému teoretickému konceptu: S1 overuje anti-replay, S2 AAD binding, S3a nonce enforcement, S3b kryptografickú izoláciu kľúčov (HKDF), S4 sekvenčnú čerstvosť, S5 AEAD tag verifikáciu a~S7 odolnosť voči modifikácii nonce v~zostavenom frame (simulácia efektu MITM útoku).
 
 Predchádzajúce kapitoly opísali návrh a implementáciu bezpečnostných mechanizmov prototypu. Cieľom tejto kapitoly je experimentálne overiť, či a ako tieto mechanizmy skutočne zvyšujú odolnosť systému voči vybraným útokovým scenárom. Experimenty sú navrhnuté tak, aby pokrývali rôzne triedy hrozieb a umožnili porovnanie šiestich konfiguračných profilov.
 
@@ -277,7 +289,7 @@ Výber scenárov vychádza z modelu hrozieb STRIDE\cite{STRIDE} presentovaného 
 \midrule
 Tampering & S2 & AAD binding & Zmena hlavičky frame. \\
 Tampering & S5 & AEAD Poly1305 & Poškodený ciphertext. \\
-Tampering & S7 & AEAD + R2 & Nonce MITM v~transite. \\
+Tampering & S7 & AEAD + R2 & Simulovaný nonce tamper. \\
 Replay & S1 & ReplayWindow & Opakovanie frame. \\
 Nonce enforcement & S3a & R2 detektor & Odchýlka nonce. \\
 Key isolation & S3b & HKDF + AEAD & Cross-reader frame. \\
@@ -451,13 +463,13 @@ Scenár vytvorí validný frame a následne poškodí ciphertext deterministicko
   \item Fáza trial označená ako ``measure'' (nie ``attack'').
 \end{itemize}
 
-\paragraph{S7: Nonce tamper (MITM na kanáli)}
+\paragraph{S7: Nonce tamper (simulovaný MITM útok)}
 
-Scenár simuluje útočníka, ktorý zachytí validný AEAD frame na komunikačnom kanáli medzi frontend službou a~DecisionService a~modifikuje nonce v~hlavičke (XOR 0xFF na všetkých 24 bajtoch). Frame bol pôvodne platný --- kľúč, payload aj AAD sú správne --- ale nonce je zmenený v~transite.
+Scenár simuluje efekt útočníka, ktorý by zachytil validný AEAD frame na komunikačnom kanáli a~zmenil nonce v~hlavičke. Harness vytvorí platný frame (kľúč, payload aj AAD sú správne) a~následne modifikuje pole nonce bitovou inverziou (XOR 0xFF na všetkých 24 bajtoch) pred odoslaním do \texttt{DecisionEngine}-u. Cieľom je overiť reakciu rozhodovacej vrstvy na frame s~inak platným obsahom, ale nekonzistentným nonce.
 
 \textit{Očakávané správanie:} Zmena nonce spôsobí zmenu keystream-u pri AEAD dešifrovaní, čo vedie k~zlyhaniu Poly1305 tag verifikácie. Všetky profily odmietajú frame (\texttt{decrypt\_failed}). R2 navyše detekuje odchýlku nonce od očakávanej deterministickej hodnoty (\texttt{nonce\_mismatch}) ešte pred pokusom o~dešifrovanie a~okamžite zakaranténuje zariadenie.
 
-\textit{Rozdiel oproti S3a:} S3a injektuje chybu do generátora nonce (fault model --- frame je od začiatku vytvorený s~nesprávnym nonce). S7 začína s~platným frame a~modifikuje ho v~transite (network MITM model). Architektúra s~oddeleným DecisionService na porte 8081 robí tento scenár realistickým --- frame skutočne cestuje cez HTTP kanál.
+\textit{Rozdiel oproti S3a:} S3a injektuje chybu do generátora nonce (fault model --- frame je od začiatku vytvorený s~nesprávnym nonce). S7 naopak začína s~platným frame a~modifikuje ho dodatočne (post-construction tamper model), čím modeluje efekt MITM útoku na úrovni bajtov frame. Oba scenáre produkujú odlišné vstupné podmienky pre rozhodovaciu vrstvu: S3a testuje detekciu chybného generátora, S7 testuje detekciu modifikácie už zostaveného frame. Reálny MITM útok na HTTP kanál medzi frontend službou a~DecisionService by vytvoril identické vstupné byty pre \texttt{DecisionEngine}, preto meranie bezpečnostnej reakcie je invariantné voči bodu podmeny.
 
 \subsubsection{Metodika zberu a spracovania dát}
 \label{sec:methodology}
@@ -513,7 +525,7 @@ Obrázok~\ref{fig:heatmap} zobrazuje úspešnosť útokov pre všetky kombináci
   \item \textbf{S3a} --- nonce enforcement: R0/R1 prepustia frame s chybným nonce (100\%); R2 odchýlku zachytí a zakaranténuje (0\%).
   \item \textbf{S3b} --- cross-reader key isolation: žiadny profil neprijal frame z kontextu inej čítačky (0\%); R2 karanténuje od prvého frame.
   \item \textbf{S4} --- R0/R1 čiastočne zraniteľné (11\%), R2 blokuje (0\%).
-  \item \textbf{S7} --- nonce tamper (MITM): zmena nonce v~transite spôsobí zmenu keystream-u a~zlyhanie Poly1305 tag verifikácie. Všetky profily odmietajú frame (0\%); R2 navyše detekuje odchýlku nonce ešte pred dešifrovaním (\texttt{nonce\_mismatch}) a~zakaranténuje zariadenie.
+  \item \textbf{S7} --- simulovaný nonce tamper: modifikácia nonce v~zostavenom frame (modeluje efekt MITM útoku) spôsobí zmenu keystream-u a~zlyhanie Poly1305 tag verifikácie. Všetky profily odmietajú frame (0\%); R2 navyše detekuje odchýlku nonce ešte pred dešifrovaním (\texttt{nonce\_mismatch}) a~zakaranténuje zariadenie.
 \end{itemize}
 
 \paragraph{Závislosť od počtu útočných frame}

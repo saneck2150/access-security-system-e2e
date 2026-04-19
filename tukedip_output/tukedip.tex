@@ -51,7 +51,7 @@ pdfcreator={pdfLaTeX},
 pdfkeywords={kontrola prístupu, RFID, NFC, AEAD, ChaCha20-Poly1305},
 pdftitle={Zvýšenie bezpečnosti vybraných šifrovacích algoritmov v prístupových systémoch},
 pdfauthor={Oleksandr Mykhailyshyn},
-pdfsubject={Diplomová práca}
+pdfsubject={Diplomová práca, identifikátor 75576}
 }
 
 %% ====================================================================
@@ -64,30 +64,29 @@ pdfsubject={Diplomová práca}
 \jazyk{Slovenský}
 \title{Enhancing Security of Selected Encryption Algorithms in Access Control Systems}
 \autor{Oleksandr Mykhailyshyn}
-\veduciprace{TODO --- doplniť vedúceho práce}
-%\konzultanta{TODO}
+\veduciprace{doc.~Ing.~Eva Chovancová, PhD.}
 \titul{Bc}
 \univerzita{Technická univerzita v~Košiciach}
 \fakulta{Fakulta elektrotechniky a informatiky}
 \skratkafakulty{FEI}
 \katedra{Katedra počítačov a informatiky}
 \skratkakatedry{KPI}
-\odbor{TODO --- doplniť študijný odbor}
-\specializacia{}
+\odbor{Informatika}
+\specializacia{Informatika}
 %%
 \abstrakt{%
-Diplomová práca sa zaoberá návrhom, implementáciou a~experimentálnym overením bezpečnostných mechanizmov pre systém kontroly fyzického prístupu na báze RFID/NFC. Ako základ slúži štandardné nasadenie AEAD podľa RFC~8439 (ChaCha20-Poly1305); práca navrhuje modifikácie spôsobu jeho nasadenia --- deterministickú konštrukciu nonce pomocou HMAC a~runtime verifikáciu s~anomálnou detekciou --- a~experimentálne overuje ich prínos. Prototyp pozostáva z~hardvérovej čítačky (ESP32, RC522), serverovej aplikácie v~jazyku C++20 a~lokálneho úložiska SQLite. Systém implementuje viacvrstvovú ochranu: HMAC-SHA-256 autentifikáciu hardvérových požiadaviek, interný AEAD frame s~väzbou hlavičky (AAD binding), HKDF deriváciu kľúčov pre každú čítačku, anti-replay sliding window, detektor protokolových anomálií s~karanténou a~tamper-evident auditný log s~HMAC hash chain. Architektúra oddeľuje spracovanie požiadaviek od rozhodovacej logiky prostredníctvom HTTP rozhrania medzi dvoma nezávislými službami, čo umožňuje nezávislé testovanie bezpečnostných vlastností AEAD vrstvy. Experimentálna analýza porovnáva šesť konfiguračných profilov (dva AEAD algoritmy krát tri stratégie generovania nonce) v~siedmich scenároch: replay, manipulácia hlavičky, nonce enforcement, cross-reader izolácia kľúčov, rollback sekvenčného čísla, verifikácia AEAD tagu a~nonce tamper simulujúci útok na kanáli. Výsledky ukazujú, že profily s~deterministickým nonce a~runtime detektorom (R2) dosahujú nulovú úspešnosť útoku naprieč všetkými scenármi. Štandardné nasadenie AEAD s~náhodným nonce (R0) slúži ako srovnávacia základňa; deterministická konštrukcia nonce (R1) eliminuje závislosť na kvalite generátora náhodných čísiel, no bez runtime verifikácie neposkytuje pridanú detekčnú schopnosť. Overhead detektora nepresahuje 19\% priepustnosti, čo je rádovo nepodstatné pre reálnu prevádzku prístupového systému s~typickou záťažou pod 10 udalostí za sekundu. Práca demonštruje, že aj na cenovo dostupnom embedded hardvéri je možné implementovať viacvrstvovú kryptografickú ochranu s~merateľným prínosom oproti štandardnému nasadeniu AEAD.}
+Diplomová práca sa zaoberá návrhom, implementáciou a~experimentálnym overením bezpečnostných mechanizmov pre systém kontroly fyzického prístupu na báze RFID/NFC. Ako srovnávacia základňa slúži štandardné nasadenie AEAD podľa RFC~8439; práca navrhuje modifikácie spôsobu jeho nasadenia zamerané na deterministickú konštrukciu nonce a~runtime verifikáciu s~anomálnou detekciou. Prototyp pozostáva z~hardvérovej čítačky (ESP32), serverovej aplikácie v~jazyku C++20 a~lokálneho úložiska SQLite, a~implementuje viacvrstvovú kryptografickú ochranu zahŕňajúcu autentifikáciu požiadaviek, šifrovanie s~väzbou hlavičky, deriváciu kľúčov, anti-replay mechanizmus a~tamper-evident auditný log. Experimentálna analýza porovnáva navrhované konfiguračné profily vo viacerých útočných scenároch a~posudzuje ich prínos oproti štandardnému nasadeniu. Výsledky potvrdzujú, že kombinácia deterministického nonce a~runtime detekcie poskytuje merateľné zlepšenie odolnosti pri zanedbateľnom dopade na výkon.}
 %%
 \klucoveslova{kontrola prístupu, RFID, NFC, kryptografia, AEAD, ChaCha20-Poly1305, XChaCha20-Poly1305, anomálna detekcia, HMAC, HKDF, anti-replay, audit log}
 %%
 \abstrakte{%
-The thesis presents the design, implementation, and experimental evaluation of security mechanisms for an RFID/NFC physical access control system. The baseline is the standard AEAD deployment per RFC~8439 (ChaCha20-Poly1305); the work proposes modifications to the deployment mode --- deterministic HMAC-based nonce construction and runtime verification with anomaly detection --- and experimentally evaluates their contribution. The prototype consists of a~hardware reader (ESP32, RC522), a~C++20 server application, and a~local SQLite storage. The system implements multi-layered protection: HMAC-SHA-256 hardware request authentication, an internal AEAD frame with header binding (AAD), HKDF per-reader key derivation, an anti-replay sliding window, a~protocol anomaly detector with device quarantine capability, and a~tamper-evident audit log based on an HMAC hash chain. The architecture separates request processing from the decision logic via an HTTP interface between two independent services, enabling independent testing of the AEAD layer security properties. The experimental analysis compares six configuration profiles (two AEAD algorithms times three nonce generation strategies) across seven scenarios: replay, header manipulation, nonce enforcement, cross-reader key isolation, sequence number rollback, AEAD tag verification, and nonce tampering simulating a~channel attack. The results show that profiles with a~deterministic nonce and a~runtime detector (R2) achieve a~zero attack success rate across all scenarios, with a~detector overhead not exceeding 19\% of throughput --- negligible for the real-world workload of an access control system.}
+The thesis presents the design, implementation, and experimental evaluation of security mechanisms for an RFID/NFC physical access control system. The baseline is the standard AEAD deployment per RFC~8439; the work proposes modifications to the deployment mode focused on deterministic nonce construction and runtime verification with anomaly detection. The prototype consists of a~hardware reader (ESP32), a~C++20 server application, and a~local SQLite storage, and implements multi-layered cryptographic protection including request authentication, encryption with header binding, key derivation, an anti-replay mechanism, and a~tamper-evident audit log. The experimental analysis compares the proposed configuration profiles across multiple attack scenarios and assesses their contribution relative to the standard deployment. The results confirm that combining a~deterministic nonce with runtime detection yields a~measurable improvement in resilience at a~negligible impact on performance.}
 %%
 \keywords{access control, RFID, NFC, cryptography, AEAD, ChaCha20-Poly1305, XChaCha20-Poly1305, anomaly detection, HMAC, HKDF, anti-replay, audit log}
 %%
-\datumodovzdania{TODO.TODO.2026}
+\datumodovzdania{24.04.2026}
 \datumobhajoby{TODO.TODO.2026}
-\mesto{Košice}
+\mesto{Košice }
 \pocetstran{\pageref{page:posledna}}
 \kategoria{Záverečná práca}
 
@@ -112,6 +111,8 @@ The thesis presents the design, implementation, and experimental evaluation of s
 
 \abstraktsk
 
+\newpage
+\vspace*{-50pt}
 \abstrakteng
 
 \kabstrakt
@@ -214,7 +215,6 @@ Diplomová práca sa zaoberá návrhom a~experimentálnym overením bezpečnostn
 \phantomsection
 \protect\label{page:posledna}
 \curriculumvitae
-TODO --- doplniť životopis autora.
 \kcurriculumvitae
 
 \end{document}

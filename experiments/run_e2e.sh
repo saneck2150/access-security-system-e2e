@@ -7,7 +7,9 @@ PROJ_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER="$PROJ_ROOT/build/access_admin/access_admin"
 SCENARIOS="${SCENARIOS:-s1_replay s2_tamper s3_rng_fault s3_cross_reader s4_seq_reset s5_tag_probe s7_nonce_tamper}"
 PORT=8090
+DECISION_PORT=$((PORT + 1))
 URL="http://localhost:$PORT"
+DECISION_URL="http://localhost:$DECISION_PORT"
 OUTDIR="$PROJ_ROOT/build/experiments/results_e2e"
 EXTRA_ARGS="${*}"
 
@@ -99,8 +101,11 @@ for PROFILE in A1-R0 A1-R1 A1-R2 A2-R0 A2-R1 A2-R2; do
     setup_server_data
 
     # Verify server is alive
-    if ! curl -sf "$URL/api/decision/frame" -X POST -d "test" > /dev/null 2>&1; then
-        echo "ERROR: Server not responding for $PROFILE"
+    # Liveness: DecisionService responds (any HTTP status = socket open).
+    # Empty POST returns 400 {empty_frame} — that's fine, it proves the endpoint is up.
+    if ! curl -s -o /dev/null -w "%{http_code}" "$DECISION_URL/api/decision/frame" \
+            -X POST -d "" --connect-timeout 3 | grep -qE '^[1-5][0-9][0-9]$'; then
+        echo "ERROR: DecisionService not responding on $DECISION_URL for $PROFILE"
         kill $SERVER_PID 2>/dev/null || true
         continue
     fi
@@ -110,7 +115,7 @@ for PROFILE in A1-R0 A1-R1 A1-R2 A2-R0 A2-R1 A2-R2; do
         echo "  Running $SCENARIO ($PROFILE)..."
         cd "$PROJ_ROOT"
         ./build/experiments/$SCENARIO \
-            --e2e="$URL" \
+            --e2e="$DECISION_URL" \
             --profile="$PROFILE" \
             ${RUNS:---runs=5} ${WARMUP:---warmup=200} ${BASELINE:---baseline=200} \
             2>&1 | tail -1
