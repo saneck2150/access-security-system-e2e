@@ -26,7 +26,11 @@ bool checkAuth(const httplib::Request& req, const std::string& token) {
     if (token.empty()) {
         return true;
     }
-    return req.get_header_value("X-Admin-Token") == token;
+    const auto hdr = req.get_header_value("X-Admin-Token");
+    if (hdr.size() != token.size()) {
+        return false;
+    }
+    return sodium_memcmp(hdr.data(), token.data(), token.size()) == 0;
 }
 
 std::vector<uint8_t> hexToBytes(std::string_view hex) {
