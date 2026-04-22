@@ -2,6 +2,8 @@
 
 // ============================================================
 // hw_config.h — Hardware deployment configuration
+// !!! EXAMPLE VALUES — edit before deployment !!!
+// Values below are from the lab test setup and are NOT production credentials.
 // Edit this file to adapt the firmware to a specific device.
 // ============================================================
 

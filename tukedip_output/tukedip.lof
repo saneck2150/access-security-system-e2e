@@ -1,4 +1,0 @@
-\babel@toc {nil}{}\relax 
-\contentsline {figure}{\numberline {3\,--\,1}{\ignorespaces Derivácia kľúčov z master secret cez HKDF. Každá vetva má vlastný \texttt {info} reťazec (domain separation).}}{48}{figure.3.1}%
-\contentsline {figure}{\numberline {3\,--\,2}{\ignorespaces Úspešnosť útokov podľa scenára a profilu (priemer cez 5 behov). Zelené bunky: útok zablokovaný (0\%). Červené bunky: útok úspešný.}}{64}{figure.3.2}%
-\contentsline {figure}{\numberline {3\,--\,3}{\ignorespaces Priepustnosť pri $N=50{,}000$ frame (priemer $\pm $ std cez 5 behov) a percentily latencie.}}{66}{figure.3.3}%

@@ -126,6 +126,21 @@ cd build
 ctest --output-on-failure
 ```
 
+### First-Time Setup (generate master key)
+
+Before first run of the server or the E2E experiments, create the 32-byte
+master key used by the HKDF derivation chain. The file is git-ignored and
+is **not** shipped in the source archive.
+
+```bash
+mkdir -p secrets
+head -c 32 /dev/urandom | xxd -p -c 64 > secrets/master_key.hex
+```
+
+Details and format: see [`secrets/README.md`](secrets/README.md). The
+in-process experiment harness uses a deterministic demo key and does **not**
+require this step.
+
 ### Start Server
 
 ```bash

@@ -291,7 +291,7 @@ def plot_latency_boxplot(data: pd.DataFrame, out: Path):
 
 
 def plot_throughput(data: pd.DataFrame, out: Path):
-    """S6: throughput (frames/sec) with error bars and latency percentiles per profile."""
+    """S6: throughput (frames/sec) with error bars per profile. Latency percentiles are rendered via generate_latex_throughput() into throughput_table.tex."""
     tp = compute_throughput(data)
     if tp.empty:
         print("  SKIP throughput (no S6 data)")
@@ -304,37 +304,15 @@ def plot_throughput(data: pd.DataFrame, out: Path):
     tp_agg["profile"] = pd.Categorical(tp_agg["profile"], categories=PROFILE_ORDER, ordered=True)
     tp_agg = tp_agg.sort_values("profile")
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    fig, ax1 = plt.subplots(figsize=(10, 5))
 
     ax1.bar(tp_agg["profile"], tp_agg["mean"],
             yerr=tp_agg["std"], capsize=4,
             color=[PROFILE_PALETTE[p] for p in tp_agg["profile"]])
-    ax1.set_title(f"Throughput at N={max_n:,} (mean \u00b1 std)")
+    ax1.set_title(f"S6: Throughput Benchmark at N={max_n:,} (mean \u00b1 std)")
     ax1.set_ylabel("Frames / sec")
     ax1.set_xlabel("")
 
-    # Latency percentile table.
-    s6 = data[data["scenario"] == "S6_throughput"]
-    s6_max = s6[s6["attack_n"] == max_n]
-    latency_stats = s6_max.groupby("profile")["latency_us"].quantile(
-        [0.50, 0.95, 0.99]).unstack()
-    latency_stats = latency_stats.reindex(PROFILE_ORDER)
-    latency_stats.columns = ["p50", "p95", "p99"]
-
-    ax2.axis("off")
-    table = ax2.table(
-        cellText=latency_stats.round(1).values,
-        rowLabels=latency_stats.index,
-        colLabels=["p50 (\u00b5s)", "p95 (\u00b5s)", "p99 (\u00b5s)"],
-        loc="center",
-        cellLoc="center",
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1.2, 1.5)
-    ax2.set_title(f"Latency Percentiles at N={max_n:,}")
-
-    fig.suptitle("S6: Throughput Benchmark", fontsize=14)
     fig.tight_layout()
     fig.savefig(out / "throughput.png")
     plt.close(fig)
