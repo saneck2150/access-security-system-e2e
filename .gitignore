@@ -11,3 +11,9 @@ results/
 data/*
 tukedip_pdflatex_utf-8
 venv
+*.pdf
+*.zip
+tukedip_source
+LaTeX_template
+.claude
+article
