@@ -2,17 +2,19 @@
 
 A secure, cryptographically-verified physical access control system for doors and card readers. Hardware layer: ESP32 + MFRC522 over Wi-Fi. Server: C++20, HTTP REST API, SQLite, libsodium.
 
-## Branch: analytical
+## Repository layout
 
-This branch extends `main` with a **reproducible experimental harness** and **Python analysis pipeline** for the thesis security evaluation. It does not change any production server or firmware code — all additions are isolated to the `experiments/` and `analysis/` modules.
+The project ships as a single source tree containing the production system plus an additive experimental/analytical layer for the thesis security evaluation. The additions are strictly additive — they do not modify any production server or firmware code, and removing them leaves a fully functional production build.
 
-### What this branch adds
+### Additive modules (not required for production)
 
-| Addition | Description |
-|----------|-------------|
-| `experiments/` | C++ harness — seven scenario binaries (S1–S7) that run the DecisionEngine pipeline (in-process or E2E via HTTP) and record per-frame metrics to CSV |
+| Directory | Description |
+|-----------|-------------|
+| `experiments/` | C++ harness — eight scenario binaries (S1–S7, S3 split into S3a/S3b) that run the DecisionEngine pipeline (in-process or E2E via HTTP) and record per-frame metrics to CSV |
 | `analysis/analyze.py` | Python script that loads all CSVs and produces publication-quality plots + LaTeX tables |
-| `Latex_doc/` | Thesis document source (Slovak) |
+| `tukedip_output/` | Thesis document source (Slovak, LaTeX) |
+
+For a minimal production distribution, remove `experiments/`, `analysis/`, and `tukedip_output/` — the root `CMakeLists.txt` and the server build succeed without them.
 
 ### Experimental claims tested
 
@@ -25,7 +27,7 @@ This branch extends `main` with a **reproducible experimental harness** and **Py
 | **S4** Seq reset | Roll back sequence number | ReplayWindow rejects on all; R2 additionally quarantines on `seq_rollback` |
 | **S5** Tag probe | Corrupt ciphertext bytes | `decrypt_failed` on all profiles; R2 quarantines after 5 consecutive failures |
 | **S6** Throughput | Valid frames at varying load | Measures frames/sec per profile; XChaCha20 vs ChaCha20 overhead |
-| **S7** Nonce tamper | Valid frame with nonce XOR-flipped in transit (MITM) | `decrypt_failed` on all profiles; R2 quarantines via `nonce_mismatch` before AEAD |
+| **S7** Nonce tamper | Valid frame with nonce XOR-flipped post-construction (simulated MITM) | `decrypt_failed` on all profiles; R2 quarantines via `nonce_mismatch` before AEAD |
 
 **Key result (Thesis T1):** R2 enforces nonce policy as the only profile differentiating nonce strategies (S3a). HKDF per-reader key derivation provides cryptographic isolation across all profiles (S3b). Nonce tamper in transit is caught by AEAD on all profiles; R2 detects it proactively (S7).
 
@@ -124,6 +126,21 @@ cd build
 ctest --output-on-failure
 ```
 
+### First-Time Setup (generate master key)
+
+Before first run of the server or the E2E experiments, create the 32-byte
+master key used by the HKDF derivation chain. The file is git-ignored and
+is **not** shipped in the source archive.
+
+```bash
+mkdir -p secrets
+head -c 32 /dev/urandom | xxd -p -c 64 > secrets/master_key.hex
+```
+
+Details and format: see [`secrets/README.md`](secrets/README.md). The
+in-process experiment harness uses a deterministic demo key and does **not**
+require this step.
+
 ### Start Server
 
 ```bash
@@ -171,7 +188,7 @@ Each binary accepts `--seed=N`, `--warmup=N`, `--baseline=N`, `--runs=N`, `--e2e
 
 ```bash
 ./build/experiments/s1_replay --seed=123 --runs=10
-./build/experiments/s7_nonce_tamper --e2e=http://localhost:8080 --profile=A2-R2
+./build/experiments/s7_nonce_tamper --e2e=http://localhost:8081 --profile=A2-R2
 ```
 
 #### 3. Run Python analysis
@@ -182,8 +199,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install pandas matplotlib seaborn numpy
 
-# Run analysis (reads from build/results/, writes to analysis/plots/)
-python3 analysis/analyze.py --results-dir build/results --output-dir analysis/plots
+# Run analysis (reads from build/experiments/results/, writes to analysis/plots/)
+python3 analysis/analyze.py --results-dir build/experiments/results --output-dir analysis/plots
 ```
 
 #### 4. Outputs
@@ -204,9 +221,9 @@ python3 analysis/analyze.py --results-dir build/results --output-dir analysis/pl
 
 | File | Content |
 |------|---------|
-| `table_summary.tex` | Main results summary |
-| `table_throughput.tex` | S6 throughput stats |
-| `table_baseline.tex` | Baseline false-reject rates |
+| `scenario_summary.tex` | Main results summary |
+| `throughput_table.tex` | S6 throughput stats |
+| `baseline_correctness.tex` | Baseline false-reject rates |
 
 **Console summary** — printed after plots, shows key metrics:
 ```
